@@ -41,3 +41,68 @@ Antigravity: commit/finalize Stage4B ImportanceModel and learning APIs before 5C
 ## Contract change requests
 
 Initial sketch deltas required by guide: identity keyHash/postedTsMs in Decision; pShow computed; timezone argument on DigestSchedule; KillSource/KillSwitchControl/listener/ExpiryPolicy/default provider. Phase0 defaults for explorationEnabled=false,strictSession=false,empty allowlist,seed1 are conservative explicit assumptions; default modeOFF. Confidence in snapshotSummary is context classification confidence, not a probability that the twin prediction is correct.
+
+## Phase 0 implemented artifacts and verification
+
+Created the requested 11 Kotlin contract/helper files, 2 JVM test files, docs/DECISION_CONTRACT.md, both check scripts and tools/decision-contract.lock. Root package.json changed only by adding check:decision. Contract candidate version1 locks12 files (11 Kotlin+documentation), with LF-normalized SHA256. No ImportanceModel file is copied, modified or introduced. No Stage6 worktree, main modification, integration or push.
+
+Actual commands and output so far:
+```
+npm ci --offline --ignore-scripts
+added 6 packages, and audited 7 packages in 2s
+found 0 vulnerabilities
+
+node tools/check-decision-purity.mjs --self-test
+decision-purity self-test: PASS (9 planted violations)
+node tools/check-decision-contract.mjs --self-test
+decision-contract self-test: PASS (planted mutation rejected)
+npm run check:decision
+decision-purity: PASS (11 Kotlin files)
+decision-contract: PASS (version 1; 12 frozen files; 11 core defaults)
+```
+
+JDK directly verified in this session: Java21.0.11 LTS (21.0.11+9-LTS-211). Build targets JVM17; no JDK17 runtime claim.
+
+First Gradle invocation from isolated root:
+```
+$env:JAVA_HOME='C:\Program Files\Java\jdk-21.0.11'
+$env:ANDROID_HOME='C:\Users\abhig\AppData\Local\Android\Sdk'
+.\phone\gradlew.bat -p phone --gradle-user-home 'C:\Users\abhig\OneDrive\Desktop\IIITN\phone\.gradle' --no-daemon --offline :app:testDebugUnitTest --tests 'com.dhyan.app.twin.decision.*' --tests 'com.dhyan.app.safety.*' --tests 'com.dhyan.app.twin.contract.*'
+```
+Production Kotlin compilation succeeded with existing deprecation warnings in collectors and a preexisting GenEvent copy-visibility warning. No out-of-scope fix attempted. Test compile could not resolve the existing declared kotlinx-coroutines-test1.10.2 in offline cache. Actual summary:
+```
+> Task :app:compileDebugUnitTestKotlin FAILED
+No cached version of org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2 available for offline mode.
+BUILD FAILED in 59s
+23 actionable tasks: 23 executed
+```
+Retry runs the identical command without --offline; no Gradle/dependency change. Export tests are included only to produce the snapshots required by check:twin-contract. Full suite and device tests are not claimed. ContextBucketer actually lives in twin/context/ContextBucket.kt.
+
+### Final Phase 0 results (this session)
+
+Retry command: identical Gradle invocation above WITHOUT --offline. Actual exit0 summary:
+```
+BUILD SUCCESSFUL in 31s
+25 actionable tasks: 3 executed, 22 up-to-date
+```
+Actual JUnit XML: KillSwitchContractTest2, DecisionContractTest6, ContractExportTest1; total9 tests, failures0, errors0. Eight new contract tests plus one existing twin export test. The full Kotlin test suite was not executed. Existing persona test compilation warnings about unnecessary !! were not changed.
+
+```
+npm run check:decision
+decision-purity: PASS (11 Kotlin files)
+decision-contract: PASS (version 1; 12 frozen files; 11 core defaults)
+npm run check:twin
+twin-purity: PASS (164 twin file(s); absent modules are not target verification)
+npm run check:twin-contract
+twin-contract: PASS (7 snapshot(s) validated against schema; TwinConfig defaults match Appendix A)
+```
+
+Both self-tests passed earlier in this session. git diff --check passed. Root package diff adds exactly one key. Prepared guide/AGENTS changes are explicit Phase0 setup exceptions to the steady-state Stage5 owned-path list. No core-spec, other twin implementation, collector, Gradle, manifest, database, UI or governance edits. No push or merge. Main checkout remains on its active branch; the separate contract branch preserves its uncommitted Stage4B work.
+
+Status ledger: 5-PRE implemented (findings documented); 5.0 tested within the exact scope above; 5A/5B/5C/5D/5E not_started. Contract is a review candidate, not yet an owner-frozen baseline. Runtime safety/pipeline/exploration/estimators have not been built. Stage4B prerequisite remains pending; no substitute importance implementation created. Hardware/cloud/on-device latency: not verified on target.
+
+Inputs for Stage6 now: the safe AlwaysAllowDecisionProvider can never hold. Only after owner review/merge, base both future implementation worktrees on this exact Phase0 commit and use the locked public types. Stage6's fake provider must stay in test/debug sources. No actual DecisionPipeline constructor or estimator exists yet. No claim of completed Stage5.
+
+Safety matrix rows handed to Stage6: process restart/reboot persistence; low battery/background restrictions; listener loss; scheduler/storage failure; no-network operation; real actuation confirmation and restoration; identity race during platform actuation. Write acceptance tests and perform owner-run target checks as required by the shared guide. Final reason registry pending5B/C; only no_provider and identity_mismatch are defined by the Phase0 default/factory.
+
+STOP: review and merge the Phase 0 contract before creating Stage5/Stage6 implementation worktrees. This stop comes from docs/STAGE5_GUIDE.md Prompt5.0, not a dependency on device access. Do not run 5A or Stage6 implementation against an unreviewed moving contract.

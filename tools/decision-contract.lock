@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "files": {
+    "phone/app/src/main/java/com/dhyan/app/twin/decision/DecisionContract.kt": "ca294e6123dd04a1a44ebffca10a2998e7ae051b9cb197c466d2ecb2463ce9cd",
+    "phone/app/src/main/java/com/dhyan/app/twin/decision/NotificationFacts.kt": "190d40a5973bce55b5d3516e1977e513944f896408bd91d7bd9b608eb2a9d1be",
+    "phone/app/src/main/java/com/dhyan/app/twin/decision/PolicyDefaults.kt": "cf5ba0aece0f5610adbb8873d55967fce7973c311c2398e366a27b6d6adcf601",
+    "phone/app/src/main/java/com/dhyan/app/twin/decision/PolicySettings.kt": "7c7e08abae61b735506de2ee1db614ff2f2b24b2b8aa80939e9af9ef874209f6",
+    "phone/app/src/main/java/com/dhyan/app/twin/decision/Decision.kt": "a302ac46a9eb048fe98d5991e8cd5d3401abb9f1e258624671e64b7f9f1e7b3e",
+    "phone/app/src/main/java/com/dhyan/app/twin/decision/DecisionRecord.kt": "e2b703955bff6ad1bb2312c90ce0a14d7a4c302076ddad7a16882d517f8e4430",
+    "phone/app/src/main/java/com/dhyan/app/twin/decision/DecisionProvider.kt": "b3155ea7fe9977102370bf89b778893afe4c236758ed9e274588c1abddeee3f4",
+    "phone/app/src/main/java/com/dhyan/app/twin/decision/AlwaysAllowDecisionProvider.kt": "9e41540a620c27d3e2edd5a1536b60dd9a673a1c3dc6df947e584bd47054b02b",
+    "phone/app/src/main/java/com/dhyan/app/twin/decision/DigestSchedule.kt": "2f7752ed0cb1c0855794f03f9b58bfcdc36d8094c7f03963464aae7aeaf25ffe",
+    "phone/app/src/main/java/com/dhyan/app/safety/KillSwitchControl.kt": "a279ac399739e85a912b17fd4d3368117bacedc1e1cd94f71a529aa04c99fbc3",
+    "phone/app/src/main/java/com/dhyan/app/safety/ExpiryPolicy.kt": "2347848225f8bcf81dfb907c7a7373837a4aa643d8a269594d1be6a9521726d4",
+    "docs/DECISION_CONTRACT.md": "25b7b3ce2ae383aa9f510ea23819ed2bfeab898063bfc8af7382223e2d305f00"
+  }
+}
