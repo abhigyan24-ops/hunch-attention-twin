@@ -1,0 +1,45 @@
+{
+  "name": "dhyan-vscode",
+  "displayName": "Dhyan VS Code Sensor",
+  "type": "module",
+  "description": "Privacy-preserving telemetry sensor for Dhyan (counts and categories only, zero document text)",
+  "version": "1.0.0",
+  "publisher": "dhyan",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./src/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Dhyan Sensor",
+      "properties": {
+        "dhyan.ingestPort": {
+          "type": "number",
+          "default": 47821,
+          "description": "Port of the local Dhyan ingest server (127.0.0.1)"
+        },
+        "dhyan.token": {
+          "type": "string",
+          "default": "",
+          "description": "Authentication token shown in the Dhyan laptop app"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "dhyan.reconnect",
+        "title": "Dhyan: Reconnect Sensor"
+      },
+      {
+        "command": "dhyan.showStatus",
+        "title": "Dhyan: Show Sensor Status"
+      }
+    ]
+  }
+}
