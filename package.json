@@ -8,7 +8,8 @@
     "check:twin": "node tools/check-twin-purity.mjs",
     "check:twin-contract": "node tools/check-twin-contract.mjs",
     "check:personas": "node tools/check-personas-purity.mjs && node tools/check-persona-data.mjs",
-    "check:decision": "node tools/check-decision-purity.mjs && node tools/check-decision-contract.mjs"
+    "check:decision": "node tools/check-decision-purity.mjs && node tools/check-decision-contract.mjs",
+    "check:actuator": "node tools/check-actuator-contract.mjs"
   },
   "devDependencies": {
     "ajv": "^8.17.1",
