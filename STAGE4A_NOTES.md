@@ -301,3 +301,14 @@ Stage 4A source purity inspection: PASS (5 Kotlin files).
 ```
 This was an inline inspection, not the future check-personas-purity.mjs implementation. Full twin/Stage 2 integration and full Stage 4A gate were not run. No hardware checks: not verified on target. Sandbox Git inspection outside the main writable root failed; repeated with approved worktree access for final commit verification.
 JUnit XML: tests=11, failures=0, errors=0
+
+## 4A-2 RNG increment
+
+Added independent SplitMix64 GenRng and fixed-seed sampler tests. Uniform consumes one word; Box-Muller caches a pair; exponential consumes one uniform even at zero rate; Bernoulli consumes one at boundary probabilities. Poisson uses sequential exponential arrivals (lambda bounded to 1e6 as an explicit work bound); zero Poisson consumes no draws. Fork depends only on seed/tag/index, never mutable parent state. No twin imports or new dependencies.
+
+Executed the same isolated offline Gradle package-test command documented above. Actual output:
+```
+BUILD SUCCESSFUL in 44s
+25 actionable tasks: 7 executed, 18 up-to-date
+```
+History generator and the remaining 4A-2 world classes are still pending. This is an RNG increment, not a completed Stage 4A-2 gate. No target checks performed.
