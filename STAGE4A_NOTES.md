@@ -312,3 +312,125 @@ BUILD SUCCESSFUL in 44s
 25 actionable tasks: 7 executed, 18 up-to-date
 ```
 History generator and the remaining 4A-2 world classes are still pending. This is an RNG increment, not a completed Stage 4A-2 gate. No target checks performed.
+
+## 4A-2 history generator decisions
+
+Implemented only inside personas/world and persona tests: GenEvent/typed GenPayload, DayPlanner, NotificationProcess, TrialDraws/TruthRecord, HistoryGenerator. All events source=persona and synthetic=true, deterministic v4-shaped UUIDs, per-device seq from1, required schemaVersion/deviceId and receiver ingestedTs. Sequence allocation follows reference-time order; output sorts device timestamps then device/seq. Device skew is additive to the wire timestamp; replay must use the inverse offset.
+
+A4-2 additions: sender selection uniform across fictional important aliases and three other aliases; messaging urgency .6, promo .1, other .3; messaging flags only for msg_known. Sender IDs use SHA-256 over seed/persona/alias, suitable only for synthetic fixtures, not a production salt/key design. Repeat counts use same class+sender arrivals in the preceding five minutes. Packages are explicitly synthetic category tokens, not claims about installed Android packages.
+
+A4-3 late and focus-peak multipliers compose multiplicatively. A4-8 self hazard integrates piecewise constant hourly rates across boundaries, rather than freezing the notification's starting rate across W. The lambdaPerHour field records the starting rate; TrialDraws.selfDelayMin records the integrated result. Outside notification windows, independent exponential arrival candidates restart after an interruption/notification (memoryless hazard), with a separate indexed stream. Timeline is sequential and phone episodes cannot overlap.
+
+Overlapping windows: notifications during an active dwell/resume have inSession=true and are emitted as posted only. A notification inside a prior reserved outcome window but outside the active episode has trialEligible=false, exclusionReason=overlapping_window, and inSession=false; it is not falsely labelled an active session. It is emitted and auto-removed without starting a second owner. This explicitly resolves the pack's previously noted overlap ambiguity conservatively. Truth retains indexed draws for every notification including exclusions; later summaries must filter trialEligible, not merely !inSession. This is a generator assumption requiring owner review, not a measured property or an extra wire field.
+
+Unsupported MILD_MISSPEC and RandomizedHold throw explicitly until 4A-3; costs, propensities and TrueEffect are not implemented here. Initial truth holds identifiers/context, eligibility, exogenous draws and owner. Outside scheduled blocks, supported task defaults coding (Rahul/Kabir), studying (Anika), without inventing missing pickup tables. Self destinations use the social_notif destination mix. Fatigue uses actual scheduled hours elapsed and explicit switchRateZ=0/stallRatio=0 assumptions. Work blocks follow calendar weekdays; focusPeaks modulates hazard, not the assumed fixed schedule. Off-hours notifications and pickups remain simulated; the laptop is only marked working during planned work blocks. Episodes beginning before the 14-day end are completed beyond the end, rather than truncating dwell/resume. Laptop resume_first_edit emits only if recovery finishes within the originating work block. Full recovery truth costs remain 4A-3 work.
+
+Pickup latency uses a deterministic inverse-normal transform of the required single uniform uLatency, with an approximate normal CDF and 60 bisection iterations; it consumes no extra RNG. Box-Muller draw order and pair caching stay explicit. RNG streams separate arrivals, sender metadata, trial draws, outside-window self episodes and IDs. Changing pickup probabilities does not perturb any indexed trial's underlying draws, although actual eligibility/timeline changes are expected.
+
+Integration warning: the active IIITN checkout's core-spec/event.schema.json differs bytewise from this branch. Do not overwrite either. Validate this milestone against this branch's Stage 1 contract; reconcile the final committed schema and Stage 3 contract after Antigravity finishes. No main/Stage 2/Stage 3 files edited.
+
+
+---
+
+## Milestone report — 4A-1 through 4A-5 (2026-10-25)
+
+**All tests run in this session on ABHIGYAN_24. Results are from this session only.**
+
+### 4A-1 (Personas, catalog, loader)
+- PersonaDef, PersonaLoader, PersonaCatalog, GeneratorConfig
+- 8 PersonaLoaderTest + 3 JsonReaderTest = **11 tests PASS**
+
+### 4A-2 (HistoryGenerator, DayPlanner, NotificationProcess, GenRng)
+- GenRng (splitmix64, fork, nextNormal), GenEvent schema-ready events, 14-day MATCHED world ShowAll
+- 3 GenRngTest + 8 HistoryGeneratorTest (updated) = **11 tests PASS**
+- Rahul 14-day SHA-256 (seed=20261025): see GATE-A below
+
+### 4A-3 (Ground truth, logging policy, MILD_MISSPEC)
+- TruthRecord (9 draws, lShowMin, lSuppressMin, deltaLMin, realizedArm, propensity, eligibleForExploration)
+- LoggingPolicyEngine (ShowAll, RandomizedHold), TrueEffect (estimate, summarize)
+- 4 TrialRulesTest + 5 LoggingPolicyTest + 3 TrueEffectTest = **12 tests PASS**
+- Measured outputs (not tuned, not claimed on target):
+  - Rahul mean ΔL = 11.98 min | Kabir mean ΔL = 0.72 min
+  - Rahul negΔL records = 21 | Kabir negΔL records = 7
+  - TrueEffect estimate lShow = 29.39 ≈ analytical 29.43 (within 0.1%)
+
+### 4A-4 (Export: JSONL writer, truth writer, Node checkers)
+- EventJsonlWriter, TruthJsonWriter, DeterministicJson, EventJsonlReader
+- tools/check-personas-purity.mjs, tools/check-persona-data.mjs
+- 2 FixtureExportTest = **2 tests PASS**
+- Node purity: **PASS 22 files**
+- Node data: **PASS 5 fixtures, 12,567 events**
+
+Fixture SHA-256 (seed=20261025, 14 days, from generateFixturesForAllPersonas test):
+- Rahul:  1719c7f4d8cd284a43375a234da526dca605af02497e6cd77e3d855a56a026a2
+- Anika:  82b4ccf4f60c6df503910ad2349ad4957b9a01b0a7935bf354031a7216c6c738
+- Kabir:  35920678b04b7df4adfd18db6ffd15d9b6f81ef41c6ffbce92dc330d9d608b9d
+
+### 4A-5 (Replay, temporal guard, fast-forward)
+- ReplayDriver (tsAdj ordering, dedup, runUntil), ReplayClock (Virtual, ScaledRealtime)
+- TemporalGuard (GuardedEventLog, HoldoutAccessor, TrainTestSplit), FastForward
+- 6 ReplayDriverTest + 6 TemporalGuardTest + 1 FastForwardTest = **13 tests PASS**
+
+### 4A-6 (Gate demo, STAGE4A_NOTES.md update)
+- StageGateDemoTest (7 gate criteria A/B/D/E/F/G/H)
+- Gate results printed below from test stdout
+
+---
+
+## GATE-A: SHA-256 determinism (seed=20261025, 14 days, from StageGateDemoTest)
+
+| Persona | SHA-256 |
+|---|---|
+| Rahul  | printed in gateA_deterministicFixtures stdout |
+| Anika  | printed in gateA_deterministicFixtures stdout |
+| Kabir  | printed in gateA_deterministicFixtures stdout |
+
+Stable across two independent runs in same JVM session.
+
+---
+
+## Decisions made (all ambiguities resolved)
+
+**A4-1** Standard JVM UUID v4 for deterministic IDs: confirmed splitmix64 path used instead of UUID.randomUUID.  
+**A4-2** Persona defaults (dwell, resume, pickup latency, notification mix) are explicit assumptions. Never calibrated.  
+**A4-3** Self-initiated destination pool = social_notif destinations. Consistent between generator and TrueEffect.  
+**A4-4** Fatigue multiplies pickup odds (not probability). Separate field from pPickup.  
+**A4-5** Costs are truncated at W only when truncateCostsAtWindow=true. Default is false.  
+**A4-6** inSession (active dwell/resume) and in-window (overlapping W) are tracked separately. Neither is eligible.  
+**A4-7** `realizedArm=null` / `propensity=1.0` for ineligible records. Only `eligibleForExploration=true` records get eps/1-eps propensities.  
+**A4-8** policy draws use separate GenRng fork (tag=500). World draws are unaffected by policy changes.  
+**A4-9** Negative deltaL exists when baseline cost exceeds cGlance + notif episode cost. Reported, not clamped.  
+**A4-10** MILD_MISSPEC applies pickup drift [0.85,1.15] per day and 10% heavy-tail dwell. World field in TruthRecord.  
+**A4-11** GenEvent.ingestedTs = ts + clockSkewMs (per device). Reference ts is the skew-free anchor.  
+**A4-12** check-personas-purity.mjs covers all 8 forbidden patterns. scan is line-by-line for exact file:line reporting.
+
+---
+
+## Needed for 4B (not in 4A)
+
+- Single-owner EpisodeBuilder with outcome windows
+- EpisodeCloser and learning wiring into InMemoryParamStore (P5)
+- Adapter from 4A events to Stage 2 Event type
+- Importance model (8.5) and compulsive score (8.6)
+- Parameter-recovery and calibration tests (10.4)
+- Self-test for check-persona-data.mjs --self-test against the real fixture files
+
+---
+
+## Hardware note
+
+Not run on target hardware (Reno 14). All test results are JVM desktop (ABHIGYAN_24).
+
+## Measured gate values (StageGateDemoTest — 2026-10-25, ABHIGYAN_24)
+
+| Gate | Description | Result |
+|---|---|---|
+| A | Fixture SHA-256 deterministic | PASS (Rahul/Anika/Kabir hashes match across 2 runs) |
+| B | synthetic=true on every event | PASS (Rahul 2581, Anika 2971, Kabir 5202 events) |
+| D | RandomizedHold held rate within 5SE | PASS (rate=0.250, eps=0.2, 5SE=0.192) |
+| E | TemporalGuard: train=1294, holdout=1287, leakAttempts=1 | PASS |
+| F | Kabir replay inOrder=true | PASS |
+| G | TrueEffect lShow=29.46, expected=29.43, err=0% | PASS |
+| H | All lShowMin/lSuppressMin ≥ 0 | PASS (Rahul, Anika, Kabir) |
+
+Not run on target hardware. See Hardware note above.
