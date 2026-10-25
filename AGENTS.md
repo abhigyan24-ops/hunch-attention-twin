@@ -31,3 +31,10 @@ Stage 1A must not modify `phone/`, `laptop/`, or `relay/`.
 - Pure Kotlin personas: no Android, AndroidX, Room or twin dependencies. No new dependencies.
 - Determinism: all sampling uses personas/rng/GenRng; no ambient random or wall-clock input. Durations in minutes, hazard per hour.
 - Synthetic events always synthetic:true; never raw notification text, titles or URLs. Never tune results to pitch numbers.
+
+## Stage 5 rules (decision, safety, counterfactuals)
+- Branch contract-5-0 for preflight and contract; stage5-decision only after reviewed Phase 0 merge. Commit each milestone. Never push or modify main.
+- Own twin/decision, twin/counterfactual, safety and matching tests; docs/DECISION_CONTRACT.md, docs/DECISION_POLICY.md, STAGE5_NOTES.md, tools/check-decision-purity.mjs, tools/check-decision-contract.mjs, tools/decision-contract.lock; one root check:decision script.
+- Other twin paths, personas and core-spec are read-only. No collectors, ingest, data, UI, actuator, sync, fusion, inference, Gradle, manifest, DI or shared governance edits.
+- Pure Kotlin, no I/O or new dependencies; explicit nowMs and seeded exploration only. No content in facts, records, diagnostics or exceptions; template explanations only.
+- Fail open and never-hold absolute. Contract files freeze after reviewed 5.0 merge. Report cross-stage/contract requests in STAGE5_NOTES.md.
