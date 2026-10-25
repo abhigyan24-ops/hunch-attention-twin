@@ -36,6 +36,10 @@ interface HeldNotifDao {
     @Query("SELECT * FROM held_notifs WHERE state IN ('HELD', 'SNOOZED') ORDER BY held_since_ms DESC")
     fun observeActive(): Flow<List<HeldNotifEntity>>
 
+    /** Flow of released/expired history for UI strip. */
+    @Query("SELECT * FROM held_notifs WHERE state IN ('RELEASED', 'EXPIRED', 'FAILED_OPEN', 'ACTUATION_UNKNOWN') ORDER BY held_since_ms DESC LIMIT :limit")
+    fun observeHistory(limit: Int = 20): Flow<List<HeldNotifEntity>>
+
     /** Rows stuck in PENDING (crash recovery). */
     @Query("SELECT * FROM held_notifs WHERE state = 'PENDING' AND held_since_ms < :olderThanMs")
     suspend fun stuckPending(olderThanMs: Long): List<HeldNotifEntity>

@@ -24,23 +24,25 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dhyan.app.twin.decision.PolicyMode
+import com.dhyan.app.twin.model.FocusState
 import com.dhyan.app.ui.components.FocusRing
-import com.dhyan.app.ui.components.LaptopStateBadge
-import com.dhyan.app.ui.model.ActionVerdict
-import com.dhyan.app.ui.model.DecisionFeedItem
-import com.dhyan.app.ui.model.DhyanStateHolder
-import com.dhyan.app.ui.model.DigestItem
+import com.dhyan.app.ui.model.AttentionState
 import com.dhyan.app.ui.theme.BorderSubtle
 import com.dhyan.app.ui.theme.DhyanPrimary
 import com.dhyan.app.ui.theme.StateDeepFocus
 import com.dhyan.app.ui.theme.StateDistracted
+import com.dhyan.app.ui.theme.StateDrifting
 import com.dhyan.app.ui.theme.SurfaceCard
 import com.dhyan.app.ui.theme.SurfaceElevated
 import com.dhyan.app.ui.theme.TextMuted
@@ -51,10 +53,57 @@ import com.dhyan.app.ui.theme.VerdictDelay
 import com.dhyan.app.ui.theme.VerdictDigest
 import com.dhyan.app.ui.theme.VerdictSilent
 import com.dhyan.app.ui.theme.VoidBlack
+import com.dhyan.app.ui.viewmodel.LiveDecisionItemUi
+import com.dhyan.app.ui.viewmodel.LiveDigestUiState
+import com.dhyan.app.ui.viewmodel.LiveDigestViewModel
+import com.dhyan.app.ui.viewmodel.LiveHeldItemUi
 
 @Composable
 fun LiveDigestTab(
-    stateHolder: DhyanStateHolder,
+    stateHolder: com.dhyan.app.ui.model.DhyanStateHolder? = null,
+    modifier: Modifier = Modifier
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val db = androidx.compose.runtime.remember(context) { com.dhyan.app.data.DhyanDatabase.getInstance(context) }
+    val viewModel = androidx.compose.runtime.remember(db) {
+        LiveDigestViewModel(
+            heldNotifDao = db.heldNotifDao(),
+            decisionDao = db.decisionDao(),
+            feedbackDao = db.feedbackDao(),
+            killSwitchController = com.dhyan.app.actuator.KillSwitchController(
+                com.dhyan.app.actuator.RoomHeldStore(db.heldNotifDao()),
+                com.dhyan.app.actuator.release.WorkManagerReleaseJobScheduler(context)
+            )
+        )
+    }
+    LiveDigestTab(viewModel = viewModel, modifier = modifier)
+}
+
+@Composable
+fun LiveDigestTab(
+    viewModel: LiveDigestViewModel,
+    modifier: Modifier = Modifier
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    LiveDigestContent(
+        uiState = uiState,
+        onShowNow = { viewModel.showNow(it) },
+        onMarkImportant = { keyHash, id -> viewModel.markImportant(keyHash, id) },
+        onMarkNoise = { keyHash, id -> viewModel.markNoise(keyHash, id) },
+        onReleaseAll = { viewModel.releaseAll() },
+        onToggleKillSwitch = { viewModel.toggleKillSwitch() },
+        modifier = modifier
+    )
+}
+
+@Composable
+fun LiveDigestContent(
+    uiState: LiveDigestUiState,
+    onShowNow: (String) -> Unit,
+    onMarkImportant: (String, Long) -> Unit,
+    onMarkNoise: (String, Long) -> Unit = onMarkImportant,
+    onReleaseAll: () -> Unit = {},
+    onToggleKillSwitch: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -66,149 +115,331 @@ fun LiveDigestTab(
             .verticalScroll(scrollState)
             .padding(16.dp)
     ) {
-        // Cross-Device Status Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = "Live Attention",
-                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                    color = TextPrimary
-                )
-                Text(
-                    text = "Dual-device telemetry synchronized",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextMuted
-                )
-            }
-            LaptopStateBadge(presence = stateHolder.laptopPresence)
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Center Animated Focus Ring
-        Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center
-        ) {
-            FocusRing(
-                state = stateHolder.currentAttentionState,
-                sessionMinutes = stateHolder.sessionElapsedMin,
-                ringSize = 200.dp
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Held Digest Queue Section
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "DIGEST QUEUE",
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.0.sp
-                    ),
-                    color = TextSecondary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(100.dp))
-                        .background(DhyanPrimary.copy(alpha = 0.2f))
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = "${stateHolder.digestQueue.size} held",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = DhyanPrimary
-                    )
-                }
-            }
-            if (stateHolder.digestQueue.isNotEmpty()) {
-                Text(
-                    text = "Release All",
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = DhyanPrimary,
-                    modifier = Modifier.clickable {
-                        stateHolder.digestQueue.clear()
-                    }
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        if (stateHolder.digestQueue.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(SurfaceCard)
-                    .border(1.dp, BorderSubtle, RoundedCornerShape(14.dp))
-                    .padding(24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "Digest Queue Clear",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = StateDeepFocus
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "No notifications held. All incoming alerts triaged cleanly.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextMuted
-                    )
-                }
-            }
-        } else {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                stateHolder.digestQueue.forEach { item ->
-                    DigestItemCard(
-                        item = item,
-                        onShowNow = { stateHolder.showDigestNow(item) },
-                        onImportant = { stateHolder.markImportant(item) },
-                        onNoise = { stateHolder.markNoise(item) }
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Recent Real-Time Decisions Stream
-        Text(
-            text = "RECENT TWIN DECISIONS",
-            style = MaterialTheme.typography.labelMedium.copy(
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.0.sp
-            ),
-            color = TextSecondary
+        // Mode & Safety Banners
+        PolicyModeBanner(
+            mode = uiState.mode,
+            killSwitch = uiState.killSwitchActive,
+            isFake = uiState.isFakeProvider,
+            onToggleKillSwitch = onToggleKillSwitch
         )
-        Spacer(modifier = Modifier.height(10.dp))
 
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            stateHolder.decisionFeed.forEach { decision ->
-                DecisionCard(decision = decision)
-            }
-        }
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Attention State / Focus Ring Section
+        AttentionSection(uiState = uiState)
 
         Spacer(modifier = Modifier.height(24.dp))
+
+        // Held Notifications Digest Queue
+        HeldDigestSection(
+            heldQueue = uiState.heldQueue,
+            onShowNow = onShowNow,
+            onMarkImportant = onMarkImportant,
+            onMarkNoise = onMarkNoise,
+            onReleaseAll = onReleaseAll
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Recent Real-Time Twin Decisions
+        DecisionsFeedSection(
+            decisions = uiState.decisionFeed,
+            isFake = uiState.isFakeProvider
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // History Strip (Recently Released / Expired)
+        if (uiState.historyStrip.isNotEmpty()) {
+            HistoryStripSection(history = uiState.historyStrip)
+            Spacer(modifier = Modifier.height(24.dp))
+        }
     }
 }
 
 @Composable
-private fun DigestItemCard(
-    item: DigestItem,
+private fun PolicyModeBanner(
+    mode: PolicyMode,
+    killSwitch: Boolean,
+    isFake: Boolean,
+    onToggleKillSwitch: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (killSwitch) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFF3B1214))
+                    .border(1.dp, Color(0xFFEF4444), RoundedCornerShape(10.dp))
+                    .padding(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "KILL SWITCH ENGAGED",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = Color(0xFFFCA5A5)
+                        )
+                        Text(
+                            text = "All holds released. Actuation halted unconditionally.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextMuted
+                        )
+                    }
+                    Button(
+                        onClick = onToggleKillSwitch,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Resume", style = MaterialTheme.typography.labelSmall, color = Color.White)
+                    }
+                }
+            }
+        }
+
+        // Policy Mode Banner
+        val (bannerBg, bannerBorder, bannerText, desc) = when (mode) {
+            PolicyMode.OFF -> Quadruple(
+                Color(0xFF242019),
+                Color(0xFFF59E0B),
+                "POLICY MODE: OFF",
+                "Observing telemetry only. All notifications delivered immediately."
+            )
+            PolicyMode.DRY_RUN -> Quadruple(
+                Color(0xFF141F36),
+                Color(0xFF3B82F6),
+                "POLICY MODE: DRY RUN",
+                "Simulating twin decisions. Zero platform holds executed."
+            )
+            PolicyMode.LIVE -> Quadruple(
+                Color(0xFF0F291E),
+                Color(0xFF10B981),
+                "POLICY MODE: LIVE",
+                "Active actuation enabled on allowlisted applications."
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(bannerBg)
+                .border(1.dp, bannerBorder.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                .padding(horizontal = 12.dp, vertical = 10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = bannerText,
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.8.sp
+                        ),
+                        color = bannerBorder
+                    )
+                    Text(
+                        text = desc,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+                }
+            }
+        }
+
+        if (isFake) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF261D07))
+                    .border(1.dp, Color(0xFFD97706).copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = "FAKE DECISION PIPELINE ACTIVE — Stage 6 standalone sandbox mode",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = Color(0xFFFDE68A)
+                )
+            }
+        }
+    }
+}
+
+private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
+
+@Composable
+private fun AttentionSection(uiState: LiveDigestUiState) {
+    val snapshot = uiState.contextSnapshot
+    if (snapshot != null) {
+        val attentionState = when (snapshot.focusState) {
+            FocusState.DEEP_FOCUS -> AttentionState.DEEP_FOCUS
+            FocusState.WORKING -> AttentionState.WORKING
+            FocusState.DRIFTING -> AttentionState.DRIFTING
+            FocusState.DISTRACTED -> AttentionState.DISTRACTED
+            FocusState.RECOVERING -> AttentionState.RECOVERING
+            FocusState.BREAK -> AttentionState.FATIGUED
+        }
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            FocusRing(
+                state = attentionState,
+                sessionMinutes = snapshot.minutesInState.toInt(),
+                ringSize = 190.dp
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Chip(text = "Task: ${snapshot.taskType.wire}")
+                Chip(text = "Laptop: ${snapshot.laptopState.wire}")
+                Chip(text = "Confidence: ${(snapshot.confidence * 100).toInt()}%")
+            }
+        }
+    } else {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(SurfaceCard)
+                .border(1.dp, BorderSubtle, RoundedCornerShape(14.dp))
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "Awaiting Live Telemetry",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = TextPrimary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Focus ring calibrates after phone or laptop usage is observed.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextMuted
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun Chip(text: String) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(100.dp))
+            .background(SurfaceElevated)
+            .border(1.dp, BorderSubtle, RoundedCornerShape(100.dp))
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            color = TextSecondary
+        )
+    }
+}
+
+@Composable
+private fun HeldDigestSection(
+    heldQueue: List<LiveHeldItemUi>,
+    onShowNow: (String) -> Unit,
+    onMarkImportant: (String, Long) -> Unit,
+    onMarkNoise: (String, Long) -> Unit,
+    onReleaseAll: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "DIGEST QUEUE",
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.0.sp
+                ),
+                color = TextSecondary
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(100.dp))
+                    .background(DhyanPrimary.copy(alpha = 0.2f))
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = "${heldQueue.size} held",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = DhyanPrimary
+                )
+            }
+        }
+        if (heldQueue.isNotEmpty()) {
+            Text(
+                text = "Release All",
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                color = DhyanPrimary,
+                modifier = Modifier.clickable { onReleaseAll() }
+            )
+        }
+    }
+
+    Spacer(modifier = Modifier.height(10.dp))
+
+    if (heldQueue.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(SurfaceCard)
+                .border(1.dp, BorderSubtle, RoundedCornerShape(14.dp))
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "Digest Queue Clear",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = StateDeepFocus
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "No notifications held. All incoming alerts triaged cleanly.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextMuted
+                )
+            }
+        }
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            heldQueue.forEach { item ->
+                HeldItemCard(
+                    item = item,
+                    onShowNow = { onShowNow(item.keyHash) },
+                    onImportant = { onMarkImportant(item.keyHash, 0L) },
+                    onNoise = { onMarkNoise(item.keyHash, 0L) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeldItemCard(
+    item: LiveHeldItemUi,
     onShowNow: () -> Unit,
     onImportant: () -> Unit,
     onNoise: () -> Unit
@@ -228,19 +459,19 @@ private fun DigestItemCard(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = item.appName,
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                    color = TextPrimary
+                    text = item.appCat.uppercase(),
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    color = DhyanPrimary
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "(${item.sender})",
+                    text = "(${item.notifCat})",
                     style = MaterialTheme.typography.bodySmall,
                     color = TextSecondary
                 )
             }
             Text(
-                text = item.receivedAgo,
+                text = "${item.heldAgo} · ${item.dueIn}",
                 style = MaterialTheme.typography.bodySmall,
                 color = TextMuted
             )
@@ -249,106 +480,196 @@ private fun DigestItemCard(
         Spacer(modifier = Modifier.height(6.dp))
 
         Text(
-            text = item.heldReason,
-            style = MaterialTheme.typography.bodyMedium,
+            text = "Key: ${item.keyHash.take(16)}... | Mechanism: ${item.mechanism}",
+            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
             color = TextSecondary
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Action Buttons: Show Now, Important (+feedback), Noise (-feedback)
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Button(
                 onClick = onShowNow,
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = DhyanPrimary,
-                    contentColor = Color.White
-                ),
+                colors = ButtonDefaults.buttonColors(containerColor = DhyanPrimary),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text(text = "Show Now", style = MaterialTheme.typography.labelSmall)
+                Text("Show Now", color = VoidBlack, fontWeight = FontWeight.Bold)
             }
-
-            OutlinedButton(
-                onClick = onImportant,
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = StateDeepFocus)
-            ) {
-                Text(text = "Important", style = MaterialTheme.typography.labelSmall)
-            }
-
-            OutlinedButton(
-                onClick = onNoise,
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = StateDistracted)
-            ) {
-                Text(text = "Noise", style = MaterialTheme.typography.labelSmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = onImportant,
+                    shape = RoundedCornerShape(8.dp),
+                    border = ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(BorderSubtle))
+                ) {
+                    Text("Important", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+                }
+                OutlinedButton(
+                    onClick = onNoise,
+                    shape = RoundedCornerShape(8.dp),
+                    border = ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(BorderSubtle))
+                ) {
+                    Text("Noise", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun DecisionCard(decision: DecisionFeedItem) {
-    val (actionColor, actionBg) = when (decision.action) {
-        ActionVerdict.ALLOW -> Pair(VerdictAllow, Color(0xFF0F2D18))
-        ActionVerdict.DIGEST -> Pair(VerdictDigest, Color(0xFF0C2444))
-        ActionVerdict.DELAY -> Pair(VerdictDelay, Color(0xFF3D2E0B))
-        ActionVerdict.SILENT -> Pair(VerdictSilent, Color(0xFF1E2228))
+private fun DecisionsFeedSection(
+    decisions: List<LiveDecisionItemUi>,
+    isFake: Boolean
+) {
+    Text(
+        text = "RECENT TWIN DECISIONS",
+        style = MaterialTheme.typography.labelMedium.copy(
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.0.sp
+        ),
+        color = TextSecondary
+    )
+    Spacer(modifier = Modifier.height(10.dp))
+
+    if (decisions.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(SurfaceCard)
+                .border(1.dp, BorderSubtle, RoundedCornerShape(12.dp))
+                .padding(20.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "No decisions logged yet. Decisions appear as notifications arrive.",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextMuted
+            )
+        }
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            decisions.forEach { decision ->
+                DecisionRowCard(decision = decision)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DecisionRowCard(decision: LiveDecisionItemUi) {
+    val (badgeBg, badgeText, badgeColor) = when (decision.action) {
+        "ALLOW" -> Triple(VerdictAllow.copy(alpha = 0.2f), "ALLOW", VerdictAllow)
+        "DELAY" -> Triple(VerdictDelay.copy(alpha = 0.2f), "DELAY", VerdictDelay)
+        "DIGEST" -> Triple(VerdictDigest.copy(alpha = 0.2f), "DIGEST", VerdictDigest)
+        "SILENT" -> Triple(VerdictSilent.copy(alpha = 0.2f), "SILENT", VerdictSilent)
+        else -> Triple(Color.Gray.copy(alpha = 0.2f), decision.action, Color.LightGray)
     }
 
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(SurfaceElevated)
+            .background(SurfaceCard)
             .border(1.dp, BorderSubtle, RoundedCornerShape(12.dp))
-            .padding(12.dp),
-        verticalAlignment = Alignment.Top
+            .padding(12.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(6.dp))
-                .background(actionBg)
-                .padding(horizontal = 8.dp, vertical = 4.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(badgeBg)
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = badgeText,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = badgeColor
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                decision.actuationStatus?.let { status ->
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(SurfaceElevated)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = status,
+                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                            color = TextSecondary
+                        )
+                    }
+                }
+            }
             Text(
-                text = decision.action.label,
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                color = actionColor
+                text = decision.timestampAgo,
+                style = MaterialTheme.typography.bodySmall,
+                color = TextMuted
             )
         }
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
-        Column(modifier = Modifier.weight(1f)) {
+        Text(
+            text = "Reason: ${decision.reasonCode} · key: ${decision.keyHash.take(12)}...",
+            style = MaterialTheme.typography.bodySmall,
+            color = TextPrimary
+        )
+
+        if (decision.deltaLMean != null) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "ΔL: ${String.format("%.1f", decision.deltaLMean)}m [estimated] · p(show): ${String.format("%.2f", decision.propensity)}",
+                style = MaterialTheme.typography.labelSmall,
+                color = TextSecondary
+            )
+        }
+    }
+}
+
+@Composable
+private fun HistoryStripSection(history: List<LiveHeldItemUi>) {
+    Text(
+        text = "RECENT RELEASED HISTORY",
+        style = MaterialTheme.typography.labelMedium.copy(
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.0.sp
+        ),
+        color = TextSecondary
+    )
+    Spacer(modifier = Modifier.height(8.dp))
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        history.forEach { item ->
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(SurfaceElevated)
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = decision.appName,
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = TextPrimary
+                    text = "${item.appCat} (${item.state})",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
                 )
                 Text(
-                    text = decision.timestamp,
-                    style = MaterialTheme.typography.bodySmall,
+                    text = item.heldAgo,
+                    style = MaterialTheme.typography.labelSmall,
                     color = TextMuted
                 )
             }
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = decision.reason,
-                style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary
-            )
         }
     }
 }
