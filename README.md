@@ -1,6 +1,7 @@
 # Dhyan (ध्यान)
 
-Dhyan is a local-first, cross-device attention digital twin. The planned phone engine learns from categories and counts, simulates notification choices, and drives safe notification actions and Pip on the laptop. All features in sections 1–25 remain planned. Stage 1A contracts, Stage 1B local relay, Stage 1C laptop source scaffold, Stage 1D Android skeleton and Stage 1E hidden personas/offline dataset tool are implemented. Stage 1F local verification is recorded; the full Stage 1 exit remains pending owner hardware/cloud/schema checks. See HANDOFF_STATUS.md for tested behavior and incomplete runtime/deployment checks.
+Dhyan is a local-first, cross-device attention digital twin. The planned phone engine learns from categories and counts, simulates notification choices, and drives safe notification actions and Pip on the laptop. All features in sections 1–25 remain planned.
+Stage 1 (core contracts, relay, laptop scaffold), Stage 2 (phone collectors & Room data layer), Stage 3 (pure Kotlin twin core with paired Monte Carlo), and Stage 4A (personas, 14-day history generator, replay driver, TemporalGuard) are complete and verified. 103 Kotlin unit tests and 55 Node tests pass. Hardware verification on Reno 14 remains pending. See HANDOFF_STATUS.md for tested behavior.
 
 Canonical specification: [docs/SPEC.md](docs/SPEC.md). Read [AGENTS.md](AGENTS.md) and [HANDOFF_STATUS.md](HANDOFF_STATUS.md) before editing. Section 25 overrides older safety, measurement, privacy, and validation wording.
 
