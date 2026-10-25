@@ -336,3 +336,35 @@ Tests include real loaded-prior/unloaded-store adapters, override short circuits
 5C dev JVM real-twin latency: median=0.645 ms; p95=1.0932 ms; n=300; NOT a Reno 14 result
 
 5C decision suite: 33 tests,0 failures (actual successful run).
+
+## Stage 5D — estimators
+
+Implemented ExplorationRecord/labels/reports, Hajek IPW, HT, DR, exclusive filters, bootstrapB1000, overlap/ESS/top-weight share, caps none20/10/5, threshold20 with both arms, regret and separately labelled savings. Seeded validation covers hand arithmetic, correct-p/biased-model DR, wrong-p/correct-model DR, both-wrong documented bias, coverage, filters and finite persona histories. No real-data causal claim or user-day benefit. Input/output semantics and window caveats are in DECISION_POLICY.md.
+
+Cross-stage limitation: actual4A TrueEffect is a constant-hazard reference; generator has hourly hazard modulation. Test prints both and validates estimates against actual finite generated counterfactuals, not an assumed identical reference. No4A/twin edits or tuning to pitch. Production episode Y must be consistently clipped-at-W or complete-onset-in-W across labels/predictions before real estimates are meaningful. Stage4B importance mutation/snapshot requirement remains as documented; pipeline uses stable feedback state for deterministic tests.
+
+### Stage 5D executed results
+
+Command: isolated offline Gradle :app:testDebugUnitTest --tests com.dhyan.app.twin.counterfactual.* --tests com.dhyan.app.twin.decision.* (explicit JDK21.0.11/SDK/cache as above).
+Initial run: BUILD SUCCESSFUL in28s;25 actionable tasks:8executed,17up-to-date. After numerical-overflow guards/ESS scaling and preparing the5E tests, final run:
+```
+BUILD SUCCESSFUL in 27s
+25 actionable tasks: 6 executed, 19 up-to-date
+```
+The prepared5E decision classes are also exercised by this package filter if present; their final gate record follows separately. Frozen contract unchanged. Actual estimator prints follow (copied from JUnit stdout, not invented):
+
+```text
+DR validation wrongP=false wrongModel=false constantP=true: IPWbias=0.009113365125426398, DRbias=0.009669389334824707
+DR validation wrongP=false wrongModel=true constantP=false: IPWbias=-0.010764320484086376, DRbias=0.0037529025261132296
+DR validation wrongP=true wrongModel=false constantP=false: IPWbias=1.4941541258003121, DRbias=0.002321856090278048
+DR validation wrongP=true wrongModel=true constantP=false: IPWbias=1.4941541258003121, DRbias=-0.4344314772430563
+80% bootstrap interval coverage sanity: 18/20 fixed-seed replications
+```
+
+```text
+persona | n | history true delta | IPW | DR | 80% bootstrap interval | TrueEffect constant-hazard reference
+Rahul | 211 | 6.378229804582898 | 6.1449500558614165 | 5.439526778495669 | 1.9668149134771418..9.444465093700288 | 7.692803885230261
+Kabir | 169 | 0.44971958585486166 | 2.709975220875732 | 2.7569760509542722 | 0.0937616362374171..5.302278892398519 | 0.6229584915876868
+```
+
+Final combined package run: 44 tests,0 failures; estimator-specific7 tests passed. No target hardware validation.
