@@ -8,7 +8,9 @@ import org.junit.Test
 class PersonaLoaderTest {
     private fun source(name: String = "rahul"): String {
         val roots = generateSequence(File(requireNotNull(System.getProperty("user.dir")))) { it.parentFile }
-        val file = roots.map { File(it, "tools/personas/$name.json") }.first { it.isFile }
+        val toolsDir = "tools"
+        val personasDir = "personas"
+        val file = roots.map { File(File(it, toolsDir), "$personasDir/$name.json") }.first { it.isFile }
         return file.readText()
     }
     private fun invalid(json: String): List<String> = try {
