@@ -6,7 +6,7 @@ Mode: Overlap      Gate 2: pending      Contract version: 1.0.0
 | contracts | C0 | Antigravity | merged | - | 8eef3ee | NOTES_contracts.md | yes |
 | stage5 | 5B-5E | Codex | merged | - | 3632c6f | STAGE5_NOTES.md | yes |
 | stage6 | M0-M6 | Antigravity | ready for merge | Gate 2 | 4c923a3 | STAGE6_NOTES.md | pending Gate 2 |
-| s9-ext | 9X1, 9X2 | Antigravity | in progress | - | | | |
+| s9-ext | 9X1, 9X2 | Antigravity | completed | - | 26b7365 | STAGE9_EXT_NOTES.md | pending review |
 | s7-laptop | 7A-7C | Codex | ready to start | - | | | |
 | s8-laptop-sync | 8L | Codex | not started | s7-laptop | | | |
 | s8-phone | 8P1, 8P2 | Antigravity | not started | stage6 merged + Gate 2 | | | |
