@@ -10,7 +10,8 @@
     "check:personas": "node tools/check-personas-purity.mjs && node tools/check-persona-data.mjs",
     "check:decision": "node tools/check-decision-purity.mjs && node tools/check-decision-contract.mjs",
     "check:contracts": "node --test tools/test/contract-*.test.mjs",
-    "build-vectors": "node tools/gen-vectors.mjs"
+    "build-vectors": "node tools/gen-vectors.mjs",
+    "check:actuator": "node tools/check-actuator-contract.mjs"
   },
   "devDependencies": {
     "ajv": "^8.17.1",

@@ -164,12 +164,12 @@ private fun FutureRow(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = if (isSuppressed) "Natural resumption preserved" else "80% CI: ${ciLow.roundToInt()}–${ciHigh.roundToInt()} min lost",
+                text = if (isSuppressed) "Natural resumption preserved" else "80% simulation interval: ${ciLow.roundToInt()} to ${ciHigh.roundToInt()} min lost [simulated]",
                 style = MaterialTheme.typography.bodySmall,
                 color = TextMuted
             )
             Text(
-                text = if (isSuppressed) "Baseline: 2m" else "Hazard multiplier: 6.8x",
+                text = if (isSuppressed) "Baseline: 2m" else "Interruption hazard active",
                 style = MaterialTheme.typography.bodySmall,
                 color = TextMuted
             )
