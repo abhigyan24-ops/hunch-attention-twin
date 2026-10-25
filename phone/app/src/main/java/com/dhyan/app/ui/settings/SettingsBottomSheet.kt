@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,33 +16,43 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dhyan.app.actuator.digest.AndroidDigestPoster
+import com.dhyan.app.data.DhyanDatabase
+import com.dhyan.app.twin.decision.PolicyMode
 import com.dhyan.app.ui.model.DhyanStateHolder
-import com.dhyan.app.ui.model.PersonaCatalog
-import com.dhyan.app.ui.model.PersonaProfile
 import com.dhyan.app.ui.theme.BorderHighlight
 import com.dhyan.app.ui.theme.BorderSubtle
 import com.dhyan.app.ui.theme.DhyanPrimary
@@ -51,18 +63,67 @@ import com.dhyan.app.ui.theme.SurfaceElevated
 import com.dhyan.app.ui.theme.TextMuted
 import com.dhyan.app.ui.theme.TextPrimary
 import com.dhyan.app.ui.theme.TextSecondary
-import kotlinx.coroutines.delay
+import com.dhyan.app.ui.viewmodel.SettingsViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsBottomSheet(
-    stateHolder: DhyanStateHolder,
+    stateHolder: DhyanStateHolder? = null,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val db = remember(context) { DhyanDatabase.getInstance(context) }
+    val digestPoster = remember(context) { AndroidDigestPoster(context) }
+    val viewModel = remember(db) {
+        SettingsViewModel(
+            vipDao = db.vipDao(),
+            settingsDao = db.settingsDao(),
+            digestPoster = digestPoster
+        )
+    }
+    SettingsBottomSheet(viewModel = viewModel, onDismiss = onDismiss)
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+fun SettingsBottomSheet(
+    viewModel: SettingsViewModel,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
+    val uiState by viewModel.uiState.collectAsState()
+    var newVipContact by remember { mutableStateOf("") }
+
+    if (uiState.showLiveConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissLiveDialog() },
+            title = { Text("Confirm LIVE Policy Mode", fontWeight = FontWeight.Bold, color = TextPrimary) },
+            text = {
+                Text(
+                    "LIVE mode enables real notification cancellation and snoozing on this device.\n\n" +
+                    "Make sure you have tested DRY RUN first to observe what Dhyan will hold.",
+                    color = TextSecondary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.confirmLiveMode() },
+                    colors = ButtonDefaults.buttonColors(containerColor = DhyanPrimary)
+                ) {
+                    Text("Enable LIVE", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissLiveDialog() }) {
+                    Text("Cancel", color = TextMuted)
+                }
+            },
+            containerColor = SurfaceCard
+        )
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -92,7 +153,7 @@ fun SettingsBottomSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Personas & Controls",
+                    text = "Settings & Policy Controls",
                     style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                     color = TextPrimary
                 )
@@ -108,113 +169,57 @@ fun SettingsBottomSheet(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // 1. Persona Selector
+            // 1. Policy Mode Selector
             Text(
-                text = "SYNTHETIC PERSONA PRESET",
+                text = "ACTUATION POLICY MODE",
                 style = MaterialTheme.typography.labelMedium.copy(
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.0.sp
                 ),
                 color = TextSecondary
             )
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                PersonaCatalog.ALL.forEach { persona ->
-                    PersonaCard(
-                        persona = persona,
-                        isSelected = stateHolder.selectedPersona.id == persona.id,
-                        onClick = { stateHolder.selectPersona(persona) }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // 2. Fast-Forward 14 Days Replay
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(SurfaceCard)
-                    .border(1.dp, BorderSubtle, RoundedCornerShape(14.dp))
-                    .padding(14.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "Fast-Forward 14-Day Replay",
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                            color = TextPrimary
-                        )
-                        Text(
-                            text = "Replay seeded event stream at 100x speed",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = TextMuted
-                        )
-                    }
-                    Button(
-                        onClick = {
-                            if (!stateHolder.isSimulatingFastForward) {
-                                stateHolder.isSimulatingFastForward = true
-                                scope.launch {
-                                    for (i in 1..14) {
-                                        delay(80)
-                                        stateHolder.fastForwardProgress = i / 14f
-                                        stateHolder.fastForwardDaysSimulated = i
-                                    }
-                                    stateHolder.isSimulatingFastForward = false
-                                    stateHolder.recalculate()
-                                }
-                            }
-                        },
-                        enabled = !stateHolder.isSimulatingFastForward,
-                        colors = ButtonDefaults.buttonColors(containerColor = DhyanPrimary),
-                        shape = RoundedCornerShape(8.dp)
+                listOf(PolicyMode.OFF, PolicyMode.DRY_RUN, PolicyMode.LIVE).forEach { mode ->
+                    val isSelected = uiState.settings.mode == mode
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (isSelected) DhyanPrimary.copy(alpha = 0.2f) else SurfaceCard)
+                            .border(1.dp, if (isSelected) DhyanPrimary else BorderSubtle, RoundedCornerShape(10.dp))
+                            .clickable { viewModel.requestModeChange(mode) }
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = if (stateHolder.isSimulatingFastForward) "Replaying..." else "Replay 14d",
-                            style = MaterialTheme.typography.labelSmall
+                            text = mode.name,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                fontFamily = FontFamily.Monospace
+                            ),
+                            color = if (isSelected) DhyanPrimary else TextSecondary
                         )
                     }
-                }
-
-                if (stateHolder.isSimulatingFastForward || stateHolder.fastForwardDaysSimulated > 0) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    LinearProgressIndicator(
-                        progress = { stateHolder.fastForwardProgress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp)),
-                        color = DhyanPrimary,
-                        trackColor = Color(0xFF0D1117)
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Simulated: Day ${stateHolder.fastForwardDaysSimulated} of 14 (tightened posterior N=280)",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
-                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 3. Safety & Twin Controls
+            // 2. Safety & Governance Card
             Text(
-                text = "SAFETY & EXPLORATION GOVERNANCE",
+                text = "SAFETY & CONTROLS",
                 style = MaterialTheme.typography.labelMedium.copy(
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.0.sp
                 ),
                 color = TextSecondary
             )
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Column(
                 modifier = Modifier
@@ -225,30 +230,27 @@ fun SettingsBottomSheet(
                     .padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // Caution Multiplier (\alpha_d)
+                // Caution Multiplier (kappaDPerHour)
                 Column {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "Caution Multiplier (\u03B1_d)",
+                            text = "Caution Multiplier (κ_d/h)",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                             color = TextPrimary
                         )
                         Text(
-                            text = String.format("%.2fx", stateHolder.cautionMultiplier),
+                            text = String.format("%.2f", uiState.settings.kappaDPerHour),
                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                             color = DhyanPrimary
                         )
                     }
                     Slider(
-                        value = stateHolder.cautionMultiplier,
-                        onValueChange = {
-                            stateHolder.cautionMultiplier = it
-                            stateHolder.recalculate()
-                        },
-                        valueRange = 0.5f..2.5f,
+                        value = uiState.settings.kappaDPerHour.toFloat(),
+                        onValueChange = { viewModel.setCautionMultiplier(it.toDouble()) },
+                        valueRange = 0.5f..5.0f,
                         colors = SliderDefaults.colors(
                             thumbColor = DhyanPrimary,
                             activeTrackColor = DhyanPrimary
@@ -256,13 +258,13 @@ fun SettingsBottomSheet(
                     )
                 }
 
-                // 5% Exploration Toggle
+                // Exploration Toggle
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "5% Counterfactual Exploration",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
@@ -275,13 +277,41 @@ fun SettingsBottomSheet(
                         )
                     }
                     Switch(
-                        checked = stateHolder.isExplorationEnabled,
-                        onCheckedChange = { stateHolder.isExplorationEnabled = it },
+                        checked = uiState.settings.explorationEnabled,
+                        onCheckedChange = { viewModel.setExplorationEnabled(it) },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = TextPrimary,
                             checkedTrackColor = DhyanPrimary
                         )
                     )
+                }
+
+                // Digest Interval (15, 30, 45, 60 min)
+                Column {
+                    Text(
+                        text = "Digest Batch Interval: ${uiState.settings.digestIntervalMin} min",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                        color = TextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(15, 30, 45, 60).forEach { min ->
+                            val isSel = uiState.settings.digestIntervalMin == min
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSel) DhyanPrimary else SurfaceElevated)
+                                    .clickable { viewModel.setDigestIntervalMin(min) }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = "${min}m",
+                                    color = if (isSel) Color.Black else TextSecondary,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
+                    }
                 }
 
                 // Emergency Kill Switch
@@ -290,26 +320,23 @@ fun SettingsBottomSheet(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Emergency Kill Switch",
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = if (stateHolder.isKillSwitchActive) StateDistracted else TextPrimary
+                                color = if (uiState.settings.killSwitch) StateDistracted else TextPrimary
                             )
                         )
                         Text(
-                            text = "Bypass twin actuation; allow all notifications immediately",
+                            text = "Release all held items immediately; suspend actuation",
                             style = MaterialTheme.typography.bodySmall,
                             color = TextMuted
                         )
                     }
                     Switch(
-                        checked = stateHolder.isKillSwitchActive,
-                        onCheckedChange = {
-                            stateHolder.isKillSwitchActive = it
-                            stateHolder.recalculate()
-                        },
+                        checked = uiState.settings.killSwitch,
+                        onCheckedChange = { viewModel.toggleKillSwitch() },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
                             checkedTrackColor = StateDistracted
@@ -320,102 +347,147 @@ fun SettingsBottomSheet(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 4. Relay Pairing Status
+            // 3. VIP Senders List (Privacy Hashed)
+            Text(
+                text = "NEVER-HOLD VIP SENDERS",
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.0.sp
+                ),
+                color = TextSecondary
+            )
+            Text(
+                text = "Stored as privacy-preserving SHA-256 hashes only. Raw names never persisted.",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextMuted
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(SurfaceCard)
+                    .border(1.dp, BorderSubtle, RoundedCornerShape(14.dp))
+                    .padding(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = newVipContact,
+                        onValueChange = { newVipContact = it },
+                        placeholder = { Text("Contact or handle name", color = TextMuted) },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = DhyanPrimary,
+                            unfocusedBorderColor = BorderSubtle
+                        )
+                    )
+                    Button(
+                        onClick = {
+                            viewModel.addVipSender(newVipContact)
+                            newVipContact = ""
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = DhyanPrimary),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Add", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                if (uiState.vipHashes.isEmpty()) {
+                    Text(
+                        text = "No VIP contacts added yet.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextMuted
+                    )
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        uiState.vipHashes.forEach { hash ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(SurfaceElevated)
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "hash: $hash",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                    color = TextSecondary
+                                )
+                                Text(
+                                    text = "Remove",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = StateDistracted,
+                                    modifier = Modifier.clickable { viewModel.removeVipSender(hash) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 4. Debug & Target Testing Tools
+            Text(
+                text = "DEBUG & GATE 2 TESTING TOOLS",
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.0.sp
+                ),
+                color = TextSecondary
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
                     .background(SurfaceElevated)
                     .border(1.dp, BorderSubtle, RoundedCornerShape(14.dp))
-                    .padding(14.dp)
+                    .padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Cross-Device Relay Pairing",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = TextPrimary
-                    )
-                    Text(
-                        text = "Code: ${stateHolder.relayPairingCode}",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = DhyanPrimary
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Post Test Notification",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            color = TextPrimary
                         )
-                    )
+                        Text(
+                            text = "Trigger a synthetic notification in the digest channel to test Reno 14 rendering",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextMuted
+                        )
+                    }
+                    Button(
+                        onClick = { viewModel.postTestNotification() },
+                        colors = ButtonDefaults.buttonColors(containerColor = DhyanPrimary),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Post", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Connected to Node WebSocket Relay (256-bit ephemeral room). Strict category telemetry only.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextMuted
-                )
             }
 
             Spacer(modifier = Modifier.height(30.dp))
-        }
-    }
-}
-
-@Composable
-private fun PersonaCard(
-    persona: PersonaProfile,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (isSelected) Color(0xFF1F6FEB).copy(alpha = 0.15f) else SurfaceCard)
-            .border(
-                1.dp,
-                if (isSelected) BorderHighlight else BorderSubtle,
-                RoundedCornerShape(12.dp)
-            )
-            .clickable(onClick = onClick)
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(10.dp)
-                .clip(CircleShape)
-                .background(if (isSelected) DhyanPrimary else BorderSubtle)
-        )
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = persona.name,
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                    color = TextPrimary
-                )
-                Text(
-                    text = "${persona.medianSessionMin}m median flow",
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = DhyanPrimary
-                )
-            }
-            Text(
-                text = persona.role,
-                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                color = TextSecondary
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = persona.description,
-                style = MaterialTheme.typography.bodySmall,
-                color = TextMuted
-            )
         }
     }
 }
