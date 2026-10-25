@@ -271,3 +271,33 @@ Types: notif_posted, notif_removed, app_foreground, app_background, screen_on, s
 ```
 
 STOP: waiting for approval.
+
+## 4A-1 implementation update — owner approved proceeding
+
+Owner approved proceeding after 4A-0 on 2026-10-25. The previous STOP line is historical. Isolated worktree: C:/Users/abhig/OneDrive/Desktop/dhyan-s4a, branch stage4a-personas, base ed80b29 (Stage 1). Antigravity's Stage 3 files remain uncommitted in the original checkout; no source copied or staged from that work. Recheck final Stage 3 contract before integration. The Stage 4A AGENTS addendum was committed only on this branch.
+
+Implemented PersonaDef.kt (including PersonaDefaults/DefaultPersonas), PersonaLoader.kt, PersonaCatalog.kt, GeneratorConfig.kt, json/JsonReader.kt, PersonaLoaderTest.kt (also JsonReaderTest), docs/PERSONA_WORLD.md. No new dependency or Gradle/manifest/core-spec/root-package change. Uses approved pure Kotlin parser rather than assuming Android JSON works in local JVM tests. All source values bundled exactly; new A4-2 rates/schedules/latency/gaming probabilities documented in PERSONA_WORLD.md and separate from source truth. Numeric additions are explicit implementation assumptions, not individual owner confirmations.
+
+JDK 21.0.11 was actually verified using its direct java.exe path; compilation targets Java17. No installed JDK17 claim. Tests use the existing Gradle dependency cache but an isolated project/build directory; no Antigravity source edits. Shared-cache locking is Gradle-managed. No Stage 4A-2..6 implementation or full Stage 4 gate claimed.
+
+### Executed 4A-1 checks
+
+Command (isolated worktree root):
+```
+$env:JAVA_HOME='C:\Program Files\Java\jdk-21.0.11'
+$env:ANDROID_HOME='C:\Users\abhig\AppData\Local\Android\Sdk'
+.\phone\gradlew.bat -p phone --gradle-user-home 'C:\Users\abhig\OneDrive\Desktop\IIITN\phone\.gradle' --no-daemon --offline :app:testDebugUnitTest --tests 'com.dhyan.app.personas.*'
+```
+Actual final terminal summary, exit 0:
+```
+BUILD SUCCESSFUL in 27s
+25 actionable tasks: 2 executed, 23 up-to-date
+```
+First run: 11 tests completed, 1 failed; BUILD FAILED in 57s. The aggregate-error test replaced invalid pickup probability 1.2 with .5 while changing the fatigue value; test setup corrected to use 1.7. No loader error was masked or tolerance loosened. Removed the test's nullable user.dir warning. Final XML counts are appended below.
+
+Actual independent Node source scan:
+```
+Stage 4A source purity inspection: PASS (5 Kotlin files).
+```
+This was an inline inspection, not the future check-personas-purity.mjs implementation. Full twin/Stage 2 integration and full Stage 4A gate were not run. No hardware checks: not verified on target. Sandbox Git inspection outside the main writable root failed; repeated with approved worktree access for final commit verification.
+JUnit XML: tests=11, failures=0, errors=0
