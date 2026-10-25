@@ -13,3 +13,13 @@ Master spec: `docs/SPEC.md` (sections 1–25). Section 25 overrides older wordin
 - Relay: Node 20, `ws`, in-memory.
 
 Stage 1A must not modify `phone/`, `laptop/`, or `relay/`.
+
+## Stage 3 rules (twin core)
+- Scope: only phone/app/src/main/java/com/dhyan/app/twin/**, phone/app/src/test/java/com/dhyan/app/twin/**, docs/TWIN_MODEL_CONTRACT.md, STAGE3_NOTES.md, tools/check-twin-contract.mjs, and two script keys in root package.json (check:twin, check:twin-contract).
+- FORBIDDEN in Stage 3: core-spec/, any Gradle or manifest file, Koin modules, collectors/, ingest/, data/, ui/, sync/, and the shared governance docs (TRACEABILITY.md, HANDOFF_STATUS.md, STAGE_GATES.md, DECISIONS_PENDING.md). Report needed changes in STAGE3_NOTES.md.
+- twin/ is pure Kotlin: no android.*, androidx.*, no Room. kotlinx.coroutines is allowed. No new dependencies.
+- Determinism: all randomness comes from the seeded RNG classes. Never use Math.random, kotlin.random.Random.Default, or System.nanoTime for sampling.
+- Units: durations in minutes, hazard exposure in hours. Name variables with the unit (e.g. windowMin, exposureHours).
+- Never hard-code results to match the pitch numbers in the spec (24 min, 0.62, 0.09). Print what the model produces.
+- Never claim a test passed unless you ran it and pasted the summary line. Never claim anything about the Reno 14.
+- Commit after each milestone on the stage3 branch. Never push. Never touch main.

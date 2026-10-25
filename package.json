@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "test": "node --test tools/test/*.test.mjs",
-    "checks": "node tools/check-schema-sync.mjs && node tools/check-twin-purity.mjs && node tools/check-no-persona-imports.mjs"
+    "checks": "node tools/check-schema-sync.mjs && node tools/check-twin-purity.mjs && node tools/check-no-persona-imports.mjs",
+    "check:twin": "node tools/check-twin-purity.mjs",
+    "check:twin-contract": "node tools/check-twin-contract.mjs"
   },
   "devDependencies": {
     "ajv": "^8.17.1",
