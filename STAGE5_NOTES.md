@@ -192,3 +192,74 @@ Reviewed the regenerated lock diff: same12 paths and version1, only the5 changed
 Amendment status: implemented and tested on contract-5-0, ready for owner review. Commit message: stage5: 5.0 contract amendments.
 
 STOP: waiting for my review (owner request).
+
+## Stage 5A start — reviewed Phase 0 merged
+
+Owner's go-ahead approved the amended Phase0 contract. Merged contract-5-0 into main at 99eee1d, then created isolated C:/Users/abhig/OneDrive/Desktop/dhyan-s5 on stage5-decision from that merge. The existing uncommitted ImportanceModel.kt and ImportanceModelTest.kt in Antigravity's main checkout were SHA256-checked before/after merge and remained byte-identical; they were not staged, copied, reverted or committed. STAGE4B_NOTES.md also had live edits by the other tool; the contract merge does not alter that path. No push. The reviewed version1 contract and lock are now frozen. No further main edits by Stage5 implementation.
+
+5A creates only CostFunction.kt, ActionSelector.kt, HoldTimeEstimator.kt, CostAndHoldTest.kt, docs/DECISION_POLICY.md and updates these notes. Default constants and DigestSchedule are consumed read-only. No pipeline, safety-rule implementation, exploration or estimator built in this milestone. Stage5B–5E remain not_started.
+
+Policy details: near-ties use global-min tolerance1e-9 before least-intrusive selection; margin clamps at0 if the chosen least-intrusive action is fractionally above minimum. Mathematical SILENT/DIGEST crossover remains .16, with numerical tie tolerance applied. Hold release table15/30/45 has break/away precedence over deep/flowing on contradictory context. Negative/nonfinite input and arithmetic overflow are rejected internally for later fail-open wrapping. Digest interval comes from settings and zone is explicit, shared with the Stage6 scheduler. Assumptions/provenance documented in DECISION_POLICY.md. Not verified on target.
+
+### Stage 5A actual verification
+
+JDK/SDK environment and Gradle cache path are the same explicit values documented above. From C:/Users/abhig/OneDrive/Desktop/dhyan-s5:
+```
+.\phone\gradlew.bat -p phone --gradle-user-home 'C:\Users\abhig\OneDrive\Desktop\IIITN\phone\.gradle' --no-daemon --offline :app:testDebugUnitTest --tests 'com.dhyan.app.twin.decision.*'
+BUILD SUCCESSFUL in 1m 34s
+25 actionable tasks: 25 executed
+```
+Actual JUnit XML: CostAndHoldTest9, DecisionContractAmendmentTest3, DecisionContractTest6, committed ImportanceModelTest7: total25 tests, failures0, errors0. Property test covers seeds1/42/2026, 3000cases each. Existing collector/persona/episode compiler warnings were observed and not edited.
+
+```
+npm ci --offline --ignore-scripts
+added 6 packages, and audited 7 packages in 11s
+found 0 vulnerabilities
+npm run check:decision
+decision-purity: PASS (15 Kotlin files)
+decision-contract: PASS (version 1; 12 frozen files; 11 core defaults)
+npm run checks
+schema-sync: PASS (1.0.0; 1 Kotlin version file(s))
+twin-purity: PASS (72 twin file(s); absent modules are not target verification)
+no-persona-imports: PASS (201 production file(s); absent modules are not target verification)
+```
+
+Additional root npm test was actually run after the Phase0 merge. It did not fully pass:
+```
+tests 55
+pass 54
+fail 1
+cancelled 0
+skipped 0
+todo 0
+duration_ms 2203.0602
+```
+Failure: tools/test/core-spec.test.mjs:141, root hygiene assertion compares exact LF .env.example contents, but Git autocrlf produced CRLF in this fresh Windows worktree. No functional difference or secret value involved. This is outside Stage5 owned files: neither .env.example nor core-spec.test.mjs changed. Cross-stage request to repository owner: make the fixture checkout/test portable across line endings (e.g. explicitly preserve LF or compare normalized newlines), with acceptance npm test55/55 on a fresh Windows worktree. Do not claim all post-merge checks are green until this is resolved. Stage5A's decision tests and contract checks are independently passing.
+
+### Stage 5A full merged-baseline validation
+
+Executed full unit suite after the reviewed Phase0 merge and 5A implementation, against committed Stage4B plus contract plus5A (no live Antigravity edits copied):
+```
+.\phone\gradlew.bat -p phone --gradle-user-home 'C:\Users\abhig\OneDrive\Desktop\IIITN\phone\.gradle' --no-daemon --offline :app:testDebugUnitTest
+BUILD SUCCESSFUL in 17s
+25 actionable tasks: 1 executed, 24 up-to-date
+Full merged-baseline JUnit totals: {"tests":143,"failures":0,"errors":0,"skipped":0,"suites":32}
+```
+The unit-test task executed (not merely UP-TO-DATE). Final required/additional checks all exit0:
+```
+npm run check:decision
+decision-purity: PASS (15 Kotlin files)
+decision-contract: PASS (version 1; 12 frozen files; 11 core defaults)
+npm run check:twin
+twin-purity: PASS (217 twin file(s); absent modules are not target verification)
+npm run check:twin-contract
+twin-contract: PASS (7 snapshot(s) validated against schema; TwinConfig defaults match Appendix A)
+npm run check:personas
+check-personas-purity PASS -- 22 file(s) scanned
+check:persona-data PASS -- 5 fixture(s), 12567 events
+```
+Persona fixtures: Anika MATCHED3035; Kabir MATCHED5335; Rahul MATCHED RandomizedHold779; Rahul MATCHED ShowAll2634; Rahul MILD_MISSPEC784. These are seeded synthetic validation artifacts, not real-user results. Twin guard counts generated files too, hence different counts before/after full build.
+
+The root test's dry-run CLI rewrote the tracked synthetic sample as a side effect; restored only that generated sample to its exact baseline with git restore --worktree -- tools/dataset/out/notifications.sample.jsonl. It is not part of the5A diff. No out-of-scope functional change. Root55-test suite still has the separately recorded LF/CRLF hygiene failure54/55; not silently fixed or called green.
+
+Status: reviewed contract frozen at merge99eee1d;5A implemented and tested;5B–5E not_started. Six5A owned files only (3implementation,1test,policy doc,these notes). Frozen contract and lock unchanged, verified by check:decision. No Stage5 implementation merge or push. No device/actuation/latency claim: not verified on target. Next prompt5B is safety module; root line-ending issue remains a repository-owner cross-stage request.
