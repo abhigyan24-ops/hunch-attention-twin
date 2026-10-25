@@ -1,0 +1,14 @@
+node_modules/
+dist/
+out/
+build/
+.gradle/
+.kotlin/
+.idea/
+local.properties
+*.apk
+.env
+.env.*
+!.env.example
+*.log
+tools/dataset/out/*.raw

@@ -1,0 +1,150 @@
+{
+  "appendixA": [
+    {
+      "name": "Monte Carlo runs",
+      "symbol": "N",
+      "default": "500"
+    },
+    {
+      "name": "Outcome window",
+      "symbol": "W",
+      "default": "30 min"
+    },
+    {
+      "name": "Hierarchy strength",
+      "symbol": "κ",
+      "default": "5"
+    },
+    {
+      "name": "Beta recency decay",
+      "symbol": "γ",
+      "default": "0.995 / episode"
+    },
+    {
+      "name": "Lognormal prior strength",
+      "symbol": "n0",
+      "default": "3"
+    },
+    {
+      "name": "Lognormal sigma floor",
+      "symbol": "σ_min",
+      "default": "0.25"
+    },
+    {
+      "name": "Delay harm coefficient (per hour at I=1)",
+      "symbol": "κ_d",
+      "default": "3.0 min/hr"
+    },
+    {
+      "name": "Silent miss penalty",
+      "symbol": "λ_miss",
+      "default": "5.0 min"
+    },
+    {
+      "name": "Digest review overhead",
+      "symbol": "c_digest",
+      "default": "0.8 min"
+    },
+    {
+      "name": "Release discount at break",
+      "symbol": "c_rel",
+      "default": "0.25"
+    },
+    {
+      "name": "Glance cost",
+      "symbol": "c_glance",
+      "default": "0.4 min"
+    },
+    {
+      "name": "Always-allow importance threshold",
+      "symbol": "I_max",
+      "default": "0.85"
+    },
+    {
+      "name": "Silent-vs-Digest crossover (c_digest / λ_miss)",
+      "symbol": "I_silent",
+      "default": "0.16"
+    },
+    {
+      "name": "Exploration rate",
+      "symbol": "ε",
+      "default": "0.05 (when I < 0.4)"
+    },
+    {
+      "name": "Low-confidence threshold",
+      "symbol": "conf_min",
+      "default": "0.40"
+    },
+    {
+      "name": "Compulsive-score thresholds",
+      "symbol": "none",
+      "default": "0.35 / 0.65"
+    },
+    {
+      "name": "State heartbeat",
+      "symbol": "none",
+      "default": "5 s"
+    },
+    {
+      "name": "Context snapshot interval",
+      "symbol": "none",
+      "default": "10–30 s"
+    },
+    {
+      "name": "Digest interval",
+      "symbol": "τ_digest_max",
+      "default": "120 min"
+    },
+    {
+      "name": "Relay reconnect backoff",
+      "symbol": "none",
+      "default": "1 s → 30 s"
+    }
+  ],
+  "priors": {
+    "pickup": {
+      "social_notif_working": {
+        "alpha": 3,
+        "beta": 4
+      },
+      "known_contact_message": {
+        "alpha": 4,
+        "beta": 3
+      },
+      "promo": {
+        "alpha": 1,
+        "beta": 6
+      }
+    },
+    "dwell": {
+      "social": {
+        "m": "ln 9",
+        "s": 0.8
+      },
+      "short_video": {
+        "m": "ln 14",
+        "s": 0.9
+      },
+      "messaging": {
+        "m": "ln 3",
+        "s": 0.6
+      }
+    },
+    "resumeDelay": {
+      "coding": {
+        "m": "ln 6",
+        "s": 0.6
+      },
+      "studying": {
+        "m": "ln 4",
+        "s": 0.6
+      }
+    },
+    "fatiguePickupOddsMultiplier": {
+      "low": 1,
+      "med": 1.2,
+      "high": 1.5
+    }
+  },
+  "durationUnit": "minutes"
+}

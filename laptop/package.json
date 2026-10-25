@@ -1,0 +1,37 @@
+{
+  "name": "dhyan-laptop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.mjs",
+    "check:aw": "node scripts/check-aw.mjs"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-vite": "^4.0.1",
+    "vite": "^7.1.12",
+    "typescript": "^5.9.3",
+    "esbuild": "^0.25.11",
+    "@types/node": "^22.18.12",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@types/ws": "^8.18.1",
+    "@electron-internal/extract-zip": "file:vendor/electron-extractor"
+  },
+  "overrides": {
+    "rollup": "npm:@rollup/wasm-node@4.52.4",
+    "electron": {
+      "@electron-internal/extract-zip": "file:../../vendor/electron-extractor"
+    }
+  }
+}

@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "role": {
+      "type": "string",
+      "minLength": 1
+    },
+    "assumed": {
+      "type": "boolean"
+    },
+    "_notes": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pickupProb": {
+      "type": "object",
+      "minProperties": 1,
+      "patternProperties": {
+        "^.+$": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "dwell": {
+      "type": "object",
+      "minProperties": 1,
+      "patternProperties": {
+        "^.+$": {
+          "type": "object",
+          "properties": {
+            "mu": {
+              "type": "number"
+            },
+            "sigma": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "mu",
+            "sigma"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "resume": {
+      "type": "object",
+      "minProperties": 1,
+      "patternProperties": {
+        "^.+$": {
+          "type": "object",
+          "properties": {
+            "mu": {
+              "type": "number"
+            },
+            "sigma": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "mu",
+            "sigma"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "fatigueMultiplier": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      }
+    },
+    "focusPeaks": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 23
+      }
+    },
+    "selfInitiatedPerHour": {
+      "type": "number",
+      "minimum": 0
+    },
+    "importantSenders": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "required": [
+    "name",
+    "role",
+    "pickupProb",
+    "dwell",
+    "resume",
+    "fatigueMultiplier",
+    "focusPeaks",
+    "selfInitiatedPerHour",
+    "importantSenders"
+  ],
+  "additionalProperties": false
+}

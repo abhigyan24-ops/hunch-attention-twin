@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "00000000-0000-4000-8000-000000000018",
+  "deviceId": "fixture-device",
+  "device": "phone",
+  "seq": 18,
+  "source": "system",
+  "type": "feedback",
+  "ts": 1730000000000,
+  "ingestedTs": 1730000000010,
+  "synthetic": true,
+  "payload": {
+    "refKey": "fixture-key",
+    "label": "useful"
+  }
+}

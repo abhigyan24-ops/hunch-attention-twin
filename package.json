@@ -1,0 +1,13 @@
+{
+  "name": "dhyan",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tools/test/*.test.mjs",
+    "checks": "node tools/check-schema-sync.mjs && node tools/check-twin-purity.mjs && node tools/check-no-persona-imports.mjs"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "00000000-0000-4000-8000-000000000002",
+  "deviceId": "fixture-device",
+  "device": "phone",
+  "seq": 2,
+  "source": "notif",
+  "type": "notif_removed",
+  "ts": 1730000000000,
+  "ingestedTs": 1730000000010,
+  "synthetic": true,
+  "payload": {
+    "key": "fixture-key",
+    "reason": "snoozed"
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "name": "Kabir",
+  "role": "gamer-dev",
+  "assumed": true,
+  "_notes": "Only selfInitiatedPerHour=4.5 is specified in 15.2. All other numeric values are assumed test ground truth, not observations or calibrated estimates.",
+  "pickupProb": {
+    "social_notif|coding": 0.1,
+    "msg_known|coding": 0.12,
+    "promo|coding": 0.03
+  },
+  "dwell": {
+    "social": {
+      "mu": 2,
+      "sigma": 0.7
+    },
+    "short_video": {
+      "mu": 2.3,
+      "sigma": 0.8
+    },
+    "games": {
+      "mu": 3.2,
+      "sigma": 0.6
+    }
+  },
+  "resume": {
+    "coding": {
+      "mu": 1.5,
+      "sigma": 0.5
+    },
+    "gaming": {
+      "mu": 0.8,
+      "sigma": 0.4
+    }
+  },
+  "fatigueMultiplier": [
+    1,
+    1.2,
+    1.5
+  ],
+  "focusPeaks": [
+    10,
+    15,
+    22
+  ],
+  "selfInitiatedPerHour": 4.5,
+  "importantSenders": [
+    "family_a",
+    "teammate_a"
+  ]
+}
