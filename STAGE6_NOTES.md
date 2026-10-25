@@ -141,6 +141,35 @@ All required tables already defined as Room entities:
 
 ---
 
+## Cross-Stage Facade for Stage 8 (Phone Sync)
+
+Per owner Cross-Stage Note for Stage 6, the following interfaces and implementations have been provided, documented, and tested (all 244 unit tests pass):
+1. **PhoneControl Facade:**
+   - Interface: com.dhyan.app.actuator.PhoneControl in phone/app/src/main/java/com/dhyan/app/actuator/PhoneControl.kt
+   - Implementation: PhoneControlImpl in phone/app/src/main/java/com/dhyan/app/actuator/PhoneControl.kt
+   - Methods: showNow(heldId or all), setKillSwitch(on), declareSession(task, plannedMin, strict), endSession().
+   - Returns: ControlResult.Applied or ControlResult.Rejected(reason).
+   - Tested: PhoneControlTest.kt (single item, all items, invalid range rejection, kill switch activation/deactivation).
+2. **HeldItemsView Read API:**
+   - Interface: com.dhyan.app.actuator.HeldItemsView in phone/app/src/main/java/com/dhyan/app/actuator/HeldItemsView.kt
+   - Implementation: RoomHeldItemsView in phone/app/src/main/java/com/dhyan/app/actuator/HeldItemsView.kt
+   - Data class: HeldItemSummary(heldId, appCat, heldAt, expiresAt, status)
+   - Flow: observeHeldItems(): Flow<List<HeldItemSummary>>
+   - Privacy: Zero title, text, ciphertext, or sender name exposed.
+   - Tested: PhoneControlTest.kt (privacy reflection test, Flow mapping).
+3. **SnapshotSource Interface:**
+   - Interface: com.dhyan.app.ui.model.SnapshotSource in phone/app/src/main/java/com/dhyan/app/ui/model/SnapshotSource.kt
+   - Implementation: LiveContextHolder in phone/app/src/main/java/com/dhyan/app/ui/model/LiveContextHolder.kt
+   - Enables Stage 8 to substitute multi-device fused snapshot without touching collectors or twin.
+4. **ActuationEventBus Stream:**
+   - Interface: com.dhyan.app.actuator.ActuationEventBus in phone/app/src/main/java/com/dhyan/app/actuator/ActuationEventStream.kt
+   - Singleton: SharedActuationEventBus in phone/app/src/main/java/com/dhyan/app/actuator/ActuationEventStream.kt
+   - Events: ActuationEvent(keyHash, status, appCat, timestampMs) emitted on HELD, SNOOZED, RELEASED, FAILED_OPEN, ACTUATION_UNKNOWN.
+   - Stage 8 can subscribe directly to mirror pet events (held, released, etc.) to the laptop.
+5. **No sync dependencies added:** Zero OkHttp or sync dependencies added in Stage 6; no sync Room tables added.
+
+---
+
 ## Gate 2 Checklist (To be executed on Reno 14 by Human Operator)
 
 - [ ] Real notification on Reno 14 is HELD (DRY_RUN first, then LIVE)
