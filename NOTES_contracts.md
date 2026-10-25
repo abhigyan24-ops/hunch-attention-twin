@@ -30,3 +30,8 @@ Root declares Ajv/ajv-formats but not ws; ws exists only in relay/laptop manifes
 
 ## Milestones
 M0 preflight/CCRs recorded; C0.0 no delta needed. Continue only independent C0.2 crypto/reference vectors using approved exact byte formulas. C0.1 complete schemas and C0.3–C0.7 integration/attack/verify tools remain not_started or blocked by listed CCRs. No Gate3/platform/security-audit claim. Prototype crypto primitives/tests are not proof the pairing/session state machine is secure. No production pairing key, code or secret is printed or committed; requested vectors use fixed public test-only scalars/nonces labelled as non-secret fixtures.
+
+### M1 independent reference crypto verification
+Implemented reference byte primitives, deterministic public vectors, generator and focused tests only. Executed `node --test tools/test/contract-crypto.test.mjs`: tests 7, pass 7, fail 0, duration_ms 78.5069. Executed `node tools/gen-vectors.mjs`: sha256=63a52f85159d3c9c9f01c7617cd77715778bdedbf770ceaf834ff29295d9030f. Full C0 and target checks are not verified. No replay/state-machine/security-audit claim.
+
+Observed pre-existing/unattributed working-tree changes in package.json (check:contracts, build-vectors and root ws dependency), package-lock.json, .env.example and generated dataset output. These are excluded from M1; no unauthorized root dependency change is included. Use direct node commands above for this milestone.
