@@ -1,7 +1,7 @@
-# Handoff status — Stage 4A Complete, Ready for Stage 4B, 2026-10-25 (Asia/Calcutta)
+# Handoff status — Stage 4 Complete, Ready for Stage 5, 2026-10-25 (Asia/Calcutta)
 
-Stage 1 (foundations), Stage 2 (phone collectors & Room data layer), Stage 3 (pure Kotlin twin core), and Stage 4A (personas, 14-day history generator, replay driver, TemporalGuard) are complete and verified on main.
-All 103 Kotlin unit tests pass; all 55 root Node tests pass; twin-purity (132 files), twin-contract (7 snapshots), personas-purity (22 files), and persona-data (5 fixtures, 12,567 events) checks pass.
+Stage 1 (foundations), Stage 2 (phone collectors & Room data layer), Stage 3 (pure Kotlin twin core), Stage 4A (personas, 14-day history generator, replay driver, TemporalGuard), and Stage 4B (EpisodeBuilder single-owner attribution, EpisodeCloser learning pipeline P5, ImportanceModel, CompulsiveScore, EventStreamAdapter, parameter recovery validation) are complete and verified on main.
+All 119 Kotlin unit tests pass; all 55 root Node tests pass; twin-purity (167 files), twin-contract (7 snapshots), personas-purity (22 files), and persona-data (5 fixtures, 12,567 events) checks pass.
 Target hardware behavior on Oppo Reno 14 / ColorOS remains marked `not verified on target`. No planned feature has been removed.
 
 ## 1. Current tree and module purposes

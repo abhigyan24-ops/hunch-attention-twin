@@ -89,6 +89,18 @@ All statuses above refer only to the named scaffold acceptance checks, not whole
 | 10.5 TemporalGuard isolation | `personas/replay/TemporalGuard.kt` | `ReplayAndGuardTest.kt`: 6/6 tests pass; leaky read throws `TemporalLeakException` | tested |
 | 15.3 / 25.9 Fixture export & Node checks | `personas/export/EventJsonlWriter.kt`, `tools/check-persona-data.mjs`, `tools/check-personas-purity.mjs` | `FixtureExportTest.kt`, `StageGateDemoTest.kt`: 9/9 tests pass; `check:personas` PASS (5 fixtures, 12,567 events) | tested |
 
+## Stage 4B Acceptance Ledger (Episodes, Learning Pipeline P5, Models & Parameter Recovery)
+
+| Requirement | Implementation paths | Test / verification evidence | Status |
+|---|---|---|---|
+| 7.1 Single-owner attribution rule | `twin/episodes/EpisodeBuilder.kt` | `EpisodeBuilderTest.kt`: two notifications 3 min apart test closes first as superseded, second owns dwell | tested |
+| 7.1 Outcome measurement windows | `twin/episodes/Episode.kt`, `twin/episodes/EpisodeBuilder.kt` | `EpisodeBuilderTest.kt`: window expiry timeout, pickedUp, latency, dwell, and resume delay | tested |
+| 7.1 / 8.4 Learning pipeline P5 | `twin/episodes/EpisodeCloser.kt`, `twin/params/InMemoryParamStore.kt` | `Stage4BParameterRecoveryTest.kt`: episodes close and update beta/gamma/dirichlet/lognormal params in O(1) | tested |
+| 8.5 Noisy-OR importance model | `twin/decision/ImportanceModel.kt` | `ImportanceModelTest.kt`: 7/7 tests pass; VIP override, urgency categories, reply action, repeat boost, Beta updates | tested |
+| 8.6 Intentional vs compulsive score | `twin/inference/CompulsiveScore.kt` | `CompulsiveScoreTest.kt`: 4/4 tests pass; 8 signals, online SGD with L2 decay, SILENT / PROMPT_ONCE / GENTLE_NUDGE | tested |
+| 10.4 Stage 4 parameter recovery | `twin/episodes/Stage4BParameterRecoveryTest.kt` | 14-day Rahul replay recovers p_pickup=0.6284 vs true 0.62 (diff=0.0084 <= 0.08 spec limit); dwell & resume shift | tested |
+| 17.2 Cross-stream event adapter | `twin/episodes/EventStreamAdapter.kt` | Adapts synthetic GenEvents and real collector streams into stateful EpisodeBuilder calls | tested |
+
 
 Only the named local checks are tested; incomplete product behavior remains in scope. All original source-inventory rows below are retained, including legacy wording subject to section 25 precedence.
 

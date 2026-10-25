@@ -61,6 +61,11 @@ class InMemoryParamStore(
     /** Monotonic version counter incremented on every parameter update. */
     val modelVersion: Long get() = _modelVersion.get()
 
+    fun getBetaStat(key: String): BetaStat? = betaMap[key]
+    fun getLogNormalStat(key: String): LogNormalStat? = lognormMap[key]
+    fun getGammaStat(key: String): GammaHazardStat? = gammaMap[key]
+    fun getDirichletStat(key: String): DirichletStat? = dirichletMap[key]
+
     /**
      * Loads all parameter records from persistence. Must be called once at startup.
      * On failure, leaves [isLoaded] as false and records the error; callers get NotReady.
