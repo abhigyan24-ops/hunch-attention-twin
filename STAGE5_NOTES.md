@@ -263,3 +263,57 @@ Persona fixtures: Anika MATCHED3035; Kabir MATCHED5335; Rahul MATCHED Randomized
 The root test's dry-run CLI rewrote the tracked synthetic sample as a side effect; restored only that generated sample to its exact baseline with git restore --worktree -- tools/dataset/out/notifications.sample.jsonl. It is not part of the5A diff. No out-of-scope functional change. Root55-test suite still has the separately recorded LF/CRLF hygiene failure54/55; not silently fixed or called green.
 
 Status: reviewed contract frozen at merge99eee1d;5A implemented and tested;5B–5E not_started. Six5A owned files only (3implementation,1test,policy doc,these notes). Frozen contract and lock unchanged, verified by check:decision. No Stage5 implementation merge or push. No device/actuation/latency claim: not verified on target. Next prompt5B is safety module; root line-ending issue remains a repository-owner cross-stage request.
+
+## Stage 5B — safety implementation
+
+Owned additions: safety/NeverHoldRules.kt,FailOpen.kt,DecisionDiagnostics.kt,DefaultExpiryPolicy.kt,RecheckLogic.kt plus internal SafetyValidation.kt for numeric/metadata checks shared with future5C; tests SafetyFixtures.kt,SafetyRulesTest.kt,RecheckLogicTest.kt,SafetyMatrixTest.kt; updates only DECISION_POLICY.md and these notes. Frozen contract, version1 lock, defaults and kill-switch implementation untouched. No DecisionPipeline, adapters, Android, Room, clock, content reader or new dependency.
+
+Cross-stage request (critical before LIVE): actual Stage2 ingest/Normalizer.kt private classifyAndroidCategory collapses alarms/reminders into alert and does not preserve call/navigation. There is no NotifExtractor.kt on this committed baseline (the initial lookup failed, then actual Normalizer was located). Core-spec notifCat is open, with message in its sample, not a fixed enum. 5B tests explicit call/alarm/navigation facts; it cannot recover erased metadata or claim end-to-end never-hold. Stage6 must preserve/forward critical category metadata or request an explicitly approved conservative fallback before live suppression. No out-of-scope normalizer/collector/schema edit here. Unknown category tokens alone remain non-never-hold per S5-16; malformed numeric facts fail open. Semantic ambiguity not represented in the frozen facts needs fail-open handling by the later integration/classification layer.
+
+S5-8 expiry assumptions10min/24h implemented without effect: clamp negative timestamps0, saturate overflow. Recheck validates settings/facts/hold parameters and compares nonnegative epoch times without subtract-overflow. Extra internal validation helper is a coherent safety addition, not a contract change. FailOpen strips exception messages; diagnostics accept only enum counter keys and numbers. No reason text derived from arbitrary raw input. NeverHoldRules priority and category mapping documented in DECISION_POLICY.md.
+
+### Safety matrix rows handed to Stage 6
+
+These are explicit acceptance tasks, not ignored/skipped tests and not claimed executed here:
+
+| Row | Stage6 acceptance test |
+|---|---|
+| Low battery/background restrictions | Simulate restricted listener/worker availability; no new suppression, visible degraded state and safe release/surface of already held items. Owner verifies on target. |
+| Process restart | Persist safe policy/kill state, simulate process death with held records, restore once without duplicate effects; uncertain restoration surfaced. |
+| Reboot | Restore kill state/held metadata and pending release work; no new holds during recovery, no silent loss or duplicate repost. Owner-run reboot check. |
+| Storage failure | Inject failing DecisionLogStore/held-record writes; abort new actuation, surface failure and release/surface existing held items. |
+| Scheduler failure | Reject scheduling and inject worker failure; no new hold if a release cannot be guaranteed, visible status and recovery. |
+| No network | Disconnect relay/network; explicitly mark remote context stale/offline, never fabricate active laptop focus, keep local safety/release/Show-now working. |
+| Category information loss | Inject platform call/alarm/navigation through real collector/normalizer/facts adapter; prove explicit critical facts reach both precheck/recheck before any LIVE actuation. |
+
+Pure matrix tests are helper-level; they do not pretend the not-yet-built pipeline or platform paths are tested. Existing root LF/CRLF hygiene issue from5A remains open and is not rerun/changed as part of5B.
+
+### Stage 5B verification (actual, this session)
+
+From C:/Users/abhig/OneDrive/Desktop/dhyan-s5 with JAVA_HOME=C:/Program Files/Java/jdk-21.0.11 and ANDROID_HOME=C:/Users/abhig/AppData/Local/Android/Sdk:
+```
+.\phone\gradlew.bat -p phone --gradle-user-home 'C:\Users\abhig\OneDrive\Desktop\IIITN\phone\.gradle' --no-daemon --offline :app:testDebugUnitTest --tests 'com.dhyan.app.safety.*'
+```
+Initial run:
+```
+BUILD SUCCESSFUL in 27s
+25 actionable tasks: 6 executed, 19 up-to-date
+```
+After adding the malformed eligibleActions-collection exception regression, final run:
+```
+BUILD SUCCESSFUL in 36s
+25 actionable tasks: 2 executed, 23 up-to-date
+```
+The final test task executed and recompiled the updated tests; no UP-TO-DATE-only success claim. A subsequent source-comment clarification directs Stage6 to the frozen DecisionProvider.recheck interface, not the internal implementation helper; no functional changes after tests.
+
+```
+npm run check:decision
+decision-purity: PASS (21 Kotlin files)
+decision-contract: PASS (version 1; 12 frozen files; 11 core defaults)
+```
+
+Final safety JUnit XML totals: {"tests":27,"failures":0,"errors":0,"skipped":0,"suites":5}
+
+Coverage: 27 safety tests across5 suites (existing kill-switch6, new rule/diagnostic/expiry6, recheck8, matrix7). Atomic diagnostic test verifies20000 increments; rule matrix covers8 critical fact variants x3 modes x2kill states. These are bounded synthetic helper tests, not a universal urgent-hold guarantee or platform test. Full Kotlin/root suites were not rerun in5B;5A's full143-test result is historical, and its root54/55 LF/CRLF issue remains open. No new exception messages or arbitrary category values are persisted or logged by the helpers.
+
+Status ledger:5A tested (prior milestone);5B implemented/tested within the scope above;5C–5E not_started. Frozen contract/defaults/version1 lock unchanged. No pipeline/Stage6 integration, device check, Stage5 implementation merge or push. Not verified on target. Commit message: stage5: 5B safety.
