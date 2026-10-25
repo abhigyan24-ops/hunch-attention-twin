@@ -63,7 +63,8 @@ class SimulateViewModel(
                 task = "coding",
                 category = "social",
                 isVip = false,
-                sessionMin = 45
+                sessionMin = 45,
+                attentionState = AttentionState.DEEP_FOCUS
             )
         )
         return initial
@@ -120,7 +121,8 @@ class SimulateViewModel(
             task = s.taskType,
             category = s.simCategory,
             isVip = s.simIsVip,
-            sessionMin = s.sessionElapsedMin
+            sessionMin = s.sessionElapsedMin,
+            attentionState = s.attentionState
         )
         val deltaL = res.expectedLostShowMin - res.expectedLostSuppressMin
         _uiState.value = s.copy(
@@ -135,9 +137,10 @@ class SimulateViewModel(
         task: String,
         category: String,
         isVip: Boolean,
-        sessionMin: Int
+        sessionMin: Int,
+        attentionState: AttentionState
     ): SimulationResult {
-        val focusEnum = when (_uiState.value.attentionState) {
+        val focusEnum = when (attentionState) {
             AttentionState.DEEP_FOCUS -> FocusState.DEEP_FOCUS
             AttentionState.WORKING -> FocusState.WORKING
             AttentionState.DRIFTING -> FocusState.DRIFTING
