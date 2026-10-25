@@ -19,6 +19,7 @@ class NeverHoldRules(private val diagnostics: DecisionDiagnostics = DecisionDiag
         }
     }
     companion object {
+        internal fun categoryKnown(category:String):Boolean = category in knownCategories
         // The schema leaves notifCat open. These are documented policy/observed wire tokens,
         // not a fabricated canonical enum. 'alert' cannot recover a lost alarm distinction.
         private val knownCategories=setOf("call","alarm","navigation","otp","msg","message","email","promo","alert","sys","social","other","transport","delivery","security","social_notif","msg_known","lecture_watch","shorts")

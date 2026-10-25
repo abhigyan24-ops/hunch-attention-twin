@@ -25,7 +25,7 @@ class DecisionPipeline(
         if(settings.killSwitch)return allowed("kill_switch")
         if(!SafetyValidation.settingsValid(settings)||!SafetyValidation.factsValid(f,now)||!validSnapshot(s,now))return FailOpen.invalidInput(f,now,diagnostics)
         neverHold.check(f,settings)?.let{return allowed("never_hold",it)}
-        if(f.appCat=="unknown" || f.notifCat=="other")return FailOpen.invalidInput(f,now,diagnostics)
+        if(f.appCat=="unknown" || f.notifCat=="other" || !NeverHoldRules.categoryKnown(f.notifCat))return FailOpen.invalidInput(f,now,diagnostics)
         val importance=importanceProvider.score(f)
         if(!importance.isFinite()||importance !in 0.0..1.0)return FailOpen.invalidInput(f,now,diagnostics)
         if(importance>=PolicyDefaults.I_MAX)return allowed("high_importance")
@@ -51,8 +51,8 @@ class DecisionPipeline(
     private fun validSnapshot(s:ContextSnapshot,now:Long):Boolean = s.ts>0 && s.ts<=now && s.confidence.isFinite() && s.confidence in 0.0..1.0 &&
         s.minutesInState.isFinite() && s.minutesInState>=0 && s.recentInterrupts30m>=0 && s.hourBand in setOf("night","morning","afternoon","evening","late") &&
         s.fatigueBand in setOf("low","med","high") && (s.declaredSession?.let{it.plannedMin.isFinite()&&it.plannedMin>=0&&it.startedTs>=0&&it.startedTs<=now}?:true)
-    private fun validPrediction(p:LossPrediction.Ready):Boolean = listOf(p.eShowMin,p.eSuppMin,p.deltaP10,p.deltaP90,p.pPickupMean,p.evidenceStrength).all{it.isFinite()} &&
-        p.eShowMin>=0 && p.eSuppMin>=0 && p.deltaP10<=p.deltaP90 && p.pPickupMean in 0.0..1.0 && p.evidenceStrength in 0.0..1.0 && p.modelVersion>=0 &&
+    private fun validPrediction(p:LossPrediction.Ready):Boolean = listOf(p.eShowMin,p.eSuppMin,p.deltaP10,p.deltaP90,p.evidenceStrength).all{it.isFinite()} &&
+        p.eShowMin>=0 && p.eSuppMin>=0 && p.deltaP10<=p.deltaP90 && (p.pPickupMean==null||(p.pPickupMean.isFinite()&&p.pPickupMean in 0.0..1.0)) && p.evidenceStrength in 0.0..1.0 && p.modelVersion>=0 &&
         p.provenance in setOf("simulated","low evidence","learned","estimated","observed")
     companion object { const val POLICY_REVISION=1;const val POLICY_VERSION="decision-$DECISION_CONTRACT_VERSION-policy-$POLICY_REVISION" }
 }

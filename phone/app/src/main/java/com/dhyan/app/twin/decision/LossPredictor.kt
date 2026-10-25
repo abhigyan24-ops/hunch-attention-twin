@@ -6,7 +6,7 @@ import com.dhyan.app.twin.params.InMemoryParamStore
 
 sealed interface LossPrediction {
     data class Ready(val eShowMin:Double,val eSuppMin:Double,val deltaP10:Double,val deltaP90:Double,
-        val pPickupMean:Double,val evidenceStrength:Double,val modelVersion:Long,val provenance:String):LossPrediction
+        val pPickupMean:Double?,val evidenceStrength:Double,val modelVersion:Long,val provenance:String):LossPrediction
     data class NotReady(val reasonCode:String):LossPrediction
 }
 fun interface LossPredictor {
@@ -22,7 +22,7 @@ class TwinEngineLossPredictor(private val store:InMemoryParamStore,private val c
         return when(result) {
             is SimOutcome.NotReady -> LossPrediction.NotReady(result.reason.name)
             is SimOutcome.Ready -> result.result.let { LossPrediction.Ready(it.show.mean,it.suppress.mean,
-                it.deltaL80SimIntervalLow,it.deltaL80SimIntervalHigh,it.pPickupSample.average(),it.evidenceStrength,
+                it.deltaL80SimIntervalLow,it.deltaL80SimIntervalHigh,it.pPickupSample.takeIf{samples->samples.isNotEmpty()}?.average(),it.evidenceStrength,
                 it.modelVersion,if(it.evidenceStrength<PolicyDefaults.CONF_MIN)"low evidence" else "simulated") }
         }
     }

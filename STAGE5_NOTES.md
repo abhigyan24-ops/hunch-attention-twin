@@ -368,3 +368,203 @@ Kabir | 169 | 0.44971958585486166 | 2.709975220875732 | 2.7569760509542722 | 0.0
 ```
 
 Final combined package run: 44 tests,0 failures; estimator-specific7 tests passed. No target hardware validation.
+
+## Stage 5E final gate — scope and implementation
+
+5E adds the ten-row VerdictSheetTest with formula-derived expected actions; UrgentSuiteTest42cases across216configurations; EndToEndSheetTest using actual4A histories, Stage4B EventStreamAdapter/EpisodeBuilder/EpisodeCloser and real TwinEngine; DecisionLatencyBenchmark with500warmups+2000measuredcalls. Evaluation timestamps are strictly after the end of both training histories, not inside the training period. Fixed test seed choices were declared before results; no pitch-value tuning.
+
+Final edge-case fixes within owned implementation paths: optional missing pickup mean and missing explanation metadata are omitted; direct exploration helper checks shared never-hold rules; pipeline unknown-category classification fails open (while unknown remains not a never-hold rule); savings rejects duplicate lifecycle rows. SavedMinutes.fromReports computes DR-supported totals only for confirmed holds matching ESTIMATED buckets and open-overlap action support; any unsupported confirmed row yields null estimated total, never a silently partial causal-savings claim. The lower-level summarize helper can accept a caller-computed trusted total; fromReports is the preferred identified-report adapter.
+
+No frozen contract/source hashes changed. No root package, core-spec, Gradle, collector, data, UI, actuator, persona or other twin implementation edits. No Stage5 merge or push. Scope is local pure-Kotlin decision/estimation implementation, not Android live integration.
+
+### Assumptions S5-1 through S5-17 — final values and review status
+
+| ID | Final value/meaning | Owner approval/review |
+|---|---|---|
+| S5-1 | ALLOW,DELAY,DIGEST,SILENT within1e-9 of global minimum; margin clamps0 on numeric tie | Build authorized per guide; final policy review pending |
+| S5-2 | Release15min break/recovering/away/idle;45deep/flow;otherwise30, capped digest | Assumed table per guide; not learned or target verified |
+| S5-3 | Local-midnight digest grid, settings.digestIntervalMin120default; same explicit zone in costing/scheduling | Frozen contractv1 approved |
+| S5-4 | OFF skips simulation; DRY_RUN computes but recheck blocks actuation | Frozen semantics approved |
+| S5-5 | Explore hold->ALLOW only in documented low-importance positive-delta region | Build authorized per guide; measured eligibility/rate tests |
+| S5-6 | SHOW=ALLOW; SUPPRESS=DELAY/DIGEST/SILENT; exact after-filter support/propensity | Frozen contractv1 approved |
+| S5-7 | Recheck age <=30000ms inclusive; identity, mode, kill and safety rechecked | Frozen default approved; tests cover edges |
+| S5-8 | OTP10min;other24h; clamp negative start and saturate overflow | Guide assumption implemented; Stage6 expiry effects pending |
+| S5-9 | Top2 ranked heuristic factors; fixed templates; missing metadata skipped | Not causal attribution; policy review pending |
+| S5-10 | Evidence strength<.4 AND I>.5 ->ALLOW | Guide policy implemented/tested |
+| S5-11 | Strict session halves kappaD and disables exploration | Guide policy implemented/tested |
+| S5-12 | Decision-time predictions; Hajek primary,HT+DR;caps none/20/10/5;B1000;20usable+botharms threshold | Estimator assumptions documented; tests passed |
+| S5-13 | Eligible positive-overlap per-notification effect; opportunity W30min, consistent supplied Y required | Production clipped vs complete-onset outcome mapping pending |
+| S5-14 | Regret from computed J; signed model saved, estimated delay cost and supported DR total kept separate | No real-user saved-minute claim |
+| S5-15 | Read-only committed4B model, no rawTextHint; mutable feedback state outside decide | Stable feedback/version boundary is an integration requirement |
+| S5-16 | Unknown notifCat is not never-hold; unknown pipeline classification fails open separately | Conservative fail-open implementation; new mappings require review |
+| S5-17 | Warm real-engine dev-JVM median/p95<10ms, at least2000calls in final benchmark | Dev tested; Reno14 not verified on target |
+
+### Inputs for Stage 6
+
+Use the frozen DecisionProvider type. Real implementation constructor:
+```kotlin
+DecisionPipeline(
+    predictor = TwinEngineLossPredictor(store),
+    importanceProvider = ModelImportanceProvider(importanceModel),
+    holdTimeEstimator = HoldTimeEstimator(),
+    exploration = ExplorationPolicy(),
+    explainer = Explainer(),
+    diagnostics = DecisionDiagnostics(),
+    zone = userZone,
+    staleSnapshotMs = ModelConfig().staleSnapshotMs
+)
+```
+Other constructor parameters are defaulted. Time and seed are passed from decide(nowMs,settings.seed), never read from a system clock by production decision code. Store must finish asynchronous load; unloaded store yields ALLOW/failedOpen. Stage6 must allow without fabricating a focus snapshot when its snapshot source is absent. Stage8 will later supply full cross-device fusion; phone-only source must mark laptop offline/unknown honestly.
+
+PolicySettings defaults OFF; Stage6 supplies current immutable snapshots, allow-list, seed and digestIntervalMin. Costing and ReleaseScheduler must use the same zone/interval. Before every hold/snooze/cancel call provider.recheck on fresh NotificationFacts/settings; abort means no actuation. Never act on failedOpen or ALLOW; DRY_RUN's computed hold is not a real held status. Confirmed HELD/SNOOZED requires actual platform confirmation. DecisionLogStore remains Stage6 Room work, not called by the synchronous pipeline.
+
+DecisionRecordFactory.from(facts,decision,snapshot,settings,importance) strips explanations/factor text and copies reasonCode/safetyReason, identity, exact propensity,pShow, support, predictions and snapshot summary. BLOCKED production logging detail: its importance must be the original decision-time score, but the frozen DecisionProvider/Decision does not expose that score. Do not recompute after feedback or invent0 for an override that never scored. See CR5-1 below. Mode/actuation status are separate from the calculated action.
+
+For ExplorationRecord: bucketKey is a controlled context identifier; arm=SHOW for ALLOW else SUPPRESS; pShow=decision.pShow; Y is a deduplicated observed episode outcome with agreed window semantics; censored/actuationFailed/eligible must be mapped honestly from episode and actuation state, and predictions captured at decision time. Safety-bypassed/high-importance/strict/deterministic-no-overlap rows must not be relabelled eligible. Real Room mapping is Stage6/10 work. CounterfactualEngine.estimate filters and counts invalid/unsupported rows. SavedMinutes.fromReports requires matching identified bucket reports, confirmed unique lifecycle-final decisions and valid open overlap; unsupported total is null, not0.
+
+Fixed reason codes: mode_off,kill_switch,invalid_input,never_hold,high_importance,not_ready,low_evidence,cost_selected,explored,no_provider; exception:<SimpleClassName> is a code-only namespace (no messages). Specific safetyReason:call,alarm,navigation,otp,emergency,vip,allowlist. Recheck aborts:mode_not_live,kill_switch,allow,failed_open,never_hold,identity_mismatch,decision_expired,clock_backwards,invalid_input,exception. Diagnostics keys are fixed numeric counters defined in DecisionDiagnostics.kt. policyVersion=decision-1-policy-1, POLICY_REVISION1, DECISION_CONTRACT_VERSION1.
+
+### Cross-stage requests remaining (not silently fixed)
+
+1. Stage6 must preserve actual call/alarm/navigation metadata and supply OTP/emergency in-memory flags before LIVE suppression; Stage2 normalizer currently loses some distinctions. Never infer that5B/5E synthetic safety tests validate platform classification.
+2. ImportanceModel feedback and decision evaluation need a stable serialized/versioned state boundary. The real4B API uses separate concurrent maps, not an atomic all-feedback snapshot. Determinism is tested for stable model/feedback state, not during concurrent learning.
+3. Real episode-to-record integration must agree clipped-in-W vs complete-cost-for-onset-in-W outcomes and matching model predictions; default twin/persona uses the latter. No real-data causal savings claim until this is resolved.
+4. TrueEffect constant-hazard helper differs from the hourly-modulated generator. Tables show the difference openly and tests use actual per-notification hidden truth for finite-fixture validation. Reconciling that reference helper belongs to4A owner; no persona edits/tuning here.
+5. Root npm test54/55 LF/CRLF hygiene failure from5A remains open; not fixed outside ownership and not rerun in5C–5E. Required Stage5 gate commands are separately verified below. Do not call the whole repository globally green.
+6. Stage6 supplies scheduling/storage-failure handling, process/reboot recovery, platform timeout/confirmation, end-to-end canary privacy and Reno14 compatibility/latency checks. All are not verified on target here. No real notifications or cloud services were touched.
+
+### Contract change requests
+
+CR5-1 — faithful importance logging (additive Decision field, nullable record field). The frozen DecisionProvider returns Decision without importance, while DecisionRecordFactory requires a non-null importance argument. Production Stage6 cannot obtain the score actually used through the frozen interface, and never-hold/OFF/kill overrides intentionally do not score at all. Recomputing later can change after feedback; supplying0 would invent data. This blocks that part of production record wiring, not numerical pipeline/estimator implementation. No frozen source or lock was changed.
+
+Proposed reviewable change for a separate approved Phase0b commit on main: append Decision.importance:Double?=null; allow DecisionRecord.importance:Double?; default the factory argument to decision.importance while preserving old source calls with explicit scores, and reject disagreement when both are supplied. Pipeline returns the exact computed score, or null when not evaluated. Bump contract version to2 and update lock, then both Stage5/Stage6 rebase. Room nullability/migration implications are Stage6 owner work. Acceptance: updated score is recorded exactly; feedback after decide cannot alter the record; unscored safety/OFF/kill cases persist null; no recomputation and no raw text. This is a proposal only and needs owner review under the frozen-contract change protocol.
+
+Implementation helper APIs remain outside the frozen boundary; Stage6 must depend on DecisionProvider and reviewed types, not a hidden mutable score side channel. All other cross-stage requests are listed above.
+
+### Governance fold-in for owner after merge
+
+TRACEABILITY.md: add exact new decision/safety/counterfactual code and test paths, with the bounded test claims below; do not mark platform classification or causal real-user benefits tested. HANDOFF_STATUS.md: record branch/commit, constructor/settings/record integration, real commands, scope and open cross-stage requests. STAGE_GATES.md: retain the printed verdict/urgent/truth/E2E/latency results and Stage6 target gates. DECISIONS_PENDING.md: fold S5assumptions, category preservation, importance-state consistency, outcome-window/reference limitations and root newline test issue. These shared documents were deliberately not edited on Stage5.
+
+### Stage 5E executed final verification
+
+Final full command, isolated stage5-decision worktree, explicit installed JDK21.0.11/AndroidSDK and existing cache:
+```
+.\phone\gradlew.bat -p phone --gradle-user-home 'C:\Users\abhig\OneDrive\Desktop\IIITN\phone\.gradle' --no-daemon --offline :app:testDebugUnitTest
+BUILD SUCCESSFUL in 32s
+25 actionable tasks: 6 executed, 19 up-to-date
+```
+This final run includes all gate tests and the DR-savings support/duplicate safeguards. Two earlier full validation runs also succeeded (1m41s and37s) before final review additions; they are not substituted for this final run. No tolerance/seed changes were used to obtain passing results. Final printed tables below are copied directly from fresh JUnit stdout.
+
+#### com.dhyan.app.twin.counterfactual.CounterfactualTest
+
+```text
+DR validation wrongP=false wrongModel=false constantP=true: IPWbias=0.009113365125426398, DRbias=0.009669389334824707
+DR validation wrongP=false wrongModel=true constantP=false: IPWbias=-0.010764320484086376, DRbias=0.0037529025261132296
+DR validation wrongP=true wrongModel=false constantP=false: IPWbias=1.4941541258003121, DRbias=0.002321856090278048
+DR validation wrongP=true wrongModel=true constantP=false: IPWbias=1.4941541258003121, DRbias=-0.4344314772430563
+80% bootstrap interval coverage sanity: 18/20 fixed-seed replications
+```
+
+#### com.dhyan.app.twin.counterfactual.PersonaCounterfactualTest
+
+```text
+persona | n | history true delta | IPW | DR | 80% bootstrap interval | TrueEffect constant-hazard reference
+Rahul | 211 | 6.378229804582898 | 6.1449500558614165 | 5.439526778495669 | 1.9668149134771418..9.444465093700288 | 7.692803885230261
+Kabir | 169 | 0.44971958585486166 | 2.709975220875732 | 2.7569760509542722 | 0.0937616362374171..5.302278892398519 | 0.6229584915876868
+```
+
+#### com.dhyan.app.twin.decision.DecisionLatencyBenchmark
+
+```text
+5E dev JVM real-twin decide latency: median=0.5492 ms; p95=1.3589 ms; n=2000; NOT a Reno 14 result
+```
+
+#### com.dhyan.app.twin.decision.EndToEndSheetTest
+
+```text
+E2E: persona | action | Eshow | Esupp | evidence strength | modelVersion
+cold | DIGEST | 14.834935490947055 | 8.810863728932748 | 0.0 | 0
+Rahul | DIGEST | 14.846083716983225 | 11.493166689741502 | 0.7794642408223429 | 1041
+Kabir | DIGEST | 14.063118643359779 | 10.859557216836249 | 0.7518323453596796 | 1674
+```
+
+#### com.dhyan.app.twin.decision.PipelineLatencySmokeTest
+
+```text
+5C dev JVM real-twin latency: median=0.4154 ms; p95=0.6168 ms; n=300; NOT a Reno 14 result
+```
+
+#### com.dhyan.app.twin.decision.UrgentSuiteTest
+
+```text
+urgent suite: 42 cases x 216 configs = 9072 decisions, holds = 0; measured synthetic suite only
+```
+
+#### com.dhyan.app.twin.decision.VerdictSheetTest
+
+```text
+VERDICT: id | I | Eshow | Esupp | deltaL | J(ALLOW,DELAY,DIGEST,SILENT) diagnostic controls | action | reason | explanation
+call | 0.2 | 1000.0 | 1.0 | 999.0 | [1000.0, 251.09, 2.04, 2.24] | ALLOW | never_hold | Allowed: a call, alarm, code or configured safety rule.
+otp | 0.2 | 1000.0 | 1.0 | 999.0 | [1000.0, 251.09, 2.04, 2.24] | ALLOW | never_hold | Allowed: a call, alarm, code or configured safety rule.
+vip_message | 0.2 | 1000.0 | 1.0 | 999.0 | [1000.0, 251.09, 2.04, 2.24] | ALLOW | never_hold | Allowed: a contact you marked important.
+high_importance | 0.85 | 20.0 | 1.0 | 19.0 | [20.0, 7.625624999999999, 6.135, 9.585] | ALLOW | high_importance | Allowed: high importance.
+social_like | 0.3 | 20.0 | 1.0 | 19.0 | [20.0, 6.2025, 2.34, 3.04] | DIGEST | cost_selected | Held: about 19.0 min of focus lost (80% simulation interval -1.0 to 40.0); you open this about 6.0 of 10 times in this context. Tap to show now.
+promo | 0.1 | 20.0 | 1.0 | 19.0 | [20.0, 6.0225, 1.86, 1.56] | SILENT | cost_selected | Held: about 19.0 min of focus lost (80% simulation interval -1.0 to 40.0); you open this about 6.0 of 10 times in this context. Tap to show now.
+near_break | 0.6 | 4.0 | 0.5 | 3.5 | [4.0, 1.77, 3.46, 5.66] | DELAY | cost_selected | Held: about 3.5 min of focus lost (80% simulation interval -1.0 to 40.0); you open this about 6.0 of 10 times in this context. Tap to show now.
+baseline_dominated | 0.5 | 1.0 | 0.9 | 0.09999999999999998 | [1.0, 1.7125, 3.2, 4.9] | ALLOW | cost_selected | Allowed: showing has the lower expected cost.
+low_evidence | 0.6 | 20.0 | 1.0 | 19.0 | [20.0, 6.81, 3.96, 6.16] | ALLOW | low_evidence | Allowed: not enough evidence yet.
+stale | 0.3 | 20.0 | 1.0 | 19.0 | [20.0, 6.2025, 2.34, 3.04] | ALLOW | not_ready | Allowed: not enough information.
+```
+
+STAGE 5 FULL JUNIT: {"tests":188,"failures":0,"errors":0,"skipped":0,"suites":45}
+
+Final repository checks (actual output):
+~~~text
+
+> check:decision
+> node tools/check-decision-purity.mjs && node tools/check-decision-contract.mjs
+
+decision-purity: PASS (34 Kotlin files)
+decision-contract: PASS (version 1; 12 frozen files; 11 core defaults)
+
+> check:twin
+> node tools/check-twin-purity.mjs
+
+twin-purity: PASS (292 twin file(s); absent modules are not target verification)
+
+> check:twin-contract
+> node tools/check-twin-contract.mjs
+
+twin-contract: PASS (7 snapshot(s) validated against schema; TwinConfig defaults match Appendix A)
+
+> check:personas
+> node tools/check-personas-purity.mjs && node tools/check-persona-data.mjs
+
+check-personas-purity PASS -- 22 file(s) scanned
+OK  anika_MATCHED_ShowAll_seed20261025.events.jsonl (3035 events)
+OK  kabir_MATCHED_ShowAll_seed20261025.events.jsonl (5335 events)
+OK  rahul_MATCHED_RandomizedHold_seed20261025.events.jsonl (779 events)
+OK  rahul_MATCHED_ShowAll_seed20261025.events.jsonl (2634 events)
+OK  rahul_MILD_MISSPEC_ShowAll_seed20261025.events.jsonl (784 events)
+
+check:persona-data PASS -- 5 fixture(s), 12567 events
+~~~
+
+CR5-2 — reproducible record metadata (review with CR5-1). Frozen DecisionRecord also omits settings.seed and original caution/strict/digest/zone inputs, while the common guide requires logging the exploration seed and later regret/delay-cost accounting needs original policy inputs. Numerical helpers are implemented, but real historical reconstruction must not substitute current settings. Proposed separate contractv2 additions: nullable captured policySeed, kappaDPerHour, strictSession,digestIntervalMin,zoneId and relevant tau/cost terms (or one typed optional evaluation snapshot) in the decision-time result/record, copied atomically by the factory. Bypassed/uncomputed costs stay null. Owner may approve a smaller shape if an equally explicit immutable decision-time record path exists. Acceptance: changing settings after decide cannot change the persisted seed, importance or cost inputs; historical regret/delay cost can be reproduced without re-running a newer model. No hidden side channel or mutable global score/settings read is proposed. No frozen changes made here.
+
+### Final status ledger and practical limits
+
+| Milestone | Status | Evidence/scope |
+|---|---|---|
+| 5.0 | tested/frozen v1 | Reviewed merge99eee1d; hash checks unchanged |
+| 5A | tested | Formula, boundary, selector and hold-time tests; f951db7 |
+| 5B | tested | Safety, fail-open, recheck, expiry and matrix tests; e7e08aa |
+| 5C | tested | Real adapters/pipeline/exploration/explanations;9b8f1fa plus final owned fixes |
+| 5D | tested | Numerical estimators, finite synthetic truth, diagnostics/regret/savings;3f035a4 plus final owned fixes |
+| 5E local gate | tested | Final full188tests,0failures/errors/skips; all4required npm gate checks pass; printed tables above |
+| Production decision-record wiring | blocked | CR5-1/CR5-2 require owner-reviewed contract change; no fabricated importance/settings |
+| Stage6 platform safety/actuation | not_started here | Category preservation, flags, scheduler/storage/recovery/compatibility and device tests belong to Stage6 |
+
+Warm dev-JVM benchmark is not a Reno14 result. Urgent42case x216config suite reports9072decisions/0holds for that synthetic suite only, not a universal guarantee. Ten-row controlled sheet triggers every action; real-engine cold/trained sheet is model output, not observed benefit. TrueEffect reference and full-cost/window caveats remain explicit. Existing root55-test hygiene issue is still not globally resolved; no claim that every repository check passed. No hardware, cloud, native notification or real-data causal validation. Not verified on target.
+
+The requested5C/5D/5E implementation and local test work is ready for review. No merge/push. Stage6 real logging/production integration must respect the documented contract requests and remaining gates rather than treating a local pass as authorization for LIVE suppression.

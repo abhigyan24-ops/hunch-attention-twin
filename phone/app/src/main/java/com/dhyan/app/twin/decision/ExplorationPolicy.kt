@@ -15,12 +15,12 @@ class PolicyRng(seed:Long) {
     }
 }
 data class ExplorationChoice(val action:Action,val explored:Boolean,val propensity:Double,val eligibleActions:Set<Action>)
-class ExplorationPolicy {
+class ExplorationPolicy(private val neverHoldRules:com.dhyan.app.safety.NeverHoldRules=com.dhyan.app.safety.NeverHoldRules()) {
     fun choose(costAction:Action,facts:NotificationFacts,settings:PolicySettings,importance:Double,deltaL:Double,
         failedOpen:Boolean=false,neverHold:Boolean=false):ExplorationChoice {
         require(settings.epsilon.isFinite() && settings.epsilon in 0.0..1.0)
         val eligible=settings.explorationEnabled && !settings.strictSession && !failedOpen && settings.mode!=PolicyMode.OFF &&
-            !settings.killSwitch && !neverHold && !facts.isVip && importance<.4 && deltaL>0 && costAction!=Action.ALLOW
+            !settings.killSwitch && !neverHold && !facts.isVip && importance<.4 && deltaL>0 && costAction!=Action.ALLOW && neverHoldRules.check(facts,settings)==null
         if(!eligible)return ExplorationChoice(costAction,false,1.0,setOf(costAction))
         val eps=settings.epsilon
         val explored=PolicyRng(PolicyRng.notificationSeed(settings.seed,facts.keyHash,facts.postedTsMs)).nextDouble()<eps
