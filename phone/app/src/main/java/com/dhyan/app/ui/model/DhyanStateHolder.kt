@@ -38,6 +38,11 @@ class DhyanStateHolder {
     var simIsVip by mutableStateOf(false)
     var simTask by mutableStateOf("Coding")
 
+    // Fast-Forward Simulation State
+    var isSimulatingFastForward by mutableStateOf(false)
+    var fastForwardProgress by mutableFloatStateOf(0f)
+    var fastForwardDaysSimulated by mutableIntStateOf(0)
+
     // Dynamic Simulation Result
     var currentSimulation by mutableStateOf(computeSimulation())
         private set
@@ -113,11 +118,6 @@ class DhyanStateHolder {
         TriggerStat("YouTube Shorts", "Video", 6, 28.5, false),
         TriggerStat("Twitter/X", "Social", 5, 16.0, false)
     )
-
-    // Fast-Forward Simulation State
-    var isSimulatingFastForward by mutableStateOf(false)
-    var fastForwardProgress by mutableFloatStateOf(0f)
-    var fastForwardDaysSimulated by mutableIntStateOf(0)
 
     fun selectPersona(persona: PersonaProfile) {
         selectedPersona = persona
