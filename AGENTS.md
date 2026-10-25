@@ -23,3 +23,11 @@ Stage 1A must not modify `phone/`, `laptop/`, or `relay/`.
 - Never hard-code results to match the pitch numbers in the spec (24 min, 0.62, 0.09). Print what the model produces.
 - Never claim a test passed unless you ran it and pasted the summary line. Never claim anything about the Reno 14.
 - Commit after each milestone on the stage3 branch. Never push. Never touch main.
+
+## Stage 4A rules (personas, generator, replay)
+- Branch: stage4a-personas. Commit after each prompt. Never push. Never touch main.
+- OWNED: phone/app/src/main/java/com/dhyan/app/personas/**, phone/app/src/test/java/com/dhyan/app/personas/**, tools/check-persona-data.mjs, tools/check-personas-purity.mjs, docs/PERSONA_WORLD.md, STAGE4A_NOTES.md, one script key check:personas in root package.json.
+- FORBIDDEN: core-spec/ (read-only), twin/** (no imports), collectors/, ingest/, data/, ui/, sync/, safety/, actuator/, fusion/, inference/, Gradle files, AndroidManifest.xml, Koin/Hilt modules, shared governance documents.
+- Pure Kotlin personas: no Android, AndroidX, Room or twin dependencies. No new dependencies.
+- Determinism: all sampling uses personas/rng/GenRng; no ambient random or wall-clock input. Durations in minutes, hazard per hour.
+- Synthetic events always synthetic:true; never raw notification text, titles or URLs. Never tune results to pitch numbers.

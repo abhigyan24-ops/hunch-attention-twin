@@ -6,7 +6,8 @@
     "test": "node --test tools/test/*.test.mjs",
     "checks": "node tools/check-schema-sync.mjs && node tools/check-twin-purity.mjs && node tools/check-no-persona-imports.mjs",
     "check:twin": "node tools/check-twin-purity.mjs",
-    "check:twin-contract": "node tools/check-twin-contract.mjs"
+    "check:twin-contract": "node tools/check-twin-contract.mjs",
+    "check:personas": "node tools/check-personas-purity.mjs && node tools/check-persona-data.mjs"
   },
   "devDependencies": {
     "ajv": "^8.17.1",
