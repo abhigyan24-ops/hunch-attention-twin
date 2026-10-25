@@ -317,3 +317,22 @@ Final safety JUnit XML totals: {"tests":27,"failures":0,"errors":0,"skipped":0,"
 Coverage: 27 safety tests across5 suites (existing kill-switch6, new rule/diagnostic/expiry6, recheck8, matrix7). Atomic diagnostic test verifies20000 increments; rule matrix covers8 critical fact variants x3 modes x2kill states. These are bounded synthetic helper tests, not a universal urgent-hold guarantee or platform test. Full Kotlin/root suites were not rerun in5B;5A's full143-test result is historical, and its root54/55 LF/CRLF issue remains open. No new exception messages or arbitrary category values are persisted or logged by the helpers.
 
 Status ledger:5A tested (prior milestone);5B implemented/tested within the scope above;5C–5E not_started. Frozen contract/defaults/version1 lock unchanged. No pipeline/Stage6 integration, device check, Stage5 implementation merge or push. Not verified on target. Commit message: stage5: 5B safety.
+
+## Stage 5C — pipeline
+
+Implemented LossPredictor/TwinEngineLossPredictor, ImportanceProvider/ModelImportanceProvider, ExplorationPolicy/PolicyRng, Explainer, DecisionPipeline and controlled tests. The new non-frozen LossPredictor API passes (snapshot,facts,nowMs,seed), rather than only the first two proposed parameters: necessary to inject explicit time/seed into the real engine without touching its ambient-clock default or introducing shared mutable clocks. ContextBucketer is used inside the real TwinEngine. Stage6 must depend on frozen DecisionProvider, not this implementation helper interface.
+
+Importance adapter calls the committed model with rawTextHint=null; it does not update feedback. External learning must provide a stable feedback boundary for repeatability (the existing 4B model has no atomic versioned importance snapshot). No model/4B edits. Caller must serialize inference with feedback updates when evaluating an identical policy/model state; this remains an integration requirement, not a claim of determinism during concurrent learning.
+
+Pipeline order: OFF/kill, validation, never-hold, importance/high importance, stale-context check/predictor, prediction validation, low evidence, costs, exploration, explanation. Unknown appCat or explicit other classification fails open after never-hold. All exceptions are guarded, reasons are controlled, no content is used. Risk/evidence boundary .5 and .85 are tested. OFF does not simulate; DRY_RUN computes identical decisions to LIVE without actuator effects. Strict halves cost kappa and disables exploration. Exploration epsilon0/1 reports only actually possible actions; intermediate support has ALLOW and the selected hold. Draw is idempotent by seed/keyHash/posted time.
+
+Actual 5C final decision-test command: same isolated offline Gradle invocation, --tests com.dhyan.app.twin.decision.*.
+```
+BUILD SUCCESSFUL in 35s
+25 actionable tasks: 6 executed, 19 up-to-date
+```
+Tests include real loaded-prior/unloaded-store adapters, override short circuits, exception canaries, deterministic exploration rate over10000facts, and a real-engine dev-JVM smoke benchmark (not Reno14). Detailed outputs are appended from XML below. Earlier baseline run without the final benchmark/finite-factor guard also passed in46s. 5D source preparation may exist uncommitted in the worktree during this check; only5C paths are committed in this milestone. Frozen contract/lock unchanged. No push or integration with Android. Not verified on target.
+
+5C dev JVM real-twin latency: median=0.645 ms; p95=1.0932 ms; n=300; NOT a Reno 14 result
+
+5C decision suite: 33 tests,0 failures (actual successful run).
