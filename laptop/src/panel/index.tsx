@@ -13,6 +13,7 @@ declare global {
   interface Window {
     dhyan: {
       schemaVersion: string;
+      getStorageHealth():Promise<{paused?:boolean;writePipelineFailures?:number}|null>;
       setIgnoreMouseEvents(ignore: boolean): void;
     };
   }
@@ -28,6 +29,8 @@ interface HeldItem {
 
 export function App() {
   const hitbox = useRef<HTMLDivElement>(null);
+  const [storagePaused,setStoragePaused]=useState(false);
+  useEffect(()=>{let active=true;const poll=()=>{void window.dhyan?.getStorageHealth().then(health=>{if(active)setStoragePaused(!health||health.paused===true||(health.writePipelineFailures??0)>0);}).catch(()=>{if(active)setStoragePaused(true);});};poll();const timer=setInterval(poll,2000);return ()=>{active=false;clearInterval(timer);};},[]);
 
   // Pip State
   const [behavior, setBehavior] = useState<PipBehavior>('deep_focus');
@@ -43,14 +46,14 @@ export function App() {
     {
       id: 'h1',
       app: 'Instagram',
-      sender: '@deepika_k',
+      sender: 'sample category',
       reason: '24 min expected lost focus while coding in VS Code',
       time: '4m ago'
     },
     {
       id: 'h2',
       app: 'Slack',
-      sender: '#random',
+      sender: 'sample category',
       reason: 'Non-urgent channel; batched until next task boundary',
       time: '12m ago'
     }
@@ -169,6 +172,8 @@ export function App() {
           {/* TAB 1: FOCUS STATUS */}
           {activeTab === 'status' && (
             <div className="tab-pane">
+              <p>Scaffold demo — displayed focus, held items and pairing are sample data.</p>
+              {storagePaused && <p role="alert">Storage paused. Collection needs recovery; recent events stay in memory.</p>}
               <div className="metric-card">
                 <div className="metric-label">TODAY'S FLOW DURATION</div>
                 <div className="metric-val">3h 48m</div>
@@ -218,6 +223,8 @@ export function App() {
           {/* TAB 2: HELD NOTIFICATIONS DIGEST */}
           {activeTab === 'held' && (
             <div className="tab-pane">
+              <p>Scaffold demo — displayed focus, held items and pairing are sample data.</p>
+              {storagePaused && <p role="alert">Storage paused. Collection needs recovery; recent events stay in memory.</p>}
               {heldItems.length === 0 ? (
                 <div className="empty-state">
                   <p className="empty-title">Queue Clear</p>
@@ -257,6 +264,8 @@ export function App() {
           {/* TAB 3: DECLARE SESSION */}
           {activeTab === 'declare' && (
             <div className="tab-pane">
+              <p>Scaffold demo — displayed focus, held items and pairing are sample data.</p>
+              {storagePaused && <p role="alert">Storage paused. Collection needs recovery; recent events stay in memory.</p>}
               <div className="active-session-box">
                 <div className="session-title">{declaredTask}</div>
                 <div className="session-remaining">
@@ -294,6 +303,8 @@ export function App() {
           {/* TAB 4: WHAT-IF SIMULATOR */}
           {activeTab === 'whatif' && (
             <div className="tab-pane">
+              <p>Scaffold demo — displayed focus, held items and pairing are sample data.</p>
+              {storagePaused && <p role="alert">Storage paused. Collection needs recovery; recent events stay in memory.</p>}
               <span className="section-label">INCOMING TEST NOTIFICATION:</span>
               <div className="chips-grid">
                 {(['Instagram', 'Slack', 'GitHub'] as const).map(app => (
@@ -342,3 +353,4 @@ export function App() {
 }
 
 createRoot(document.getElementById('root')!).render(<App />);
+

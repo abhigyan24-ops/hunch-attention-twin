@@ -1,0 +1,75 @@
+
+> dhyan-laptop@0.1.0 check:s7
+> node scripts/check-s7.mjs
+
+
+> dhyan-laptop@0.1.0 typecheck
+> tsc --noEmit
+
+
+> dhyan-laptop@0.1.0 build
+> electron-vite build
+
+vite v7.3.7 building ssr environment for production...
+transforming...
+✓ 14 modules transformed.
+rendering chunks...
+out/main/index.js  41.58 kB
+✓ built in 175ms
+vite v7.3.7 building ssr environment for production...
+transforming...
+✓ 1 modules transformed.
+rendering chunks...
+out/preload/index.cjs  0.57 kB
+✓ built in 10ms
+vite v7.3.7 building client environment for production...
+transforming...
+✓ 29 modules transformed.
+rendering chunks...
+../../out/renderer/index.html                   0.54 kB
+../../out/renderer/assets/index-Dvq3uvqK.css    8.23 kB
+../../out/renderer/assets/index-BQvD2zVO.js   668.68 kB
+✓ built in 635ms
+
+> dhyan-laptop@0.1.0 test
+> node --test test/*.test.mjs
+
+✔ privacy canary: AW bucket discovery reduces raw responses before callback (40.2233ms)
+✔ fallback uses injected process and idle sources and reports no fabricated data after failure (0.8644ms)
+✔ window debounce discards transient switches and tracks idle transitions (0.261ms)
+✔ label-once and pseudonymous settings survive restart (32.8149ms)
+✔ every focus rule and offline threshold has an explicit fixture (0.5447ms)
+✔ focus runner emits heartbeat and one offline transition gap using injected clock (0.4048ms)
+✔ Electron installer resolves the same addon-free extractor (1.9874ms)
+✔ installer adapter rejects relative paths (0.5239ms)
+✔ Windows installer adapter extracts a real archive with literal spaced paths (1108.1299ms)
+✔ Code.exe and code.exe map to coding (0.5594ms)
+✔ unknown processes map to unknown (0.1071ms)
+✔ github.com maps to coding (0.1012ms)
+✔ unknown domains map to unknown (0.066ms)
+✔ canonical SCHEMA_VERSION is 1.0.0 (0.9983ms)
+✔ privacy canary: invalid content and nested forbidden keys never reach disk (14.8643ms)
+✔ serialized concurrent appends recover exact sequence and isolate caller mutations (16.6898ms)
+✔ reservations survive a crash with permitted sequence holes (5.5644ms)
+✔ truncated last line is removed; valid lines remain and max sequence recovers (5.2584ms)
+✔ rotation uses unique names even with unchanged clock; retention removes only matching old files (7.2985ms)
+✔ partial ENOSPC write pauses, keeps memory, emits one signal and retries without duplication (4.9466ms)
+✔ ring and pending queue remain bounded during failure (46.2691ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1251.377
+✔ privacy canary: AW bucket discovery reduces raw responses before callback (32.899ms)
+✔ privacy canary: invalid content and nested forbidden keys never reach disk (16.5507ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 246.3811

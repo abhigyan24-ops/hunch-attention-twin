@@ -9,24 +9,27 @@
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit",
     "test": "node --test test/*.test.mjs",
-    "check:aw": "node scripts/check-aw.mjs"
+    "check:aw": "node scripts/check-aw.mjs",
+    "check:s7": "node scripts/check-s7.mjs"
   },
   "dependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "ws": "^8.18.3"
   },
   "devDependencies": {
-    "electron": "^45.0.0",
-    "electron-vite": "^4.0.1",
-    "vite": "^7.1.12",
-    "typescript": "^5.9.3",
-    "esbuild": "^0.25.11",
+    "@electron-internal/extract-zip": "file:vendor/electron-extractor",
     "@types/node": "^22.18.12",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "@types/ws": "^8.18.1",
-    "@electron-internal/extract-zip": "file:vendor/electron-extractor"
+    "electron": "^45.0.0",
+    "electron-vite": "^4.0.1",
+    "esbuild": "^0.25.11",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12"
   },
   "overrides": {
     "rollup": "npm:@rollup/wasm-node@4.52.4",

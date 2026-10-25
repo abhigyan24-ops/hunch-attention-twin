@@ -11,7 +11,8 @@
     "check:decision": "node tools/check-decision-purity.mjs && node tools/check-decision-contract.mjs",
     "check:contracts": "node --test tools/test/contract-*.test.mjs",
     "build-vectors": "node tools/gen-vectors.mjs",
-    "check:actuator": "node tools/check-actuator-contract.mjs"
+    "check:actuator": "node tools/check-actuator-contract.mjs",
+    "check:s7": "npm --prefix laptop run check:s7"
   },
   "devDependencies": {
     "ajv": "^8.17.1",
