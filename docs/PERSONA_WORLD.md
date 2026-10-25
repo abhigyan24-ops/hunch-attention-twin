@@ -33,3 +33,55 @@ The owner approved proceeding with documented assumptions on 2026-10-25; the new
 Loader rejects invalid probability, nonfinite mu, nonpositive sigma, missing class/task probabilities, missing resume/destination distributions, invalid weights/rates, noninteger hours, invalid schedules, duplicate senders/hours, unknown JSON fields and attempted source overrides. The reader rejects duplicate keys, malformed numbers, nonfinite overflow, invalid escapes/surrogates, trailing data, excessive size (>1 Mi characters) and nesting (>64).
 
 The generator-specific fatigue minimum is 1; Stage 1's broader schema permits positive values below1. Existing fixtures satisfy both; no shared schema is changed. Bundled fixtures must stay synchronized with Stage 1 files, enforced by tests. No Android, Room, twin dependency or new library is introduced. Nothing is verified on target.
+
+## Trial rules (4A-3)
+
+Each eligible notification (not inSession, not in an overlapping window) triggers one TRIAL. All 9 draws happen unconditionally in fixed order regardless of branch, so costs are always computable:
+
+| Draw index | Variable | Purpose |
+|---|---|---|
+| 1 | uSelf | Baseline inter-arrival uniform |
+| 2 | destSelf | Self-initiated destination selector |
+| 3,4 | zDself, zRself | Dwell/resume standard normals for self-initiated |
+| 5 | uPick | Pickup Bernoulli |
+| 6 | uLatency | Pickup latency uniform |
+| 7 | destNotif | Notification destination selector |
+| 8,9 | zDnotif, zRnotif | Dwell/resume standard normals for notification-triggered |
+
+tSelf = -ln(1-uSelf)/(lambda/60). Baseline exists iff tSelf < W. pPickup adjusted for fatigue via odds multiplier (A4-4). Owner: earliest event wins, tie to notification. lShow = cGlance + D_owner + R_owner. lSuppress = D_self + R_self if baseline exists else 0. deltaL = lShow - lSuppress (can be negative when baseline cost exceeds notification episode cost).
+
+## Truth fields (4A-3)
+
+`TruthRecord` contains: persona, dayIndex, notificationIndex, ts, context (taskType, hourBand, fatigueBand, hoursWorked, notifClass), inSession, trialEligible, exclusionReason, trial (all 9 draws plus derived fields), realizedArm (SHOW|SUPPRESS|null), propensity, eligibleForExploration, world.
+
+`TrialDraws` contains: the 9 raw draws, lambdaPerHour, pPickup (fatigue-adjusted, drift-applied), selfDelayMin, notifDelayMin, baselineExists, notifEventExists, owner, lShowMin, lSuppressMin. deltaLMin = lShowMin - lSuppressMin.
+
+## Worlds (4A-3)
+
+**MATCHED**: draws follow the same competing-risk structure as the twin contract. Parameter recovery from these fixtures tests estimator consistency, not real-world validity.
+
+**MILD_MISSPEC**: pPickup multiplied by a deterministic per-day drift in [0.85, 1.15] (seeded). 10% of dwell draws use mu+ln(3) (heavy tail). The truth records say which world made them. Neither world is validated against real users.
+
+## Logging policies (4A-3)
+
+**ShowAll**: all eligible notifications shown; pi=1.0; arm=SHOW. Matches observe-only reality.
+
+**RandomizedHold(eps, maxImportance)**: eligible if not inSession, not important sender, urgencyScore < maxImportance. If eligible, hold with probability eps (SUPPRESS arm, pi=eps) else SHOW (pi=1-eps). Policy draws use a separate RNG fork (tag=500) so toggling policies does not change world draws. Held notifications emit notif_removed(reason=held).
+
+## What this does not validate (4A-3)
+
+- Generator parameters are not fitted to real users. Recovering them from synthetic fixtures tests the estimator, not the model.
+- The MATCHED world circularity: the generator and evaluator share structure. Real user behavior may not follow this structure.
+- No edit_burst, declared_session, or gap events in 4A.
+- Persona arrival rates and destination weights are explicit assumptions (A4-2), not calibrated.
+- No hardware validation; not run on Reno 14.
+
+## Replay and temporal isolation (4A-5)
+
+**tsAdj**: ts + clockOffset(device). Events are sorted by (tsAdj, device, seq). Deduplication by (device, seq) removes exact duplicates. Out-of-order events within `outOfOrderToleranceMs` are re-ordered; beyond tolerance they are delivered in arrival order and counted as `lateEvents`.
+
+**t0 semantics**: GuardedEventLog.eventsBefore/between/latestBefore all enforce `upperBound <= t0` (strictly less than). Any attempt with `upperBound > t0` throws TemporalLeakException immediately, never leaking event content. `latestBefore(t0)` never returns an event with tsAdj >= t0. Training-side code cannot reach holdout events before `sealTraining()`.
+
+**runUntil(t0)**: delivers only events with tsAdj < t0 (strictly less). An event exactly at t0 is excluded.
+
+**FastForward**: generates the full history for a persona and replays it through ReplayDriver. Does not know about the twin; the sink decides what to do with events.
