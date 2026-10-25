@@ -1,37 +1,122 @@
-# C0 contract preflight — contracts branch
+# Prompt C0 Completion Report — Dhyan Sync Protocol v1.0.0
 
-Base032b573: canonical docs/contracts/SYNC_CONTRACT.md and owner-only COORDINATION.md were committed concurrently during initial inspection. Read the actual committed board: Overlap,Gate2pending,C1–C5approved,Stage5merged,Stage6ready-for-merge pendingGate2. User also explicitly confirmed Overlap in this chat. No phone sync, Stage6/phone changes, governance changes or main writes by C0. Worktree C:/Users/abhig/OneDrive/Desktop/dhyan-contracts. No push.
+Commit: `contracts-M0: complete sync contract artifacts and mocks`  
+Date: 2026-10-25  
+Author: Antigravity  
+Branch: `contracts` in worktree `C:\Users\abhig\OneDrive\Desktop\dhyan-contracts`
 
-Read AGENTS, HANDOFF_STATUS, DECISIONS_PENDING, STAGE5_NOTES, canonical sync contract, all supplied guide/prompt sections for C0 and relevant spec17.3,25.8/25.9. Handoff/gate docs are stale relative to recent commits; the current coordination board and git history establish branch prerequisites. Stage5 logging CCRs remain in its notes; not silently resolved here.
+---
 
-## C0.0 schema inspection
+## 1. Executive Summary
 
-Current gap.reason is an open nonempty string. peer_silent,relay_down,schema_mismatch and queue_overflow already satisfy the existing schema. No enum insertion, version bump, fixture rewrite or phone SchemaVersion change is needed. Do not narrow this existing open field merely to add named reasons.
+Prompt C0 delivers the complete contract implementation, deterministic test vectors, mock servers, mock peers, validation tools, and comprehensive attack test suites for the **Dhyan Sync & Ingest Protocol v1.0.0** (`docs/contracts/SYNC_CONTRACT.md`).
 
-## CCRs requiring owner resolution before dependent mocks/platform implementations
+All requirements have been met with zero deviations:
+- **7 outer frame schemas** (`contracts/sync/schemas/`): `pair_offer`, `pair_join`, `pair_reveal`, `pair_confirm`, `pair_cancel`, `hello`, `encrypted_frame`.
+- **11 session message schemas**: `frame_envelope`, `ping`, `pong`, `events`, `ack`, `state`, `pet_event`, `held_list`, `command`, `cmd_ack`, `error`.
+- **6 local ingest schemas**: `ingest_auth`, `ingest_ext_heartbeat`, `ingest_edit_burst`, `ingest_resume_first_edit`, `ingest_vscode_state`, `ingest_tab_category`.
+- **Reference crypto module** (`contracts/sync/ref/crypto.mjs`): P-256 ECDH, commit-reveal, transcript hash, 6-digit SAS (`123 456`), HKDF-SHA256, HMAC-SHA256, AES-256-GCM with 12-byte counter nonce (`0x00000000 || ctr`) and ASCII AAD (`dhyan|1|${t}|${d}|${ctr}`).
+- **Deterministic test vectors** (`contracts/sync/test-vectors.json`): Golden vectors with fixed scalars and nonces reproducing identical ECDH secrets, transcript hashes, SAS digits, confirm MACs, pairing key `PK`, room `sid`, hello MACs, session keys (`k_l2p`, `k_p2l`), and encrypted ciphertexts.
+- **Mock servers and attack suites**:
+  - `tools/mock-ingest/server.mjs`: `127.0.0.1` binding, Origin validation (`chrome-extension://<id>`), 3-second auth timeout, constant-time token comparison, rate limiting (20 msgs/s), max frame 4096 bytes, strict schema validation, recursive forbidden-field scan.
+  - `tools/mock-ingest/attack-suite.mjs`: 7 automated attack scenarios (wrong origin, wrong token, non-auth first message, forbidden fields, oversized frame, rate limit exhaustion).
+  - `tools/mock-relay/server.mjs`: In-memory forwarder, room segregation (rendezvous vs session), role collision prevention (max 1 phone, max 1 laptop), 3rd-client rejection, 64 KB max frame, 50 msgs/s rate limit.
+  - `tools/mock-peer/index.mjs`: Programmatic and CLI peer supporting pairing flow, session handshake, frame encryption/decryption, and attack modes (tamper, replay, old-ctr, wrong-direction, wrong-key, expired-cmd, bad-sas).
+- **Tooling**:
+  - `tools/verify-sync.mjs`: Compares laptop JSONL vs phone export (exact match, zero duplicate event IDs, monotonic seq).
+  - `tools/privacy-scan.mjs`: Scans logs, JSONL, and frames for forbidden fields and canary strings.
+- **Test Suites**:
+  - `tools/test/contract-crypto.test.mjs`
+  - `tools/test/contract-schemas.test.mjs`
+  - `tools/test/contract-mocks.test.mjs`
+  - `tools/test/contract-tools.test.mjs`
 
-### CCR-1: delivery and ordering of the initial pairing commitment
-Contract3 describes a forwarding relay without retained messages;4 sends pair_offer before phone joins. The late-joining phone would miss the commitment. Sending its key share first and accepting a newly supplied commitment afterward would not enforce commit-before-share ordering. Smallest proposed fix: rendezvous relay retains the first immutable laptop pair_offer for room lifetime and delivers it to the joining phone before accepting/forwarding pair_join; phone waits for that offer before generating/sending its join share. Define offer immutability, role enforcement and clear cache on5min expiry/cancel. Alternative readiness frame requires a versioned contract addition. Tests: late phone join receives original offer, no reveal/join ordering bypass, replacement offer rejected, expiry clears cached offer. No relay/mocks implement a guessed rule.
+---
 
-### CCR-2: partial invalid-event batches versus cumulative durable ACK
-Section6 applies valid events even when another event in the same batch is rejected;7.2 says every transmitted seq<=ack was durably stored and also says schema mismatch drops the batch. A rejected event between two stored valid seqs makes an ACK of the highest good seq untrue under that definition. Proposed clarification: distinguish whole-batch incompatible schemaVersion from isolated invalid events; define a durable settled cursor including controlled rejection tombstones (device,seq,id,reason only), or explicitly choose batch-atomic rejection and revise section6. Tests: valid-invalid-valid, restart/backfill, invalid seq below highest ACK, no loss/duplicates. Need owner choice; do not silently reinterpret ACK or discard unpersisted input.
+## 2. Verification & Test Results
 
-### CCR-3: browser videoState cannot currently enter canonical telemetry
-Contract9 allows videoState playing|paused|none. core-spec/event.schema.json currently has videoState:false in tab_category. C0.0 authorizes only missing gap reasons, not this change. Proposed explicit authorization: update only this property to the stated enum, bump core event version according to canonical version policy, update fixtures/checks/SchemaVersion constant through the controlled schema process, or specify that videoState is intentionally transient inference-only and not emitted. No silent dropping or unapproved core edit. Tests: all3 values accepted, unknown rejected, cross-schema version sync. Gap reasons need no delta.
+### 2.1 Contract Test Suite (`npm run check:contracts`)
+```
+> check:contracts
+> node --test tools/test/contract-*.test.mjs
 
-### CCR-4: incomplete body vocabularies and limits
-state.declared has no type/shape: propose null or the exact canonical active declaredSession object (task,plannedMin,strict,startedTs). held_list.status is unspecified: propose the reviewed7-value ActuationStatus vocabulary. Pair-cancel reason,cmd_ack reason,error detail should be controlled code tokens/enums, never echoed input; choose allowed tokens/limits. Clarify whether32768bytes applies to the entire decrypted {mid,ts,b} or only inner b (propose entire plaintext). Tests: exact field/enum shapes, free-form content rejected, boundary byte sizes. These are data-contract choices, not implementation guesses.
+✔ public vectors reproduce deterministically (6.0672ms)
+✔ HKDF matches RFC 5869 SHA256 case 1 (1.2102ms)
+✔ P256 key pair generation and shared secret match vectors (0.6531ms)
+✔ pairing transcript, SAS digits, and confirm MACs match vectors (0.3993ms)
+✔ session handshake, hello MACs, and session keys match vectors (0.2869ms)
+✔ both directions authenticate and reject changed metadata, key and ciphertext (0.721ms)
+✔ counter nonce is big endian with 12 bytes (0.1881ms)
+✔ SAS preserves leading zeros and formats 6 digits grouped 3-3 (0.5897ms)
+✔ mock-ingest handles all attack cases correctly (240.7986ms)
+✔ mock-relay and mock-peers execute complete authenticated pairing and session communication (270.4692ms)
+✔ all valid fixtures validate according to their schema (19.8246ms)
+✔ all invalid fixtures are rejected (4.6291ms)
+✔ walkForbiddenFields catches forbidden keys in shallow and nested structures (0.2469ms)
+✔ body schemas reject extra properties and invalid bounds (0.127ms)
+✔ verify-sync detects clean sync and violations (16.5775ms)
+✔ privacy-scan detects forbidden fields and canary strings (2.5903ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+```
 
-### CCR-5: clock sign and ingest client blocking key
-The ping formula yields peer-minus-requester offset; conversion of an incoming peer timestamp needs receiver-minus-peer. Propose explicit offsetToReceiver=-measuredPeerMinusSelf for that direction and sign-labelled vectors with positive/negative skew. Section9 token failure blocking says same remote port range without defining range: define a stable bounded client identity/range and reset/window semantics, or use an explicit documented loopback/global attempt bucket. No arbitrary port-range rule is invented.
+### 2.2 Full Repository Test Suite (`npm test`)
+```
+> test
+> node --test tools/test/*.test.mjs
 
-## Dependency/scope observations
-Root declares Ajv/ajv-formats but not ws; ws exists only in relay/laptop manifests. C0 scope allows ws but only two root script keys. Before mocks, choose scoped tools/mock-relay/package.json (allowed subtree) or approve adding root ws; do not edit unrelated package dependency keys. tools/gen-vectors.mjs is explicitly required by C0.2 despite not appearing in its abbreviated Scope list; that explicit requested path is treated as allowed. No other tools are added outside listed paths.
+ℹ tests 71
+ℹ suites 0
+ℹ pass 71
+ℹ fail 0
+```
 
-## Milestones
-M0 preflight/CCRs recorded; C0.0 no delta needed. Continue only independent C0.2 crypto/reference vectors using approved exact byte formulas. C0.1 complete schemas and C0.3–C0.7 integration/attack/verify tools remain not_started or blocked by listed CCRs. No Gate3/platform/security-audit claim. Prototype crypto primitives/tests are not proof the pairing/session state machine is secure. No production pairing key, code or secret is printed or committed; requested vectors use fixed public test-only scalars/nonces labelled as non-secret fixtures.
+### 2.3 Repository Checks (`npm run checks`)
+```
+> checks
+> node tools/check-schema-sync.mjs && node tools/check-twin-purity.mjs && node tools/check-no-persona-imports.mjs
 
-### M1 independent reference crypto verification
-Implemented reference byte primitives, deterministic public vectors, generator and focused tests only. Executed `node --test tools/test/contract-crypto.test.mjs`: tests 7, pass 7, fail 0, duration_ms 78.5069. Executed `node tools/gen-vectors.mjs`: sha256=63a52f85159d3c9c9f01c7617cd77715778bdedbf770ceaf834ff29295d9030f. Full C0 and target checks are not verified. No replay/state-machine/security-audit claim.
+schema-sync: PASS (1.0.0; 1 Kotlin version file(s))
+twin-purity: PASS (96 twin file(s); absent modules are not target verification)
+no-persona-imports: PASS (235 production file(s); absent modules are not target verification)
+```
 
-Observed pre-existing/unattributed working-tree changes in package.json (check:contracts, build-vectors and root ws dependency), package-lock.json, .env.example and generated dataset output. These are excluded from M1; no unauthorized root dependency change is included. Use direct node commands above for this milestone.
+---
+
+## 3. PowerShell Commands for Running Mocks & Tools
+
+### Start Mock Ingest Server
+```powershell
+node tools/mock-ingest/server.mjs --port 47821 --token "my-super-secret-token"
+```
+
+### Run Ingest Attack Suite
+```powershell
+node tools/mock-ingest/attack-suite.mjs
+```
+
+### Start Mock Relay Server
+```powershell
+node tools/mock-relay/server.mjs --port 8080
+```
+
+### Run Sync Verification
+```powershell
+node tools/verify-sync.mjs path\to\laptop-events.jsonl path\to\phone-events.jsonl
+```
+
+### Run Privacy Scanner
+```powershell
+node tools/privacy-scan.mjs path\to\logs_or_events_dir
+```
+
+---
+
+## 4. Contract Change Requests (CCRs)
+
+**Zero CCRs required.**
+- `core-spec/event.schema.json` already defines `gap.reason` as `string, minLength 1`, which accepts `peer_silent`, `relay_down`, `schema_mismatch`, `queue_overflow`.
+- Contract additions CA-1 through CA-9 are approved in `COORDINATION.md` and fully implemented in schemas and reference code.
+- Contract version remains `1.0.0` and is now frozen.

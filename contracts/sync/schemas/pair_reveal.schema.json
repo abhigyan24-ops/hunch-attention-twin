@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PairRevealFrame",
+  "type": "object",
+  "properties": {
+    "v": { "const": 1 },
+    "t": { "const": "pair_reveal" },
+    "device": { "const": "laptop" },
+    "pk": { "type": "string", "pattern": "^[A-Za-z0-9+/]{87}=$" },
+    "n": { "type": "string", "pattern": "^[A-Za-z0-9+/]{22}==$" }
+  },
+  "required": ["v", "t", "device", "pk", "n"],
+  "additionalProperties": false
+}

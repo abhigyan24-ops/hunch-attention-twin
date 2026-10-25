@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IngestAuth",
+  "type": "object",
+  "properties": {
+    "kind": { "const": "auth" },
+    "token": { "type": "string", "minLength": 16, "maxLength": 128 },
+    "client": { "enum": ["vscode", "browser"] },
+    "clientVersion": { "type": "string", "minLength": 1, "maxLength": 32 }
+  },
+  "required": ["kind", "token", "client", "clientVersion"],
+  "additionalProperties": false
+}

@@ -1,0 +1,12 @@
+{
+  "total": 1,
+  "items": [
+    {
+      "heldId": "kh_test_id_123",
+      "appCat": "social",
+      "heldAt": 1729864000000,
+      "expiresAt": 1729867600000,
+      "status": "HELD"
+    }
+  ]
+}

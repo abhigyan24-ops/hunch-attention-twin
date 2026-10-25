@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IngestTabCategory",
+  "type": "object",
+  "properties": {
+    "kind": { "const": "tab_category" },
+    "ts": { "type": "integer", "minimum": 0 },
+    "domainCat": {
+      "enum": [
+        "coding",
+        "docs",
+        "communication",
+        "social",
+        "video",
+        "short_video",
+        "games",
+        "shopping",
+        "news",
+        "music",
+        "learning",
+        "utility",
+        "system",
+        "unknown"
+      ]
+    },
+    "surface": {
+      "enum": [
+        "feed",
+        "shorts",
+        "watch",
+        "chat",
+        "editor",
+        "other"
+      ]
+    },
+    "videoState": { "enum": ["playing", "paused", "none"] },
+    "scrollCount": { "type": "integer", "minimum": 0 },
+    "tabActive": { "type": "boolean" }
+  },
+  "required": ["kind", "ts", "domainCat", "surface", "tabActive"],
+  "additionalProperties": false
+}

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StateBody",
+  "type": "object",
+  "properties": {
+    "ts": { "type": "integer", "minimum": 0 },
+    "focusState": {
+      "enum": [
+        "deep_focus",
+        "working",
+        "drifting",
+        "distracted",
+        "recovering",
+        "break"
+      ]
+    },
+    "laptopState": {
+      "enum": [
+        "flowing",
+        "stuck",
+        "idle_open",
+        "browsing",
+        "gaming",
+        "away",
+        "offline"
+      ]
+    },
+    "phoneState": {
+      "enum": [
+        "screen_off",
+        "in_app",
+        "scrolling"
+      ]
+    },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "declared": { "type": "boolean" },
+    "heldCount": { "type": "integer", "minimum": 0 },
+    "minutesInState": { "type": "number", "minimum": 0 }
+  },
+  "required": ["ts", "focusState", "confidence", "declared", "heldCount"],
+  "additionalProperties": false
+}

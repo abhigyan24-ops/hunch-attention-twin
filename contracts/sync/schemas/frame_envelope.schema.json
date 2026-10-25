@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FrameEnvelope",
+  "type": "object",
+  "properties": {
+    "mid": { "type": "string", "format": "uuid" },
+    "ts": { "type": "integer", "minimum": 0 },
+    "b": { "type": "object" }
+  },
+  "required": ["mid", "ts", "b"],
+  "additionalProperties": false
+}

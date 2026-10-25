@@ -8,10 +8,15 @@
     "check:twin": "node tools/check-twin-purity.mjs",
     "check:twin-contract": "node tools/check-twin-contract.mjs",
     "check:personas": "node tools/check-personas-purity.mjs && node tools/check-persona-data.mjs",
-    "check:decision": "node tools/check-decision-purity.mjs && node tools/check-decision-contract.mjs"
+    "check:decision": "node tools/check-decision-purity.mjs && node tools/check-decision-contract.mjs",
+    "check:contracts": "node --test tools/test/contract-*.test.mjs",
+    "build-vectors": "node tools/gen-vectors.mjs"
   },
   "devDependencies": {
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1"
+  },
+  "dependencies": {
+    "ws": "^8.22.0"
   }
 }

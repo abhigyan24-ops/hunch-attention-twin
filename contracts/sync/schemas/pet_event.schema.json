@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PetEventBody",
+  "type": "object",
+  "properties": {
+    "kind": { "enum": ["held", "released", "nudge", "celebrate"] },
+    "count": { "type": "integer", "minimum": 0 }
+  },
+  "required": ["kind", "count"],
+  "additionalProperties": false
+}

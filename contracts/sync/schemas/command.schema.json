@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CommandBody",
+  "type": "object",
+  "properties": {
+    "cmdId": { "type": "string", "format": "uuid" },
+    "cmd": {
+      "enum": [
+        "declare_session",
+        "end_session",
+        "show_now",
+        "kill_switch"
+      ]
+    },
+    "args": {
+      "type": "object"
+    },
+    "issuedTs": { "type": "integer", "minimum": 0 },
+    "exp": { "type": "integer", "minimum": 0 }
+  },
+  "required": ["cmdId", "cmd", "args", "issuedTs", "exp"],
+  "additionalProperties": false
+}

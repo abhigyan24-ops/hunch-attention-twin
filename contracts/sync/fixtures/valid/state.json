@@ -1,0 +1,10 @@
+{
+  "ts": 1729864000000,
+  "focusState": "deep_focus",
+  "laptopState": "flowing",
+  "phoneState": "screen_off",
+  "confidence": 0.85,
+  "declared": false,
+  "heldCount": 2,
+  "minutesInState": 25
+}
