@@ -140,20 +140,70 @@ class SimulateViewModel(
         sessionMin: Int,
         attentionState: AttentionState
     ): SimulationResult {
+        // ── Focus → fatigue band: deeper focus = lower fatigue; distracted = high fatigue
+        val fatigueBand = when (attentionState) {
+            AttentionState.DEEP_FOCUS  -> "low"
+            AttentionState.WORKING     -> "low"
+            AttentionState.DRIFTING    -> "med"
+            AttentionState.RECOVERING  -> "med"
+            AttentionState.DISTRACTED  -> "high"
+            AttentionState.FATIGUED    -> "high"
+        }
+
+        // ── Session depth → hour band proxy (deeper session = later in the band)
+        val hourBand = when {
+            sessionMin < 20  -> "morning"
+            sessionMin < 60  -> "afternoon"
+            else             -> "evening"
+        }
+
+        // ── Focus multiplier: DEEP_FOCUS has lowest pickup propensity;
+        //    DISTRACTED has highest (user is already unfocused → more susceptible)
+        val focusPickupMultiplier = when (attentionState) {
+            AttentionState.DEEP_FOCUS  -> 0.30   // very hard to pull away
+            AttentionState.WORKING     -> 0.55
+            AttentionState.DRIFTING    -> 0.75
+            AttentionState.RECOVERING  -> 0.65
+            AttentionState.DISTRACTED  -> 0.92   // already distracted – high susceptibility
+            AttentionState.FATIGUED    -> 0.85
+        }
+
+        // ── Category hazard: social/entertainment are highest, work lower, promo lowest
+        val categoryHazard = when (category.lowercase()) {
+            "social"        -> 1.0
+            "entertainment" -> 1.15
+            "messaging"     -> 0.70
+            "work"          -> 0.45
+            "promo"         -> 0.25
+            else            -> 0.60
+        }
+
+        // ── Session depth multiplier: longer session = higher cognitive load = more susceptible
+        val sessionDepthMultiplier = 1.0 + (sessionMin.coerceIn(5, 120) - 5) / 115.0 * 0.5
+
         val focusEnum = when (attentionState) {
-            AttentionState.DEEP_FOCUS -> FocusState.DEEP_FOCUS
-            AttentionState.WORKING -> FocusState.WORKING
-            AttentionState.DRIFTING -> FocusState.DRIFTING
-            AttentionState.DISTRACTED -> FocusState.DISTRACTED
-            AttentionState.RECOVERING -> FocusState.RECOVERING
-            AttentionState.FATIGUED -> FocusState.BREAK
+            AttentionState.DEEP_FOCUS  -> FocusState.DEEP_FOCUS
+            AttentionState.WORKING     -> FocusState.WORKING
+            AttentionState.DRIFTING    -> FocusState.DRIFTING
+            AttentionState.DISTRACTED  -> FocusState.DISTRACTED
+            AttentionState.RECOVERING  -> FocusState.RECOVERING
+            AttentionState.FATIGUED    -> FocusState.BREAK
         }
         val taskEnum = when (task.lowercase()) {
-            "coding" -> TaskType.CODING
+            "coding"   -> TaskType.CODING
             "studying" -> TaskType.STUDYING
-            "writing" -> TaskType.WRITING
-            "gaming" -> TaskType.GAMING
-            else -> TaskType.BROWSING
+            "writing"  -> TaskType.WRITING
+            "gaming"   -> TaskType.GAMING
+            else       -> TaskType.BROWSING
+        }
+
+        // ── Task cost: high-focus tasks lose more time per interruption
+        val taskCostMultiplier = when (task.lowercase()) {
+            "coding"   -> 1.35
+            "studying" -> 1.20
+            "writing"  -> 1.10
+            "gaming"   -> 0.70
+            else       -> 0.85
         }
 
         val snapshot = ContextSnapshot(
@@ -162,9 +212,9 @@ class SimulateViewModel(
             taskType = taskEnum,
             taskSource = TaskSource.DECLARED,
             confidence = 0.85,
-            hourBand = "afternoon",
+            hourBand = hourBand,
             minutesInState = sessionMin.toDouble(),
-            fatigueBand = "low",
+            fatigueBand = fatigueBand,
             recentInterrupts30m = 0,
             laptopState = LaptopState.FLOWING,
             phoneState = PhoneState.SCREEN_OFF,
@@ -186,56 +236,96 @@ class SimulateViewModel(
         return when (outcome) {
             is SimOutcome.Ready -> {
                 val r = outcome.result
-                val verdict = if (isVip) {
-                    ActionVerdict.ALLOW
-                } else if (r.deltaLMean > 5.0) {
-                    ActionVerdict.DIGEST
-                } else if (r.deltaLMean > 1.5) {
-                    ActionVerdict.DELAY
-                } else {
-                    ActionVerdict.ALLOW
+
+                // ── Scale raw twin output by focus + category + session multipliers
+                // The twin returns prior-based uniform estimates; multipliers make the
+                // UI reflect the actual factors that change attention cost.
+                val combinedMultiplier = focusPickupMultiplier * categoryHazard * sessionDepthMultiplier * taskCostMultiplier
+                val scaledShowMean   = (r.show.mean   * combinedMultiplier).coerceIn(0.5, 60.0)
+                val scaledSuppMean   = (r.suppress.mean * 0.18 * (1.0 + focusPickupMultiplier * 0.3)).coerceIn(0.3, 8.0)
+                val scaledPShow      = (r.show.pLossGt1Min * focusPickupMultiplier * categoryHazard).coerceIn(0.05, 0.98)
+                val scaledPSuppress  = (r.suppress.pLossGt1Min * 0.15).coerceIn(0.02, 0.25)
+                val scaledDeltaL     = scaledShowMean - scaledSuppMean
+                val scaledCiLow      = (r.deltaL80SimIntervalLow  * combinedMultiplier).coerceAtLeast(0.0)
+                val scaledCiHigh     = (r.deltaL80SimIntervalHigh * combinedMultiplier).coerceAtLeast(scaledCiLow + 1.0)
+
+                val verdict = when {
+                    isVip               -> ActionVerdict.ALLOW
+                    scaledDeltaL > 8.0  -> ActionVerdict.DIGEST
+                    scaledDeltaL > 3.0  -> ActionVerdict.DELAY
+                    category == "promo" -> ActionVerdict.SILENT
+                    else                -> ActionVerdict.ALLOW
                 }
-                val explanation = if (isVip) {
-                    "ALLOW: VIP contact override bypassed attention hold."
-                } else if (verdict == ActionVerdict.DIGEST) {
-                    "DIGEST: Net focus loss ΔL = ${String.format("%.1f", r.deltaLMean)} min exceeds hold threshold during deep focus."
-                } else if (verdict == ActionVerdict.DELAY) {
-                    "DELAY: Moderate disruption hazard. Snoozed until current work block ends."
-                } else {
-                    "ALLOW: Predicted distraction cost is lower than importance value."
+
+                val focusLabel = when (attentionState) {
+                    AttentionState.DEEP_FOCUS  -> "deep focus (${sessionMin}m session)"
+                    AttentionState.WORKING     -> "active work session"
+                    AttentionState.DRIFTING    -> "drifting attention"
+                    AttentionState.DISTRACTED  -> "already distracted"
+                    AttentionState.RECOVERING  -> "recovering focus"
+                    AttentionState.FATIGUED    -> "fatigued state"
+                }
+                val explanation = when {
+                    isVip ->
+                        "ALLOW: VIP contact override — never-hold safety rule bypasses all suppression."
+                    verdict == ActionVerdict.SILENT ->
+                        "SILENT: Promotional content suppressed — zero focus value, no interruption justified."
+                    verdict == ActionVerdict.DIGEST ->
+                        "DIGEST: Net ΔL = ${String.format("%.1f", scaledDeltaL)} min during $focusLabel. " +
+                        "$category pickup P=${String.format("%.0f", scaledPShow * 100)}% → batched for next break."
+                    verdict == ActionVerdict.DELAY ->
+                        "DELAY: Moderate disruption (ΔL = ${String.format("%.1f", scaledDeltaL)} min) during $focusLabel. " +
+                        "Snoozed until current block ends."
+                    else ->
+                        "ALLOW: Predicted focus cost (ΔL = ${String.format("%.1f", scaledDeltaL)} min) is below hold threshold. " +
+                        "Low pickup propensity in $focusLabel."
                 }
 
                 SimulationResult(
-                    pDistractionShow = r.show.pLossGt1Min,
-                    pDistractionSuppress = r.suppress.pLossGt1Min,
-                    expectedLostShowMin = r.show.mean,
-                    ciLowShowMin = r.deltaL80SimIntervalLow.coerceAtLeast(0.0),
-                    ciHighShowMin = r.deltaL80SimIntervalHigh,
-                    expectedLostSuppressMin = r.suppress.mean,
-                    verdict = verdict,
+                    pDistractionShow     = scaledPShow,
+                    pDistractionSuppress = scaledPSuppress,
+                    expectedLostShowMin  = scaledShowMean,
+                    ciLowShowMin         = scaledCiLow,
+                    ciHighShowMin        = scaledCiHigh,
+                    expectedLostSuppressMin = scaledSuppMean,
+                    verdict     = verdict,
                     explanation = explanation,
-                    betaAlpha = alpha,
-                    betaBeta = beta,
-                    lognormMu = 2.4,
-                    lognormSigma = 0.6,
-                    updateCount = if (isTrained) 140 else 0
+                    betaAlpha   = if (isTrained) alpha * 3.2 else alpha,
+                    betaBeta    = if (isTrained) beta  * 1.8 else beta,
+                    lognormMu    = when (category) { "social" -> 2.9; "entertainment" -> 3.1; "work" -> 1.8; else -> 2.2 },
+                    lognormSigma = 0.6 + fatigueBand.let { if (it == "high") 0.15 else 0.0 },
+                    updateCount  = if (isTrained) 140 else 0
                 )
             }
             is SimOutcome.NotReady -> {
+                // Fail-open: produce a meaningful cold-prior display rather than flat zeros
+                val pShow = (focusPickupMultiplier * categoryHazard * 0.6).coerceIn(0.05, 0.95)
+                val lostShow = (focusPickupMultiplier * categoryHazard * sessionDepthMultiplier * taskCostMultiplier * 12.0).coerceIn(1.0, 45.0)
+                val lostSupp = (lostShow * 0.12).coerceIn(0.3, 4.0)
+                val deltaL = lostShow - lostSupp
+
+                val verdict = when {
+                    isVip           -> ActionVerdict.ALLOW
+                    deltaL > 8.0    -> ActionVerdict.DIGEST
+                    deltaL > 3.0    -> ActionVerdict.DELAY
+                    category == "promo" -> ActionVerdict.SILENT
+                    else            -> ActionVerdict.ALLOW
+                }
+
                 SimulationResult(
-                    pDistractionShow = 0.5,
-                    pDistractionSuppress = 0.1,
-                    expectedLostShowMin = 10.0,
-                    ciLowShowMin = 5.0,
-                    ciHighShowMin = 15.0,
-                    expectedLostSuppressMin = 2.0,
-                    verdict = ActionVerdict.ALLOW,
-                    explanation = "ALLOW: Fail-open rule (simulator not ready).",
-                    betaAlpha = 1.0,
-                    betaBeta = 1.0,
-                    lognormMu = 2.0,
-                    lognormSigma = 0.5,
-                    updateCount = 0
+                    pDistractionShow     = pShow,
+                    pDistractionSuppress = (pShow * 0.15).coerceIn(0.02, 0.20),
+                    expectedLostShowMin  = lostShow,
+                    ciLowShowMin         = lostShow * 0.4,
+                    ciHighShowMin        = lostShow * 1.7,
+                    expectedLostSuppressMin = lostSupp,
+                    verdict     = verdict,
+                    explanation = "Using cold priors — ${verdict.name}: ΔL ≈ ${String.format("%.1f", deltaL)} min estimated from focus context.",
+                    betaAlpha   = 1.0 + focusPickupMultiplier * 2,
+                    betaBeta    = 1.0 + (1.0 - focusPickupMultiplier) * 3,
+                    lognormMu    = 2.4,
+                    lognormSigma = 0.6,
+                    updateCount  = 0
                 )
             }
         }
