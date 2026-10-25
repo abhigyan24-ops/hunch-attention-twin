@@ -73,7 +73,8 @@ fun LiveDigestTab(
             killSwitchController = com.dhyan.app.actuator.KillSwitchController(
                 com.dhyan.app.actuator.RoomHeldStore(db.heldNotifDao()),
                 com.dhyan.app.actuator.release.WorkManagerReleaseJobScheduler(context)
-            )
+            ),
+            isFakeProvider = false
         )
     }
     LiveDigestTab(viewModel = viewModel, modifier = modifier)

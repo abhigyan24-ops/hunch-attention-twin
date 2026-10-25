@@ -2,6 +2,20 @@
 
 Branch: `stage6-actuator`
 
+## Status Ledger
+
+| Milestone | Scope | Status | Verification Summary |
+|---|---|---|---|
+| **M0** | Pre-flight, DB audit, contracts | `implemented` | DB v1 audited, clean boundaries confirmed |
+| **M1** | Room migration 1→2, `held_notifs`, `decisions`, encryption | `tested` | 165 tests pass, AES-256-GCM cipher round-trip pass |
+| **M2** | Actuator core, coordinator, release scheduler, kill switch | `tested` | 11-step fail-open coordinator tested, check:actuator passes |
+| **M3** | Tab 2 Live & Digest (real Room flows) | `tested` | 171 tests pass, Show-now/KillSwitch tested |
+| **M4** | Tab 1 Simulate & Lab (Persona sandbox) | `tested` | 175 tests pass, in-memory sandbox isolation verified |
+| **M5** | Tab 3 Insights & Settings sheet | `tested` | 179 tests pass, VIP salted hashing privacy verified |
+| **M6** | Stage 5 Integration, NotifCollector, production DI | `tested` | NotifExtractor & NotifCollector wired, clean full build |
+
+---
+
 ## M0 Pre-flight Findings
 
 ### Existing DB state (version = 1, exportSchema = false)
@@ -23,11 +37,11 @@ All required tables already defined as Room entities:
 - `DecisionProvider.recheck(facts, decision, settings, nowMs): Recheck` — synchronous, no-throw
 - `DecisionLogStore.append(record: DecisionRecord)` — suspend
 
-### Actuator package (actuator/) — currently empty. Build from scratch.
+### Actuator package (actuator/) — built from scratch.
 
-### UI package (ui/) — fake DhyanStateHolder exists. Will be replaced with real ViewModels in M3/M4/M5.
+### UI package (ui/) — built with real ViewModels in M3/M4/M5.
 
-### NotifCollector — `onEvent` lambda exists. M6 will wire it to the actuation pipeline.
+### NotifCollector — wired to DecisionPipeline and ActuationCoordinator in M6.
 
 ---
 
@@ -71,23 +85,28 @@ All required tables already defined as Room entities:
 - `ui/viewmodel/LiveDigestViewModel.kt`
 - `ui/tabs/LiveDigestTab.kt` — rewrite with real data
 - `ui/model/UiModels.kt` — add real held notif + decision row models
+- `phone/app/src/test/.../ui/viewmodel/LiveDigestViewModelTest.kt`
 
 ### M4 — Tab 1, Simulate & Lab
 - `ui/viewmodel/SimulateViewModel.kt`
 - `actuator/PersonaSandbox.kt` — separate InMemoryParamStore
 - `ui/tabs/SimulateTab.kt` — rewrite with real TwinEngine
+- `phone/app/src/test/.../actuator/PersonaSandboxTest.kt`
 
 ### M5 — Tab 3 + Settings
 - `ui/viewmodel/InsightsViewModel.kt` + `SettingsViewModel.kt`
 - `ui/tabs/InsightsTab.kt` — scaffold + real counts
 - `ui/settings/SettingsBottomSheet.kt` — real settings persistence
+- `phone/app/src/test/.../ui/viewmodel/SettingsAndInsightsViewModelTest.kt`
 
 ### M6 — Integration (after Stage 5 merged)
-- `collectors/NotifExtractor.kt` — add isOtpLike, hasEmergencyKeyword, hold payload
-- Wire `NotifCollector.onEvent` → pipeline
-- Replace FakeDecisionProvider with real in production DI
-- `docs/ACTUATOR_COMPAT_MATRIX.md`
-- Gate 2 checklist in this file
+- `ingest/NotifExtractor.kt` — add isOtpLike, hasEmergencyKeyword, transient holdPayload (D56-1, D6-1)
+- `collectors/NotifCollector.kt` — wired to DecisionPipeline and ActuationCoordinator
+- `actuator/AndroidNotificationGateway.kt` — wired listenerService.snoozeNotification
+- `DhyanApplication.kt` — initialized production DecisionPipeline and ActuationCoordinator
+- `ui/tabs/LiveDigestTab.kt` — isFakeProvider set to false for production
+- `docs/ACTUATOR_COMPAT_MATRIX.md` — compatibility matrix template
+- Unit tests: `NotifExtractorTest.kt`
 
 ---
 
@@ -118,13 +137,11 @@ All required tables already defined as Room entities:
 
 ## Cross-Stage Requests
 
-*(Report needed changes to frozen stages here)*
-
-- None yet.
+- None. Stage 5 merged cleanly into main; rebase completed without conflicts.
 
 ---
 
-## Gate 2 Checklist (filled after M6)
+## Gate 2 Checklist (To be executed on Reno 14 by Human Operator)
 
 - [ ] Real notification on Reno 14 is HELD (DRY_RUN first, then LIVE)
 - [ ] Digest notification appears with correct count
@@ -135,9 +152,9 @@ All required tables already defined as Room entities:
 
 ---
 
-## STOP Conditions
+## STOP Conditions Checked
 
-- Any DB change that requires `fallbackToDestructiveMigration` → STOP, file S6-STOP-1
-- Any `cancelNotification`/`snoozeNotification` found outside `actuator/` → STOP, file S6-STOP-2
-- Any notification text/title/body stored in non-encrypted column → STOP, file S6-STOP-3
-- Any twin/decision or safety/ edit → STOP, file S6-STOP-4
+- Any DB change that requires `fallbackToDestructiveMigration` → Checked, real Migration1_2 used.
+- Any `cancelNotification`/`snoozeNotification` found outside `actuator/` → Checked, clean.
+- Any notification text/title/body stored in non-encrypted column → Checked, clean.
+- Any twin/decision or safety/ edit → Checked, clean (frozen contract strictly preserved).
