@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 export const SCHEMA_VERSION = readFileSync(new URL('../../../core-spec/SCHEMA_VERSION',import.meta.url),'utf8').trim();
 let petWindow: BrowserWindow | null = null;
 function createWindow(): void {
- petWindow = new BrowserWindow({width:420,height:220,transparent:true,frame:false,alwaysOnTop:true,skipTaskbar:true,resizable:false,webPreferences:{preload:fileURLToPath(new URL('../preload/index.cjs',import.meta.url)),contextIsolation:true,nodeIntegration:false,sandbox:true,additionalArguments:[`--schema-version=${SCHEMA_VERSION}`]}});
+ petWindow = new BrowserWindow({width:440,height:480,transparent:true,frame:false,alwaysOnTop:true,skipTaskbar:true,resizable:false,webPreferences:{preload:fileURLToPath(new URL('../preload/index.cjs',import.meta.url)),contextIsolation:true,nodeIntegration:false,sandbox:true,additionalArguments:[`--schema-version=${SCHEMA_VERSION}`]}});
  petWindow.setAlwaysOnTop(true,'screen-saver');
  petWindow.setIgnoreMouseEvents(true,{forward:true});
  petWindow.on('closed',()=>{petWindow=null;});
