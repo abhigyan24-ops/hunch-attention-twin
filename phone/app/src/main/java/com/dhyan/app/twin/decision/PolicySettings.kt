@@ -11,7 +11,9 @@ class PolicySettings(
     val epsilon: Double = PolicyDefaults.EPSILON,
     val strictSession: Boolean = false,
     allowListPackages: Set<String> = emptySet(),
-    val seed: Long = 1L
+    val seed: Long = 1L,
+    /** Costing and Stage 6 scheduling must pass this interval and the same zone to DigestSchedule. */
+    val digestIntervalMin: Int = PolicyDefaults.DIGEST_INTERVAL_MIN
 ) {
     val allowListPackages: Set<String> = Collections.unmodifiableSet(LinkedHashSet(allowListPackages))
 }

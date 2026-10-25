@@ -4,7 +4,7 @@ This contract is frozen only after owner review and merge of the Phase 0 commit.
 
 ## Semantics and ownership
 
-DecisionProvider.decide is synchronous and must never throw or perform I/O: any missing/invalid/stale/throwing dependency yields ALLOW and failedOpen=true. The safe default AlwaysAllowDecisionProvider always emits reason no_provider and rejects recheck with Abort(no_provider). OFF skips policy simulation; DRY_RUN computes but never actuates; LIVE permits actuation only after recheck. Never-hold rules, identity and age are rechecked immediately before every actuator operation. Their production implementation is Stage5B/C; the Phase0 default cannot hold.
+DecisionProvider.decide is synchronous and must never throw or perform I/O: any missing/invalid/stale/throwing dependency yields ALLOW and failedOpen=true. The safe default AlwaysAllowDecisionProvider always emits reasonCode=no_provider (safetyReason=null) and rejects recheck with Abort(no_provider). OFF skips policy simulation; DRY_RUN computes but never actuates; LIVE permits actuation only after recheck. Never-hold rules, identity and age are rechecked immediately before every actuator operation. Their production implementation is Stage5B/C; the Phase0 default cannot hold.
 
 SHOW=ALLOW; SUPPRESS=DELAY|DIGEST|SILENT. propensity is the probability of the returned action after safety filtering. pShow=propensity for ALLOW, 1-propensity otherwise. EligibleActions must contain only possible actions. For hold-to-ALLOW exploration it contains the cost-selected hold and ALLOW; no inference of randomized support is allowed for deterministic records. Evidence strength is a heuristic, not probability of correctness. Provenance is a controlled label: observed,learned,simulated,estimated,low evidence.
 
@@ -12,23 +12,29 @@ PolicySettings copies and freezes allowListPackages. Other data-class read-only 
 
 ## Units and fields
 
-All *Ms timestamps are epoch milliseconds, holdMinutes/predicted losses/deltas/factor contributions are focus-minutes. urgencyScore,importance,evidenceStrength,propensity,pShow and snapshot confidence are dimensionless [0,1]. Versions and repeat counts are nonnegative counters. Nullable predictions indicate missing data, not zero. NotificationFacts fields contain hashes, classification tokens, counts, probabilities and booleans only. Factor.text and explanation are controlled template strings, never notification content. DecisionRecord has no text/explanation fields; kind,reason,policyVersion and summary strings are fixed tokens, not arbitrary user text. The exact field and enum inventory is included below from the defining sources.
+All *Ms timestamps are epoch milliseconds, holdMinutes/predicted losses/deltas/factor contributions are focus-minutes. urgencyScore,importance,evidenceStrength,propensity,pShow and snapshot confidence are dimensionless [0,1]. Versions and repeat counts are nonnegative counters. Nullable predictions indicate missing data, not zero. NotificationFacts fields contain hashes, classification tokens, counts, probabilities and booleans only. Factor.text and explanation are controlled template strings, never notification content. DecisionRecord has no text/explanation fields; kind,reasonCode,safetyReason,policyVersion and summary strings are fixed tokens, not arbitrary user text. The exact field and enum inventory is included below from the defining sources.
 
 Defaults mirror AppendixA. MAX_DECISION_AGE_MS=30000 is S5-7. Additional initial snapshot defaults: OFF, killSwitchfalse, explorationEnabledfalse,strictSessionfalse,empty allowlist,seed1. Constructors permit invalid numeric snapshots so the production pipeline can fail open rather than throw during policy receipt; callers must validate before holding. RecordFactory throws fixed identity_mismatch on inconsistent facts/decision; it is not the no-throw decision hot path.
 
 ## Shared digest schedule
 
-DigestSchedule.nextDigestTsMs(nowMs,intervalMin=120,zone=systemDefault) returns a strictly future epoch-ms boundary on an interval grid beginning at local midnight. Caller should pass the same explicit zone in costing and scheduling. DST overlaps consider both valid offsets; gaps shift nonexistent local boundary times forward with java.time resolution. Daily grid resets at midnight even for intervals not dividing1440. Supported interval1..1440; invalid programmer arguments throw invalid_interval. This helper does not read a clock. Extreme unsupported java.time epochs can throw and must be guarded by the pipeline/actuator.
+DigestSchedule.nextDigestTsMs(nowMs,intervalMin=120,zone=systemDefault) returns a strictly future epoch-ms boundary on an interval grid beginning at local midnight. The cost function and Stage 6 release scheduler MUST both pass settings.digestIntervalMin and the same explicit zone to this function; neither may silently use a separate interval or zone. The additive trailing PolicySettings.digestIntervalMin defaults to PolicyDefaults.DIGEST_INTERVAL_MIN (120) and preserves previous positional constructor calls. DST overlaps consider both valid offsets; gaps shift nonexistent local boundary times forward with java.time resolution. Daily grid resets at midnight even for intervals not dividing1440. Supported interval1..1440; invalid programmer arguments throw invalid_interval. This helper does not read a clock. Extreme unsupported java.time epochs can throw and must be guarded by the pipeline/actuator.
 
 ## Kill switch
 
-InMemoryKillSwitch is state only. Synchronized transitions are idempotent; listeners are unique and notified serially during transition, so listener implementations must be nonblocking and should not call state transitions recursively. Listener exceptions are counted, message contents discarded, and other listeners continue. active/changedAtMs are volatile reads; use the state semantics rather than claiming an atomic two-field snapshot. restore silently loads persisted values, with no duplicated actuator effects. Stage6 owns durable state, release/restoration and job cancellation. ExpiryPolicy is interface only; defaults are Stage5B work.
+InMemoryKillSwitch is state only. Synchronized transitions are idempotent; listeners are unique and notified serially during transition, so listener implementations must be nonblocking and should not call state transitions recursively. Listener throwables are counted, message contents discarded, and other listeners continue. activate/deactivate/restore never reject negative times: each actual transition and boot restore clamps its timestamp to max(0,value). Idempotent calls retain the previous transition timestamp. active/changedAtMs are volatile reads; use the state semantics rather than claiming an atomic two-field snapshot. restore silently loads persisted values, with no duplicated actuator effects. Stage6 owns durable state, release/restoration and job cancellation. ExpiryPolicy is interface only; defaults are Stage5B work.
 
 ## Change protocol and sketch deltas
 
 Owner approval and a new Phase0 contract commit are required for any frozen-file change. Increment DECISION_CONTRACT_VERSION and update tools/decision-contract.lock, then both stage branches rebase. SHA256 hashes normalize CRLF to LF to remain stable on Windows. Pure guard and lock self-tests must reject planted violations/mutations. Lock changes must be reviewed, never blindly regenerated to silence a failing check.
 
-Deltas from the common sketch: Decision adds keyHash/postedTsMs/pShow; DigestSchedule adds zone; KillSource, KillSwitchControl, KillSwitchListener, InMemoryKillSwitch, ExpiryPolicy, AlwaysAllowDecisionProvider and DecisionRecordFactory are explicit. Settings conservative defaults above are proposed for review. Constants/schedule/default-provider/kill-switch implementation are part of the frozen initial contract, not future mutable implementation files. No dependency on unfinished Stage4B ImportanceModel is introduced. Target behavior is not verified on target.
+Deltas from the common sketch: Decision adds keyHash/postedTsMs/pShow; DigestSchedule adds zone; KillSource, KillSwitchControl, KillSwitchListener, InMemoryKillSwitch, ExpiryPolicy, AlwaysAllowDecisionProvider and DecisionRecordFactory are explicit. Settings conservative defaults above are proposed for review. Constants/schedule/default-provider/kill-switch implementation are part of the frozen initial contract, not future mutable implementation files. No dependency on Stage4B ImportanceModel is introduced by the contract. Target behavior is not verified on target.
+
+## Pre-freeze amendments (owner requested; version remains 1)
+
+Decision and DecisionRecord add trailing reasonCode:String="unspecified" for source compatibility. AlwaysAllowDecisionProvider uses no_provider; DecisionRecordFactory copies reasonCode unchanged. reasonCode is a controlled general-cause token, with initial vocabulary unspecified, mode_off, kill_switch, invalid_input, never_hold, high_importance, not_ready, low_evidence, cost_selected, explored, no_provider. It never carries notification content, exception messages or free-form explanation. Producers are responsible for controlled tokens; these value constructors do not parse or sanitize input. safetyReason is reserved for the specific never-hold rule token (e.g. vip,otp,call), and is null for general causes such as no_provider or mode_off. A general never_hold reasonCode may accompany a specific safetyReason.
+
+The review candidate is not frozen or merged, so these owner-requested changes regenerate the version1 lock without incrementing DECISION_CONTRACT_VERSION. After freeze, the normal versioned change protocol applies. No pipeline is implemented here.
 
 ### DecisionContract.kt
 
@@ -94,7 +100,9 @@ class PolicySettings(
     val epsilon: Double = PolicyDefaults.EPSILON,
     val strictSession: Boolean = false,
     allowListPackages: Set<String> = emptySet(),
-    val seed: Long = 1L
+    val seed: Long = 1L,
+    /** Costing and Stage 6 scheduling must pass this interval and the same zone to DigestSchedule. */
+    val digestIntervalMin: Int = PolicyDefaults.DIGEST_INTERVAL_MIN
 ) {
     val allowListPackages: Set<String> = Collections.unmodifiableSet(LinkedHashSet(allowListPackages))
 }
@@ -112,11 +120,15 @@ data class Factor(val kind: String, val text: String, val contribution: Double)
 data class Decision(
     val action: Action, val explanation: String, val factors: List<Factor>,
     val holdMinutes: Double?, val propensity: Double, val eligibleActions: Set<Action>,
-    val explored: Boolean, val safetyReason: String?, val failedOpen: Boolean,
+    val explored: Boolean,
+    /** Reserved for a never-hold rule token; general decision causes belong in reasonCode. */
+    val safetyReason: String?, val failedOpen: Boolean,
     val predictedLossShowMin: Double?, val predictedLossSuppressMin: Double?,
     val deltaLMean: Double?, val deltaLP10: Double?, val deltaLP90: Double?,
     val evidenceStrength: Double?, val provenance: String, val modelVersion: Long,
-    val policyVersion: String, val decidedAtMs: Long, val keyHash: String, val postedTsMs: Long
+    val policyVersion: String, val decidedAtMs: Long, val keyHash: String, val postedTsMs: Long,
+    /** Controlled token only, never input content or exception messages. */
+    val reasonCode: String = "unspecified"
 ) {
     /** SHOW=ALLOW. SUPPRESS=DELAY|DIGEST|SILENT. Exact chosen-action propensity after filtering. */
     val pShow: Double get() = if (action == Action.ALLOW) propensity else 1.0 - propensity
@@ -142,7 +154,9 @@ data class DecisionRecord(
     val predictedLossSuppressMin: Double?, val deltaLMean: Double?, val deltaLP10: Double?, val deltaLP90: Double?,
     val evidenceStrength: Double?, val factors: List<RecordedFactor>, val snapshotSummary: SnapshotSummary,
     val importance: Double, val modelVersion: Long, val policyVersion: String, val mode: PolicyMode,
-    val actuationStatus: ActuationStatus? = null
+    val actuationStatus: ActuationStatus? = null,
+    /** Controlled general decision cause; safetyReason is reserved for never-hold rule tokens. */
+    val reasonCode: String = "unspecified"
 )
 object DecisionRecordFactory {
     fun from(facts: NotificationFacts, decision: Decision, snapshot: ContextSnapshot,
@@ -154,7 +168,7 @@ object DecisionRecordFactory {
             decision.predictedLossSuppressMin,decision.deltaLMean,decision.deltaLP10,decision.deltaLP90,
             decision.evidenceStrength,Collections.unmodifiableList(decision.factors.map { RecordedFactor(it.kind,it.contribution) }),
             SnapshotSummary(snapshot.focusState.wire,snapshot.taskType.wire,snapshot.hourBand,snapshot.fatigueBand,snapshot.laptopState.wire,snapshot.confidence),
-            importance,decision.modelVersion,decision.policyVersion,settings.mode)
+            importance,decision.modelVersion,decision.policyVersion,settings.mode,reasonCode=decision.reasonCode)
     }
 }
 ```
@@ -193,8 +207,8 @@ import com.dhyan.app.twin.model.ContextSnapshot
 class AlwaysAllowDecisionProvider : DecisionProvider {
     override fun decide(facts: NotificationFacts, snapshot: ContextSnapshot, settings: PolicySettings, nowMs: Long) = Decision(
         Action.ALLOW, "Allowed: not enough information.", emptyList(), null, 1.0, setOf(Action.ALLOW),
-        false, "no_provider", true, null, null, null, null, null, null, "low evidence", 0L,
-        "contract-$DECISION_CONTRACT_VERSION-no-provider", nowMs, facts.keyHash, facts.postedTsMs)
+        false, null, true, null, null, null, null, null, null, "low evidence", 0L,
+        "contract-$DECISION_CONTRACT_VERSION-no-provider", nowMs, facts.keyHash, facts.postedTsMs, reasonCode="no_provider")
     override fun recheck(facts: NotificationFacts, decision: Decision, settings: PolicySettings, nowMs: Long): Recheck = Recheck.Abort("no_provider")
 }
 ```
@@ -255,7 +269,8 @@ interface KillSwitchControl {
     fun addListener(l: KillSwitchListener)
     fun removeListener(l: KillSwitchListener)
 }
-/** State only; Stage 6 owns persistence, reboot restoration and notification release effects. */
+/** State only. Transitions never throw; negative timestamps clamp to zero, including boot restore.
+ * Stage 6 owns persistence, reboot restoration and notification release effects. */
 class InMemoryKillSwitch : KillSwitchControl {
     @Volatile private var state = false
     @Volatile private var changed = 0L
@@ -265,21 +280,18 @@ class InMemoryKillSwitch : KillSwitchControl {
     override val active: Boolean get() = state
     override val changedAtMs: Long get() = changed
     @Synchronized override fun activate(source: KillSource, nowMs: Long) {
-        require(nowMs >= 0) { "invalid_time" }
         if (state) return
-        state=true; changed=nowMs
-        for (l in listeners) try { l.onActivated(source) } catch (_: Exception) { errors.incrementAndGet() }
+        state=true; changed=nowMs.coerceAtLeast(0L)
+        for (l in listeners) try { l.onActivated(source) } catch (_: Throwable) { errors.incrementAndGet() }
     }
     @Synchronized override fun deactivate(nowMs: Long) {
-        require(nowMs >= 0) { "invalid_time" }
         if (!state) return
-        state=false; changed=nowMs
-        for (l in listeners) try { l.onDeactivated() } catch (_: Exception) { errors.incrementAndGet() }
+        state=false; changed=nowMs.coerceAtLeast(0L)
+        for (l in listeners) try { l.onDeactivated() } catch (_: Throwable) { errors.incrementAndGet() }
     }
     @Synchronized override fun restore(active: Boolean, changedAtMs: Long) {
-        require(changedAtMs >= 0) { "invalid_time" }
         // Restore persisted state silently; it must not duplicate actuator side effects.
-        state=active; changed=changedAtMs
+        state=active; changed=changedAtMs.coerceAtLeast(0L)
     }
     override fun addListener(l: KillSwitchListener) { listeners.addIfAbsent(l) }
     override fun removeListener(l: KillSwitchListener) { listeners.remove(l) }

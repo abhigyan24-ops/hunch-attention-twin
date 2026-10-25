@@ -14,7 +14,9 @@ data class DecisionRecord(
     val predictedLossSuppressMin: Double?, val deltaLMean: Double?, val deltaLP10: Double?, val deltaLP90: Double?,
     val evidenceStrength: Double?, val factors: List<RecordedFactor>, val snapshotSummary: SnapshotSummary,
     val importance: Double, val modelVersion: Long, val policyVersion: String, val mode: PolicyMode,
-    val actuationStatus: ActuationStatus? = null
+    val actuationStatus: ActuationStatus? = null,
+    /** Controlled general decision cause; safetyReason is reserved for never-hold rule tokens. */
+    val reasonCode: String = "unspecified"
 )
 object DecisionRecordFactory {
     fun from(facts: NotificationFacts, decision: Decision, snapshot: ContextSnapshot,
@@ -26,6 +28,6 @@ object DecisionRecordFactory {
             decision.predictedLossSuppressMin,decision.deltaLMean,decision.deltaLP10,decision.deltaLP90,
             decision.evidenceStrength,Collections.unmodifiableList(decision.factors.map { RecordedFactor(it.kind,it.contribution) }),
             SnapshotSummary(snapshot.focusState.wire,snapshot.taskType.wire,snapshot.hourBand,snapshot.fatigueBand,snapshot.laptopState.wire,snapshot.confidence),
-            importance,decision.modelVersion,decision.policyVersion,settings.mode)
+            importance,decision.modelVersion,decision.policyVersion,settings.mode,reasonCode=decision.reasonCode)
     }
 }

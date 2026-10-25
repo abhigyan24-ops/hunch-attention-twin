@@ -17,7 +17,8 @@ interface KillSwitchControl {
     fun addListener(l: KillSwitchListener)
     fun removeListener(l: KillSwitchListener)
 }
-/** State only; Stage 6 owns persistence, reboot restoration and notification release effects. */
+/** State only. Transitions never throw; negative timestamps clamp to zero, including boot restore.
+ * Stage 6 owns persistence, reboot restoration and notification release effects. */
 class InMemoryKillSwitch : KillSwitchControl {
     @Volatile private var state = false
     @Volatile private var changed = 0L
@@ -27,21 +28,18 @@ class InMemoryKillSwitch : KillSwitchControl {
     override val active: Boolean get() = state
     override val changedAtMs: Long get() = changed
     @Synchronized override fun activate(source: KillSource, nowMs: Long) {
-        require(nowMs >= 0) { "invalid_time" }
         if (state) return
-        state=true; changed=nowMs
-        for (l in listeners) try { l.onActivated(source) } catch (_: Exception) { errors.incrementAndGet() }
+        state=true; changed=nowMs.coerceAtLeast(0L)
+        for (l in listeners) try { l.onActivated(source) } catch (_: Throwable) { errors.incrementAndGet() }
     }
     @Synchronized override fun deactivate(nowMs: Long) {
-        require(nowMs >= 0) { "invalid_time" }
         if (!state) return
-        state=false; changed=nowMs
-        for (l in listeners) try { l.onDeactivated() } catch (_: Exception) { errors.incrementAndGet() }
+        state=false; changed=nowMs.coerceAtLeast(0L)
+        for (l in listeners) try { l.onDeactivated() } catch (_: Throwable) { errors.incrementAndGet() }
     }
     @Synchronized override fun restore(active: Boolean, changedAtMs: Long) {
-        require(changedAtMs >= 0) { "invalid_time" }
         // Restore persisted state silently; it must not duplicate actuator side effects.
-        state=active; changed=changedAtMs
+        state=active; changed=changedAtMs.coerceAtLeast(0L)
     }
     override fun addListener(l: KillSwitchListener) { listeners.addIfAbsent(l) }
     override fun removeListener(l: KillSwitchListener) { listeners.remove(l) }
