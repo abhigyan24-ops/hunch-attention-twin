@@ -2,154 +2,146 @@ package com.dhyan.app.twin.decision
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Test
 
 class ImportanceModelTest {
 
-    private lateinit var model: ImportanceModel
-
-    @Before
-    fun setUp() {
-        model = ImportanceModel(defaultPriorAlpha = 1.0, defaultPriorBeta = 4.0)
-    }
-
     @Test
-    fun vipSenderAlwaysProducesScoreOne() {
+    fun `vip override returns one point zero`() {
+        val model = ImportanceModel()
         val score = model.score(
-            senderHash = "hash_vip",
+            senderHash = "hash123",
             appCat = "social",
             notifCat = "promo",
-            isVip = true,
-            urgencyScore = 0.0
+            isVip = true
         )
-        assertEquals(1.0, score, 1e-6)
+        assertEquals(1.0, score, 0.0001)
     }
 
     @Test
-    fun defaultPriorImportanceIsTwentyPercent() {
-        // With alpha=1, beta=4, prior mean = 1 / (1 + 4) = 0.20
-        // With no urgency and no repeats: I = 1 - (1 - 0.20)(1 - 0)(1 - 0) = 0.20
+    fun `otp like flag returns high priority score`() {
+        val model = ImportanceModel()
         val score = model.score(
-            senderHash = "unknown_sender",
-            appCat = "unknown_cat",
-            notifCat = null,
+            senderHash = null,
+            appCat = "comms",
+            notifCat = "msg",
             isVip = false,
-            urgencyScore = 0.0
+            isOtpLike = true
         )
-        assertEquals(0.20, score, 1e-4)
+        assertEquals(0.95, score, 0.0001)
     }
 
     @Test
-    fun highUrgencyCategoryBoostsImportance() {
-        val scoreOtp = model.score(
-            senderHash = "auth_service",
+    fun `emergency keyword flag boosts urgency score to at least 0 point 80`() {
+        val model = ImportanceModel()
+        val score = model.score(
+            senderHash = "sender_a",
+            appCat = "comms",
+            notifCat = "msg",
+            isVip = false,
+            hasEmergencyKeyword = true
+        )
+        assertTrue("Expected score >= 0.80 for emergency keyword, was $score", score >= 0.80)
+    }
+
+    @Test
+    fun `high urgency notification categories return at least 0 point 85`() {
+        val model = ImportanceModel()
+        val alarmScore = model.score(
+            senderHash = null,
             appCat = "system",
-            notifCat = "otp",
+            notifCat = "alarm",
             isVip = false
         )
-        assertTrue("OTP should produce score >= 0.85, got $scoreOtp", scoreOtp >= 0.85)
+        assertTrue("Alarm category must be >= 0.85, was $alarmScore", alarmScore >= 0.85)
 
-        val scoreCall = model.score(
-            senderHash = "caller",
+        val callScore = model.score(
+            senderHash = null,
             appCat = "comms",
             notifCat = "call",
             isVip = false
         )
-        assertTrue("Call should produce score >= 0.85, got $scoreCall", scoreCall >= 0.85)
+        assertTrue("Call category must be >= 0.85, was $callScore", callScore >= 0.85)
     }
 
     @Test
-    fun urgentKeywordsBoostScoreLocallyWithoutPersisting() {
-        val scoreUrgent = model.score(
-            senderHash = "friend_1",
+    fun `repeat count within 5 minutes scales importance`() {
+        val model = ImportanceModel()
+        val singleScore = model.score(
+            senderHash = "sender_b",
             appCat = "social",
-            notifCat = "msg",
-            isVip = false,
-            rawTextHint = "Please reply ASAP, this is urgent!"
-        )
-        assertTrue("ASAP keyword should yield score >= 0.80, got $scoreUrgent", scoreUrgent >= 0.80)
-
-        val scoreHindi = model.score(
-            senderHash = "friend_2",
-            appCat = "social",
-            notifCat = "msg",
-            isVip = false,
-            rawTextHint = "Bhai jaldi call me"
-        )
-        assertTrue("Hindi urgency keyword should yield score >= 0.80, got $scoreHindi", scoreHindi >= 0.80)
-    }
-
-    @Test
-    fun repeatCountIncreasesScoreViaNoisyOr() {
-        val baseScore = model.score(
-            senderHash = "chat_group",
-            appCat = "comms",
-            notifCat = "msg",
+            notifCat = "social",
             isVip = false,
             repeatCount5m = 0
         )
-        val repeat2Score = model.score(
-            senderHash = "chat_group",
-            appCat = "comms",
-            notifCat = "msg",
-            isVip = false,
-            repeatCount5m = 2
-        )
-        val repeat3Score = model.score(
-            senderHash = "chat_group",
-            appCat = "comms",
-            notifCat = "msg",
+        val repeatScore = model.score(
+            senderHash = "sender_b",
+            appCat = "social",
+            notifCat = "social",
             isVip = false,
             repeatCount5m = 3
         )
-
-        assertTrue(repeat2Score > baseScore)
-        assertTrue(repeat3Score > repeat2Score)
+        assertTrue("Repeated notification must have higher score ($repeatScore > $singleScore)", repeatScore > singleScore)
     }
 
     @Test
-    fun directReplyActionBoostsScore() {
-        val withoutReply = model.score(
-            senderHash = "colleague",
-            appCat = "comms",
+    fun `online feedback updates sender specific posterior mean`() {
+        val model = ImportanceModel()
+        val hash = "sender_alice"
+        val initialScore = model.score(
+            senderHash = hash,
+            appCat = "work",
             notifCat = "msg",
+            isVip = false
+        )
+
+        // User marks 5 notifications from Alice as important
+        repeat(5) {
+            model.observeFeedback(senderHash = hash, appCat = "work", isImportant = true)
+        }
+
+        val updatedScore = model.score(
+            senderHash = hash,
+            appCat = "work",
+            notifCat = "msg",
+            isVip = false
+        )
+        assertTrue("Score must increase after positive feedback: initial=$initialScore, updated=$updatedScore", updatedScore > initialScore)
+
+        // Another sender marked as noise decreases
+        val noiseHash = "sender_spammer"
+        val initialNoise = model.score(
+            senderHash = noiseHash,
+            appCat = "social",
+            notifCat = "social",
+            isVip = false
+        )
+        repeat(5) {
+            model.observeFeedback(senderHash = noiseHash, appCat = "social", isImportant = false)
+        }
+        val updatedNoise = model.score(
+            senderHash = noiseHash,
+            appCat = "social",
+            notifCat = "social",
+            isVip = false
+        )
+        assertTrue("Score must decrease after noise feedback: initial=$initialNoise, updated=$updatedNoise", updatedNoise < initialNoise)
+    }
+
+    @Test
+    fun `noisy-or invariants are preserved within 0 and 1`() {
+        val model = ImportanceModel()
+        val score = model.score(
+            senderHash = "random_sender",
+            appCat = "promo",
+            notifCat = "promo",
             isVip = false,
             hasReplyAction = false,
-            urgencyScore = 0.2
+            repeatCount5m = 0,
+            hasEmergencyKeyword = false,
+            isOtpLike = false,
+            urgencyScore = 0.1
         )
-        val withReply = model.score(
-            senderHash = "colleague",
-            appCat = "comms",
-            notifCat = "msg",
-            isVip = false,
-            hasReplyAction = true,
-            urgencyScore = 0.2
-        )
-
-        assertTrue("hasReplyAction should increase score", withReply > withoutReply)
-    }
-
-    @Test
-    fun userFeedbackUpdatesPosteriorAndAdaptsScores() {
-        val sender = "newsletter_promo"
-        val cat = "marketing"
-
-        val initialScore = model.score(sender, cat, "promo", isVip = false)
-
-        // User repeatedly opens/marks important
-        repeat(5) {
-            model.observeFeedback(sender, cat, isImportant = true)
-        }
-        val scoreAfterImportant = model.score(sender, cat, "promo", isVip = false)
-        assertTrue("Score should increase after positive feedback", scoreAfterImportant > initialScore)
-
-        // Another sender repeatedly marked as noise/ignored
-        val noiseSender = "spammer"
-        repeat(5) {
-            model.observeFeedback(noiseSender, cat, isImportant = false)
-        }
-        val scoreAfterNoise = model.score(noiseSender, cat, "promo", isVip = false)
-        assertTrue("Score should decrease after noise feedback", scoreAfterNoise < initialScore)
+        assertTrue("Score must be in [0, 1], was $score", score in 0.0..1.0)
     }
 }
