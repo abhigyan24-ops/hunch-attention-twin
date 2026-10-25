@@ -51,6 +51,45 @@ All statuses above refer only to the named scaffold acceptance checks, not whole
 | 1F all required command groups and four-note consolidation | STAGE_GATES.md; HANDOFF_STATUS.md; DECISIONS_PENDING.md; docs/verification/STAGE_1F_INITIAL_FAILURES.md | Exact successful outputs; former decision-file SHA-256 table; temporary notes deleted only after verbatim preservation | tested |
 | Stage 1 cloud/hardware/AW/schema approval gate | Relay deployment templates, debug APK and core-spec baseline ready for owner review | pending: owner verification required; no inferred cloud/device result | not_started |
 
+## Stage 2 Acceptance Ledger (Phone Collectors & Data Layer)
+
+| Requirement | Implementation paths | Test / verification evidence | Status |
+|---|---|---|---|
+| 11.2 / 22.1 Foreground service, permissions, boot restart | `DhyanApplication.kt`, `DhyanForegroundService.kt`, `BootReceiver.kt`, `AndroidManifest.xml` | Android compilation exits 0; KSP succeeds; ColorOS survival not verified on target | tested (build/static) |
+| 11.3 Notification collector (privacy-safe, MessagingStyle, salted sender hash) | `collectors/NotifCollector.kt`, `ingest/Normalizer.kt`, `ingest/AppCategorizer.kt` | Compiles clean; zero title/text read; salted hash verification | tested (build/static) |
+| 11.3 Usage stats collector | `collectors/UsageCollector.kt` | Queries UsageEvents every 20s; converts window closures to durationMin | tested (build/static) |
+| 11.3 Screen state receiver | `collectors/ScreenReceiver.kt` | Dynamically registers SCREEN_ON/OFF/USER_PRESENT (pickup) | tested (build/static) |
+| 11.3 Accessibility collector | `collectors/A11yCollector.kt`, `res/xml/accessibility_service_config.xml` | canRetrieveWindowContent=false; 15s scroll burst counting; state transitions | tested (build/static) |
+| 11.4 Ingest & clock offset | `ingest/ClockOffset.kt`, `ingest/AppCategorizer.kt`, `ingest/Normalizer.kt` | Pure clock skew compensation; prefix and runtime categorization | tested (build/static) |
+| 11.4 / 25.9 Room DB & entities | `data/DhyanDatabase.kt`, 9 entities (`EventEntity`, `ParamEntity`, etc.), 9 DAOs | Compiles with KSP; Room schema validated; RoomParamPersistence bridge | tested (build/static) |
+
+## Stage 3 Acceptance Ledger (Twin Core)
+
+| Requirement | Implementation paths | Test / verification evidence | Status |
+|---|---|---|---|
+| 8.1 Pure Kotlin twin boundary | `phone/app/src/main/java/com/dhyan/app/twin/**` | `check-twin-purity.mjs`: PASS (132 files, 0 Android imports) | tested |
+| 8.3 Hierarchy & backoff | `twin/params/Hierarchy.kt`, `twin/params/PriorTable.kt`, `twin/params/ParamKeys.kt` | `ContextTest.kt`, `ParamRecordTest.kt`: 8/8 tests pass | tested |
+| 8.3 / 8.8 RNG streams & samplers | `twin/rng/SeededRng.kt`, `twin/rng/RngStreams.kt`, `twin/rng/Samplers.kt` | `SeededRngTest.kt`, `SamplersTest.kt`: 10/10 tests pass | tested |
+| 8.3 Parameter store & learning API | `twin/params/InMemoryParamStore.kt`, `twin/params/ModelSnapshot.kt` | `InMemoryParamStoreTest.kt`, `StatsTest.kt`: 14/14 tests pass | tested |
+| 8.4 / 8.7 Paired Monte Carlo simulation | `twin/simulator/PairedMonteCarlo.kt`, `twin/simulator/ArmStats.kt` | `PairedMonteCarloTest.kt`: 7/7 tests pass; CRN variance reduction verified | tested |
+| 8.4 Single-owner competing risks | `twin/simulator/PairedMonteCarlo.kt` | Single-owner property holds across all runs test | tested |
+| 1.2 / 25.5 Gate 1 demo & warm latency | `twin/bench/GateOneDemoTest.kt`, `twin/TwinEngine.kt` | Gate 1 benchmark: warm median latency 7.07 ms (< 10 ms) | tested |
+| 25.9 Twin contract export | `twin/contract/ContractExportTest.kt` | `check-twin-contract.mjs`: PASS (7 snapshots validated) | tested |
+
+## Stage 4A Acceptance Ledger (Personas, History Generator, Replay, Temporal Guard)
+
+| Requirement | Implementation paths | Test / verification evidence | Status |
+|---|---|---|---|
+| 15.1 PersonaDef & strict loader | `personas/PersonaDef.kt`, `personas/PersonaLoader.kt`, `personas/PersonaCatalog.kt` | `PersonaLoaderTest.kt`, `JsonReaderTest.kt`: 11/11 tests pass | tested |
+| 15.3 Deterministic RNG & Event envelope | `personas/rng/GenRng.kt`, `personas/world/GenEvent.kt` | `GenRngTest.kt`: 3/3 tests pass; splitmix64 stream derivation | tested |
+| 15.3 14-day history generator | `personas/world/HistoryGenerator.kt`, `personas/world/DayPlanner.kt` | `HistoryGeneratorTest.kt`: 9/9 tests pass; synthetic:true, UUID v4 | tested |
+| 10.4 / 15.3 Ground truth & counterfactuals | `personas/world/TruthRecord.kt`, `personas/world/TrueEffect.kt` | `TrialAndPolicyTest.kt`: 4/4 tests pass; true deltaL, analytical match | tested |
+| 10.5 Logging policy & propensities | `personas/world/LoggingPolicyEngine.kt` | `TrialAndPolicyTest.kt`: 5/5 tests pass; RandomizedHold 5SE bound | tested |
+| 15.5 Replay driver & clocks | `personas/replay/ReplayDriver.kt`, `personas/replay/ReplayClock.kt`, `personas/replay/FastForward.kt` | `ReplayAndGuardTest.kt`: 7/7 tests pass; tsAdj ordering, 100x virtual clock | tested |
+| 10.5 TemporalGuard isolation | `personas/replay/TemporalGuard.kt` | `ReplayAndGuardTest.kt`: 6/6 tests pass; leaky read throws `TemporalLeakException` | tested |
+| 15.3 / 25.9 Fixture export & Node checks | `personas/export/EventJsonlWriter.kt`, `tools/check-persona-data.mjs`, `tools/check-personas-purity.mjs` | `FixtureExportTest.kt`, `StageGateDemoTest.kt`: 9/9 tests pass; `check:personas` PASS (5 fixtures, 12,567 events) | tested |
+
+
 Only the named local checks are tested; incomplete product behavior remains in scope. All original source-inventory rows below are retained, including legacy wording subject to section 25 precedence.
 
 ## Full source inventory

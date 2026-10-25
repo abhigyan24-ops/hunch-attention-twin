@@ -135,3 +135,50 @@ Build warning: Unable to strip the following libraries, packaging them as they a
 ## Stage 1F corrective finding — test-driven change
 
 The first root test run failed 4/54 tests: two source-guard checks encountered EBUSY reading locked generated Gradle cache files, and two dataset-write tests encountered sandbox EPERM when atomically renaming files in sandbox temporary directories. The root full-check command was also scanning generated cache/dependency files. The persona-import guard now excludes conventional generated/dependency directories (node_modules, .gradle, .kotlin, .cache, .git, build, out, dist) while checking every owned source/config/doc file. A regression test proves generated references are excluded and a phone/collectors source reference still fails. This is the only pre-existing functional-code change in Stage 1F and was made only after observed test failures. Dataset atomic writes were not weakened; root tests were rerun with approved filesystem access for the EPERM failures. Exact initial/final outputs are retained in the Stage 1F evidence.
+
+---
+
+## Stage 3 Decisions and Assumptions (S3-1 through S3-16)
+
+Documented in `STAGE3_NOTES.md` and reflected in `docs/TWIN_MODEL_CONTRACT.md`:
+
+| ID | Assumption | Value / Rule | Code Location |
+|---|---|---|---|
+| **S3-1** | Notification pickup latency prior | LogNormal(mu = ln(1.0 min), sigma = 0.9) | `ModelConfig.pickupLatencyMeanLog/Sigma` |
+| **S3-2** | Baseline hazard prior | Gamma(shape = 1.5, rate = 1.0 / hour) (mean 1.5 pickups/hour) | `PriorTable.baselineHazardShape/Rate` |
+| **S3-3** | Fallback dwell prior | LogNormal(ln(8.0 min), 0.8) | `PriorTable.dwellPrior` |
+| **S3-4** | Fallback resume prior | LogNormal(ln(5.0 min), 0.6) | `PriorTable.resumePrior` |
+| **S3-5** | Destination list & Dirichlet prior | 7 destinations: `social/feed`, `short_video/shorts`, `video/watch`, `communication/chat`, `news/feed`, `shopping/other`, `games/other`. Base count 1.0, +3.0 on notifying app destination | `PriorTable.destinations`, `PriorTable.dirichletAlphas` |
+| **S3-6** | `urgencyBand` thresholds | `low` < 0.33, `med` < 0.66, `high` >= 0.66 | `NotifClass.urgencyBand` |
+| **S3-7** | `repeatBand` thresholds | `R0` (0 in 5m), `R1` (1 in 5m), `R2plus` (>= 2 in 5m) | `NotifClass.repeatBand` |
+| **S3-8** | `fatigueBand` from fatigue index | `low` < 0.33, `med` < 0.66, `high` >= 0.66 | `FatigueIndex.band` |
+| **S3-9** | `nEff` effective sample size | `nEff = n_full + 0.5 * max(0, n_parent - n_full)` | `HierarchyResolution.computeNEff` |
+| **S3-10** | Evidence strength metric | `evidenceStrength = nEff / (nEff + 10.0)` in [0, 1) | `InMemoryParamStore.resolve` |
+| **S3-11** | Competing risks tie-break rule | When `t_notif == t_self`, tie goes to notification event | `PairedMonteCarlo.simulate` |
+| **S3-12** | CRN random stream separation | 4 independent streams: `EPISTEMIC`, `SELF`, `NOTIF`, `SELF_UNCOUPLED` derived via splitmix64 | `RngStreams.stream` |
+| **S3-13** | Fail-open rule (spec 25.5) | If `InMemoryParamStore.isLoaded` is false, `TwinEngine` returns `NotReady(MODEL_NOT_LOADED)`. Callers MUST treat as ALLOW | `TwinEngine.simulate` |
+| **S3-14** | Single-owner episode rule | At most one distraction episode per arm per window. Earliest event wins. No double-counting | `PairedMonteCarlo.simulate` |
+| **S3-15** | Truncation flag behavior | `truncateCostsAtWindow` caps total loss at `windowMin - t_onset`. Default is false | `PairedMonteCarlo.simulate` |
+| **S3-16** | Hot path binder thread latency | JIT compiler pre-warmed via `TwinWarmup` so binder thread execution has median < 10 ms | `LatencyBenchmark.kt` |
+
+---
+
+## Stage 4A Decisions and Assumptions (A4-1 through A4-12)
+
+Documented in `STAGE4A_NOTES.md` and `docs/PERSONA_WORLD.md`:
+
+| ID | Assumption | Implementation Rule |
+|---|---|---|
+| **A4-1** | Persona JSON durations | In natural-log minutes (mu, sigma), matching spec 15.1. |
+| **A4-2** | Notification arrival rates | Generator defaults in `PersonaDefaults` (not in original persona JSON): rates per class per hour, destination weights, work blocks, pickup latency. |
+| **A4-3** | Hour-band hazard modulation | Multiplier x0.6 inside `focusPeaks` hours, x1.0 normal, x1.2 late band; composite multiplicatively when overlapping. |
+| **A4-4** | Fatigue multiplier | Multiplies pickup ODDS (not probability). `odds' = odds * multiplier`. |
+| **A4-5** | Glance cost and window | `c_glance = 0.4 min` and `W = 30.0 min`, matching twin contract defaults. |
+| **A4-6** | Single-owner competing risks | Earliest qualifying event wins; tie goes to notification; costs not truncated at W by default (`truncateCostsAtWindow = false`). |
+| **A4-7** | In-session & overlapping arrivals | Notifications during active dwell/resume marked `inSession=true`; overlapping W marked `trialEligible=false, exclusionReason=overlapping_window`. Emitted as posted, excluded from effect estimation. |
+| **A4-8** | Self-initiated events | Outside notification windows: Poisson process with hour-modulated rate. Inside windows: trial's shared draw. |
+| **A4-9** | Logging policies | `ShowAll` (default, pi=1.0) and `RandomizedHold(eps, maxImportance)`. Held notifications realize SUPPRESS arm. Propensity logged honestly. |
+| **A4-10** | Simulation worlds | `MATCHED` (exact competing risks model matching twin contract) and `MILD_MISSPEC` (drift +-15% across days, 10% heavy-tail dwell x3). |
+| **A4-11** | Laptop timeline | Generated as work-state windows, `window_change`, `idle_start/end`, and `resume_first_edit`. `edit_burst` deferred. |
+| **A4-12** | Test fixtures | Written to `phone/app/build/dhyan-fixtures/` during test execution, never checked into git. |
+

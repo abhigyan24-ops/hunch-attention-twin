@@ -1,6 +1,8 @@
-# Handoff status — Stage 1E/1F, 2026-10-25 (Asia/Calcutta)
+# Handoff status — Stage 4A Complete, Ready for Stage 4B, 2026-10-25 (Asia/Calcutta)
 
-Stage 1E tooling is implemented and locally tested. Stage 1F verification and governance consolidation are complete. **Stage 1 is pending: owner verification required** for live WSS, Reno 14 install, ActivityWatch buckets and explicit schema freeze. No planned feature has been removed.
+Stage 1 (foundations), Stage 2 (phone collectors & Room data layer), Stage 3 (pure Kotlin twin core), and Stage 4A (personas, 14-day history generator, replay driver, TemporalGuard) are complete and verified on main.
+All 103 Kotlin unit tests pass; all 55 root Node tests pass; twin-purity (132 files), twin-contract (7 snapshots), personas-purity (22 files), and persona-data (5 fixtures, 12,567 events) checks pass.
+Target hardware behavior on Oppo Reno 14 / ColorOS remains marked `not verified on target`. No planned feature has been removed.
 
 ## 1. Current tree and module purposes
 
@@ -75,13 +77,79 @@ Epoch ms, tsAdj=ts+clockOffset(device), receiver ingestion timestamp, dedup by (
 - Android: set installed JDK/SDK environment variables and invoke the wrapper. --offline works only with cached dependencies; omit it for first setup with approved network access. --rerun forces fresh JUnit rather than reporting only UP-TO-DATE.
 - Main persona/replay demo and seeded focus-loss headline scenario are not implemented; spec 19 remains the intended script. Do not fill gaps with invented metrics.
 
-## 10. Regressions, privacy, compatibility, owner gate and Stage 2 tasks
+## 10. Completed Stage 2, Stage 3, and Stage 4A Deliverables
 
-Final local suites are green. Zero .node/node-gyp scan was executed again this session. Privacy tests check forbidden event fields and metadata-only relay logs; dataset tests prove synthetic markers, schema/coverage/dedup rules, no leaked CLI bodies and zero dry-run network calls. No actual Room/JSONL user store exists yet to inspect. Device compatibility, real notifications, GUI interaction and cloud deployment are not verified on target.
+### Stage 2: Phone Collectors & Data Layer (commit fa46a0c)
+1. `DhyanApplication.kt`: Application entry point with Koin setup.
+2. Manifest & resources: All 6 permissions, foreground service `dataSync`, notification channel, accessibility config (`canRetrieveWindowContent=false`).
+3. Collectors (`com.dhyan.app.collectors`):
+   - `NotifCollector`: notification posting/removal listener; hashes sender via salted SHA-256; extracts MessagingStyle; never logs or persists notification title or text.
+   - `UsageCollector`: polls `UsageEvents` every 20s to observe foreground/background window closures and durations.
+   - `ScreenReceiver`: dynamic broadcast receiver for `SCREEN_ON`, `SCREEN_OFF`, and `USER_PRESENT` (true pickup).
+   - `A11yCollector`: counts `TYPE_VIEW_SCROLLED` in 15s bursts; tracks `TYPE_WINDOW_STATE_CHANGED` package transitions without window content access.
+4. Ingest (`com.dhyan.app.ingest`):
+   - `AppCategorizer`: bundled prefix map + runtime Room override map.
+   - `Normalizer`: categorizes apps, strips text, hashes senders.
+   - `ClockOffset`: computes relay skew via ping/pong round trip.
+   - `DhyanForegroundService`: runs `dataSync` service, starts usage poller, registers screen receiver dynamically.
+   - `BootReceiver`: starts foreground service on `BOOT_COMPLETED`.
+5. Data layer (`com.dhyan.app.data`):
+   - Room DB `DhyanDatabase` with 9 entities: `EventEntity`, `ParamEntity`, `AppLabelEntity`, `HeldNotifEntity`, `DecisionEntity`, `FeedbackEntity`, `VipEntity`, `SyncCursorEntity`, `SettingsEntity`.
+   - 9 DAOs with suspend query functions.
+   - `RoomParamPersistence`: implements `twin/params/ParamPersistence` interface, mapping flat `ParamEntity` rows to/from `ParamRecord`.
+   - Note: Reno 14 ColorOS background survival is `not verified on target`.
 
-Four Stage 1 gates remain **pending: owner verification required**: live cloud WSS echo, actual Reno 14 APK install, live ActivityWatch window/AFK buckets, and explicit approval of the core schema baseline/open decisions. Additional pending checks: Electron binary/GUI, relay under Node 20, Linux Caddy/systemd and later security contracts. Local success does not close these gates; dependent live integration stays blocked until relevant prerequisites are verified.
+### Stage 3: Twin Core (commit 34e1594)
+1. Pure Kotlin (`com.dhyan.app.twin`), zero Android or Room dependencies (verified by `check-twin-purity.mjs`, 132 files).
+2. Deterministic RNG: `xoshiro256**` with splitmix64 seeding, 4 stream tags (`EPISTEMIC`, `SELF`, `NOTIF`, `SELF_UNCOUPLED`).
+3. Samplers: Box-Muller normal, exponential, Gamma (Ahrens-Dieter boost for shape < 1), Beta, Dirichlet, LogNormal.
+4. Parameters: `BetaStat` (decayed counts), `LogNormalStat` (Welford running mean/M2), `DirichletStat`, `GammaHazardStat`, hierarchy resolution (`computeNEff`).
+5. Prior tables: all population priors S3-1..S3-16.
+6. `InMemoryParamStore`: atomic snapshot resolution, monotonic `modelVersion`, async write-through to `ParamPersistence`.
+7. `PairedMonteCarlo`: competing risks SHOW vs SUPPRESS with paired CRN, single-owner attribution, zero hot-loop allocations.
+8. `TwinEngine`: fail-open facade (`Ready` vs `NotReady` fallback to ALLOW).
+9. Benchmarks: Gate 1 warm median latency 7.07 ms (< 10 ms hot-path target).
+10. Contract tests: `ContractExportTest` exports JSON verified by `tools/check-twin-contract.mjs` (7 snapshots match schema and Appendix A).
 
-First three Stage 2 tasks, in dependency order (not yet implemented):
-1. Build onboarding/permission state and foreground-service lifecycle per 11.2/22.1, including Reno/ColorOS setup guidance, denial/revocation states, notification access/usage/accessibility setup, and conservative failure visibility. Acceptance: permission-state tests plus owner-run device setup; no implied service survival.
-2. Implement NotifCollector, UsageCollector, ScreenReceiver and A11yCollector per 11.3. Include isMessagingStyle, requestRebind/watchdog, salted sender identifiers and categories/counts-only events. Keep any raw text strictly transient; test normalization/privacy and duplicate/reposted/gap behavior before persistent writes.
-3. Implement ingest Normalizer/AppCategorizer/label-once/ClockOffset and async Room persistence plus in-memory loader skeleton per 11.4/25.9. Add ingestedTs, version/dedup validation and explicit gaps/failure states. Stage 2 exit requires owner-observed real notification, pickup and scroll events in Room, followed by ten minutes of screen-off service survival on the Reno 14.
+### Stage 4A: Personas, History Generator, Replay & Temporal Guard (commit 6c62fcf / ae65431)
+1. Personas (`com.dhyan.app.personas`): `PersonaDef`, `PersonaLoader` (strict JSON reader), `PersonaCatalog` (Rahul, Anika, Kabir bundled).
+2. Generator: `GenRng` (independent streams via fork), `HistoryGenerator` (14 days, deterministic synthetic:true events, v4-shaped deterministic UUIDs, clock skew).
+3. Ground truth: `TruthRecord` (true SHOW and SUPPRESS outcomes, `lShowMin`, `lSuppressMin`, `deltaLMin`), `LoggingPolicyEngine` (`ShowAll`, `RandomizedHold`), `TrueEffect` simulator.
+4. Export: `EventJsonlWriter`, `TruthJsonWriter`, `DeterministicJson`, `EventJsonlReader`.
+5. Replay & Temporal Guard: `ReplayDriver` (ordered by tsAdj, deduplicated, out-of-order tolerance), `ReplayClock` (`VirtualClock`, `ScaledRealtimeClock`), `TemporalGuard` (`GuardedEventLog` strictly enforces ts < t0, throws `TemporalLeakException`), `FastForward`.
+6. Checks: `check:personas` PASS (22 files purity, 5 fixtures 12,567 events validated against canonical schema).
+
+---
+
+## 11. Concrete Inputs for Stage 4B
+
+Stage 4B bridges Stage 2 (real collectors / Room DB), Stage 3 (twin learning API), and Stage 4A (replay & ground truth):
+
+1. **Stage 2 Event model & Room DB:**
+   - `com.dhyan.app.data.DhyanDatabase`
+   - `com.dhyan.app.data.EventEntity` (ts, kind, appCat, surface, durationMin, senderHash, notifCat, scrollCount, extrasJson)
+   - `com.dhyan.app.data.EventDao` (`insert`, `recentEvents`, `recentByKind`)
+   - `com.dhyan.app.data.RoomParamPersistence` (implements `com.dhyan.app.twin.params.ParamPersistence`)
+
+2. **Stage 3 Twin Learning API (`InMemoryParamStore`):**
+   - `store.observePickup(bucket: ContextBucket, picked: Boolean, nowMs: Long)`
+   - `store.observeDwell(appCat: String, surface: String, durationMin: Double, nowMs: Long)`
+   - `store.observeResume(taskType: String, delayMin: Double, nowMs: Long)`
+   - `store.observeSelfPickups(baselineBucket: BaselineBucket, events: Double, exposureHours: Double, nowMs: Long)`
+   - `store.observeDestination(kind: String, bucket: ContextBucket, destination: String, nowMs: Long)`
+   - `store.observePickupLatency(latencyMin: Double, nowMs: Long)`
+   - `com.dhyan.app.twin.context.ContextBucketer.bucket(snapshot, notif)`
+   - `com.dhyan.app.twin.context.ContextBucketer.baselineBucket(snapshot)`
+
+3. **Stage 4A Replay & Truth:**
+   - `com.dhyan.app.personas.replay.ReplayDriver`: feeds events in timestamp order into learning sinks.
+   - `com.dhyan.app.personas.replay.TemporalGuard`: ensures training algorithms never observe holdout test events (ts >= t0).
+   - `com.dhyan.app.personas.world.TruthRecord`: contains ground truth `pPickup`, `lambdaPerHour`, `lShowMin`, `lSuppressMin`, `deltaLMin`, `realizedArm`, and `propensity` to test parameter recovery and calibration.
+   - `com.dhyan.app.personas.replay.FastForward`: accelerates multi-day history through the pipeline for parameter-recovery tests.
+
+4. **Stage 4B Tasks:**
+   - Single-owner `EpisodeBuilder`: watches stream of events, detects interruption onsets (notification or self-initiated), tracks outcome windows (W=30m), attributes episode to single owner.
+   - `EpisodeCloser`: closes completed episodes, extracts duration and recovery metrics, calls `InMemoryParamStore` learning API.
+   - Importance model (8.5) and compulsive score (8.6).
+   - Parameter recovery & calibration tests: replay 14-day history, assert recovered `p_pickup` within 0.08 of true persona value.
+

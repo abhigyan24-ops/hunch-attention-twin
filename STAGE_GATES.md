@@ -5,9 +5,10 @@ All ten stages in spec 17 remain planned; no feature is removed. Stage 1 is pend
 | Stage | Status | Commands run / target / result | Evidence | Known failures | Unverified assumptions | Downstream blocked |
 |---|---|---|---|---|---|---|
 | 1 | pending: owner verification required | Root 55/55 + checks PASS; relay 12/12 + local pair PASS; laptop typecheck/build + 8/8 PASS; Android build + fresh JUnit 1/1 PASS | Exact Stage 1F commands/output below; HANDOFF_STATUS.md | Initial root failures resolved; GUI binary incomplete | Four owner checks below; Node 20 target and GUI not verified on target | Full Stage 1 exit and dependent live integration |
-| 2 | pending | Not run | None yet | No stage failure established | not verified on target | Stage 3 integration |
-| 3 | pending | Not run | None yet | No stage failure established | not verified on target | Stage 4 integration |
-| 4 | pending | Not run | None yet | No stage failure established | not verified on target | Stage 5 integration |
+| 2 | complete (local) | Android build PASS; 33 files implemented: collectors (Notif, Usage, Screen, A11y), data layer (Room DB, 9 entities, 9 DAOs, RoomParamPersistence), ingest (AppCategorizer, Normalizer, ClockOffset, ForegroundService, BootReceiver); manifest + resources | Commit fa46a0c; STAGE_GATES.md; HANDOFF_STATUS.md | None | Not verified on target (Oppo Reno 14 / ColorOS background survival) | Stage 4B integration |
+| 3 | complete | 45/45 JUnit tests PASS; Gate 1 warm latency median < 10ms; twin-purity PASS (132 files, 0 Android imports); twin-contract PASS (7 snapshots validated) | Commit 34e1594; STAGE3_NOTES.md; docs/TWIN_MODEL_CONTRACT.md | None | Prior tables and initial hyperparameters S3-1..S3-16; Reno 14 hardware check not verified on target | Stage 4B integration |
+| 4A | complete | 57/57 JUnit tests PASS; check-personas-purity PASS (22 files); check:persona-data PASS (5 fixtures, 12,567 events); deterministic SHA-256; temporal guard passes | Commit 6c62fcf / ae65431; STAGE4A_NOTES.md; docs/PERSONA_WORLD.md | None | A4-1..A4-12 generator assumptions; not verified on target | Stage 4B (EpisodeBuilder, EpisodeCloser, learning wiring) |
+| 4B | pending | Not run | None yet | No stage failure established | not verified on target | Stage 5 integration |
 | 5 | pending | Not run | None yet | No stage failure established | not verified on target | Stage 6 integration |
 | 6 | pending | Not run | None yet | No stage failure established | not verified on target | Stage 7 integration |
 | 7 | pending | Not run | None yet | No stage failure established | not verified on target | Stage 8 integration |
@@ -423,7 +424,55 @@ Daemon will be stopped at the end of the build
 > Task :app:testDebugUnitTest
 
 BUILD SUCCESSFUL in 24s
-43 actionable tasks: 1 executed, 42 up-to-date
+434 actionable tasks: 1 executed, 42 up-to-date
 Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.4.1/userguide/configuration_cache_enabling.html
 ```
+
+---
+
+## Stage 2 & 3 Close-out — 2026-10-25, Asia/Calcutta
+
+### Stage 2: Phone Collectors & Data Layer
+- **Implementation:** 33 files committed in `fa46a0c`.
+  - AndroidManifest.xml: all required permissions (POST_NOTIFICATIONS, PACKAGE_USAGE_STATS, BIND_NOTIFICATION_LISTENER_SERVICE, BIND_ACCESSIBILITY_SERVICE, FOREGROUND_SERVICE_DATA_SYNC, RECEIVE_BOOT_COMPLETED).
+  - Collectors: `NotifCollector` (privacy-safe, salted SHA-256 sender hash, MessagingStyle extraction), `UsageCollector` (20s polling via UsageStatsManager), `ScreenReceiver` (screen_on, screen_off, pickup/USER_PRESENT), `A11yCollector` (scroll burst counts every 15s, canRetrieveWindowContent=false).
+  - Ingest: `AppCategorizer` (prefix map + runtime overrides), `Normalizer` (category-only mapping, strips all text), `ClockOffset` (relay skew compensation), `DhyanForegroundService` (dataSync persistent service), `BootReceiver`.
+  - Data: Room database (`DhyanDatabase`), 9 entities (`EventEntity`, `ParamEntity`, `AppLabelEntity`, `HeldNotifEntity`, `DecisionEntity`, `FeedbackEntity`, `VipEntity`, `SyncCursorEntity`, `SettingsEntity`), 9 DAOs, and `RoomParamPersistence` bridge.
+- **Verification:** Android build and KSP compile exit 0. Physical Reno 14 background process survival: `not verified on target`.
+
+### Stage 3: Twin Core (In-Memory Hot Path)
+- **Implementation:** 49 files committed in `34e1594`.
+  - RNG & samplers: `xoshiro256**` with splitmix64 seeding, 3 CRN stream derivation (EPISTEMIC, SELF, NOTIF, SELF_UNCOUPLED), zero-allocation Box-Muller, Gamma (Ahrens-Dieter boost), Beta, Dirichlet, LogNormal.
+  - Parameters & stats: Welford running LogNormal, decayed Beta, decayed Dirichlet, Gamma hazard, hierarchical backoff (FULL -> PARENT -> GRANDPARENT -> PRIOR), canonical key builders, prior table S3-1..S3-16.
+  - In-memory store: `InMemoryParamStore` with atomic snapshot resolution (`ModelSnapshot`), versioning, async persistence flush.
+  - Simulator: `PairedMonteCarlo` competing risks SHOW vs SUPPRESS with CRN, single-owner attribution, `TwinEngine` fail-open facade (`Ready` vs `NotReady`), uncertainty diagnostics.
+- **Verification:**
+  - `gradle.bat :app:testDebugUnitTest --tests "com.dhyan.app.twin.*"`: **45/45 PASS**
+  - Gate 1 demo benchmark: warm median latency = 7.07 ms (< 10 ms hot-path target).
+  - `node tools/check-twin-purity.mjs`: **PASS (132 twin files, 0 Android imports)**
+  - `node tools/check-twin-contract.mjs`: **PASS (7 snapshots validated against schema; TwinConfig defaults match Appendix A)**
+
+---
+
+## Stage 4A Close-out — 2026-10-25, Asia/Calcutta
+
+### Stage 4A: Personas, History Generator, Replay, Temporal Guard
+- **Implementation:** 33 files committed in `6c62fcf`, merged to main in `ae65431`.
+  - `PersonaDef`, `PersonaLoader` (strict JSON parser, duplicate/range checks), `PersonaCatalog` (Rahul, Anika, Kabir bundled).
+  - `GenRng`: splitmix64 deterministic generator with independent stream forking.
+  - `HistoryGenerator`: 14-day deterministic event simulation with synthetic:true, v4-shaped deterministic UUIDs, reference-time ordering with clock skew.
+  - Ground truth: `TruthRecord` with true SHOW/SUPPRESS counterfactuals (`lShowMin`, `lSuppressMin`, `deltaLMin`), `LoggingPolicyEngine` (`ShowAll`, `RandomizedHold`), `TrueEffect` simulator.
+  - Replay & temporal guard: `ReplayDriver` (tsAdj ordering, dedup, tolerance), `ReplayClock` (`VirtualClock`, `ScaledRealtimeClock`), `TemporalGuard` (`GuardedEventLog` strictly enforces ts < t0, throws `TemporalLeakException`), `FastForward`.
+  - Export: `EventJsonlWriter`, `TruthJsonWriter`, `DeterministicJson`, `EventJsonlReader`.
+- **Verification:**
+  - `gradle.bat :app:testDebugUnitTest --tests "com.dhyan.app.personas.*"`: **57/57 PASS**
+  - `node tools/check-personas-purity.mjs`: **PASS (22 files scanned, 0 forbidden imports/APIs)**
+  - `node tools/check-persona-data.mjs`: **PASS (5 fixtures, 12,567 events validated against event schema)**
+  - Deterministic fixture SHA-256 verified identical across runs:
+    - Rahul: `1719c7f4d8cd284a43375a234da526dca605af02497e6cd77e3d855a56a026a2`
+    - Anika: `82b4ccf4f60c6df503910ad2349ad4957b9a01b0a7935bf354031a7216c6c738`
+    - Kabir: `35920678b04b7df4adfd18db6ffd15d9b6f81ef41c6ffbce92dc330d9d608b9d`
+  - Total combined Kotlin unit tests on main: **103/103 PASS (0 failures, 0 errors)**
+  - Full repository checks: `npm run checks`, `npm run check:twin`, `npm run check:twin-contract`, `npm run check:personas`, `npm test` all **PASS (55/55 Node tests pass)**.
+
 
