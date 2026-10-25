@@ -8,13 +8,14 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * In-memory provider for the most recent [ContextSnapshot].
  *
- * In Stage 2/4/5 this is updated by the telemetry and fusion layers.
- * If no snapshot has been published yet, [snapshot] is null, and the UI
- * displays an honest "waiting for telemetry" empty state.
+ * Implements [SnapshotSource] interface so Stage 8 fusion can substitute
+ * multi-device fused snapshots seamlessly.
  */
-object LiveContextHolder {
+object LiveContextHolder : SnapshotSource {
     private val _snapshot = MutableStateFlow<ContextSnapshot?>(null)
-    val snapshot: StateFlow<ContextSnapshot?> = _snapshot.asStateFlow()
+    override val snapshot: StateFlow<ContextSnapshot?> = _snapshot.asStateFlow()
+
+    override fun currentSnapshot(): ContextSnapshot? = _snapshot.value
 
     fun update(newSnapshot: ContextSnapshot?) {
         _snapshot.value = newSnapshot

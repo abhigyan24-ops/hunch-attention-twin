@@ -167,6 +167,15 @@ class ActuationCoordinator(
             releaseJobScheduler.scheduleRelease(kh, holdUntilMs)
         }
 
+        SharedActuationEventBus.emit(
+            ActuationEvent(
+                keyHash = kh,
+                status = finalStatus,
+                appCat = req.facts.appCat,
+                timestampMs = nowMs
+            )
+        )
+
         ActuateResult(finalStatus, kh)
     }
 }
