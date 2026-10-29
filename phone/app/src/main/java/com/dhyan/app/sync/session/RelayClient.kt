@@ -25,7 +25,7 @@ import kotlin.math.pow
  * counter sequencing, tamper/replay rejection, 3-tag-failure policy close,
  * automatic pong response, and exponential reconnect backoff with jitter.
  */
-class RelayClient(
+open class RelayClient(
     private val pk: ByteArray,
     private val sidHex: String,
     private val relayUrl: String,
@@ -111,7 +111,7 @@ class RelayClient(
      * Sends an encrypted frame with the specified message type and JSON body.
      * Returns true if queued to transport, false if not connected or error.
      */
-    fun sendEncrypted(type: String, bodyJson: String): Boolean {
+    open fun sendEncrypted(type: String, bodyJson: String): Boolean {
         val keys = sessionKeys ?: return false
         if (_state.value !is SessionState.Connected) return false
 
