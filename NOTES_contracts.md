@@ -133,3 +133,29 @@ Read-only F1 review at detached d1e3a06 is complete; report ../dhyan-review/note
 - Schema-version coordination: DD-1 authorizes core1.1.0 with schema-sync green, while the queue explicitly says Codex never touches phone/. The existing checker requires phone/app/src/main/java/com/dhyan/app/SchemaVersion.kt VERSION="1.1.0"; the matching phone/app/src/test/java/com/dhyan/app/SchemaVersionTest.kt assertion must also become1.1.0. Proposed exception is ONLY those two literal versions (no imports/runtime/otherphoneedit), or the phone owner supplies that commit for coordination. No exception assumed and no phone file edited.
 
 No core bump, sync executable mutation, relay rewrite, main merge, F1 merge/rebase, phoneStage8,7C orGate2 work was performed during setup/review. W3 must preserve the remaining scope/gates and not claim contract completion until approved choices and checks are implemented. Review report is an uncommitted report in the throwaway review checkout, not an F1 commit.
+
+# W3 / CX-2 completion — 2026-10-29
+
+Read current main7558bfc, signed DD-1–DD-15 and newly supplied docs/prompts/DHYAN_NEXT_ACTIONS.md F3. Rebased contracts onto main; preserved signed main decisions and canonical prompt. Earlier DD-15-disabled notes are historical; current signed DD-15 controls. No subagents used. Owner separately approved immutable initial offer, delegated ACK design and allowed Codex to choose the version-only phone coordination update.
+
+## Implemented and scope
+Core/sync versions1.1.0 exactly once. videoState optional playing/paused/none in both event definitions; new reconciliation matrices. Closed command unions, opaque heldId/all only, independent cmd_ack, nullable declared shape, canonical state enums, optional adapterHealthy (no new state enum), canonical held app categories. Legacy flat relay schema marked deprecated; production relay/ untouched. DD-6 reasons remain open controlled classification tokens; local endpoints remain same emitting role. Phone edits ONLY SchemaVersion.kt literal and matching SchemaVersionTest literal1.1.0; no phone runtime or migration. Root manifest unchanged.
+
+Approved pairing CCR implemented in mocks: original immutable offer retained/delivered before late phone share, role/order checks and expiry cleanup. Session hello replies once to avoid a lost initial hello blocking late connections. ACK choice is durable settled cursor: validate identity/version for whole batch, then atomically commit valid canonical events or metadata-only rejection tombstones before advancing/ACK. Mock restart/dedup, valid-invalid-valid, failed write/noACK and privacy regressions pass. Rejected content never reaches ledger/callback/diagnostic plaintext buffers. Production8L/8P1 must implement equivalent store transactions; no Room migration or deployed relay is claimed.
+
+All underlying crypto outputs/ciphertexts compared against HEAD's old vectors and were identical after removing metadata fields. Regenerated vector SHA256(canonical UTF8/LF)=3a3e92d7952ee3ed4a95787771c7732daf3699c86cd5f09b37e8a820142202a9. Public fixed test vectors are not production keys. Final byte diff reviewed before commit; no new crypto library.
+
+## Real verification
+- npm test: tests110, pass110, fail0, duration_ms5272.4381.
+- npm run check:contracts: tests52, pass52, fail0, duration_ms1122.145.
+- npm run checks: schema-syncPASS1.1.0(1Kotlinversionfile), twin-purityPASS96, no-persona-importsPASS284.
+- npm run build-vectors: public vector hash above; deterministic regeneration test passes.
+- Full stdout: docs/contracts/verification/W3-root-tests.txt and W3-contract-tests.txt.
+- Corrected the observed Windows CRLF hygiene failure by comparing normalized line endings while still checking exact .env keys/content; no .env file changed. No swallowed test failure. A new encrypted-settlement test initially exposed whole-wrapper forbidden-key rejection preventing per-event settlement; fixed envelope-only validation followed by per-event privacy rejection. Final tests pass.
+- Phone Gradle/full Kotlin suite, Kotlin crypto vectors, Node20 target, hardware, cloud/WSS, actual pairing/actuation were NOT run in W3: not verified on target. The known earlierF1 review defects are not silently certified by its owner merge. Gate2 remains owner-run.
+
+## Antigravity update
+Read/share docs/contracts/ANTIGRAVITY_W3_HANDOFF.md. It states exact two literal changes, no runtime edits, state/command/video changes, transactional settlement/migration needs and Gate2/M0 boundaries. No Antigravity thread exists in connected Codex threads, and no direct Antigravity messaging connector is available; no direct chat delivery is claimed. Owner explicitly authorized sending an update; the reviewable repository handoff is the available channel.
+
+## Remaining limitations
+No silent historical1.0event rewrite; both peers must upgrade before optional adapterHealthy under strict old receivers. Pure wire crypto labels remainv1; semver1.1.0 is schema revision, not a new key label. Current7A lacks a direct fresh adapter-health diagnostic and persisted focus history;7B's explicit unknown/no-data limitations remain. Ingest lockout identity, controlled detail vocabularies and full production transport lifecycle still require7C/8L review. Mock auto-confirm is a test harness, not a human confirmation UI; passing it is not a security audit. Mock DurableEventLedger is bounded reference storage, not a production sync subsystem or universal power-loss guarantee. DD-8 phone migration belongs8P1 after approved M0/Gate2. No main merge/push.

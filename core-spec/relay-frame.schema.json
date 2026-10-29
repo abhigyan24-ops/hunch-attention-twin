@@ -16,7 +16,7 @@
           ]
         },
         "version": {
-          "const": "1.0.0"
+          "const": "1.1.0"
         },
         "lastSeqAcked": {
           "type": "integer",
@@ -334,8 +334,9 @@
               ]
             },
             "plannedMin": {
-              "type": "number",
-              "minimum": 0
+              "type": "integer",
+              "minimum": 5,
+              "maximum": 480
             },
             "strict": {
               "type": "boolean"
@@ -381,17 +382,33 @@
           "const": "show_now"
         },
         "args": {
-          "type": "object",
-          "properties": {
-            "notifKey": {
-              "type": "string",
-              "minLength": 1
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "heldId": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "heldId"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "all": {
+                  "const": true
+                }
+              },
+              "required": [
+                "all"
+              ],
+              "additionalProperties": false
             }
-          },
-          "required": [
-            "notifKey"
-          ],
-          "additionalProperties": false
+          ]
         }
       },
       "required": [
@@ -428,7 +445,6 @@
         "args": {
           "type": "object",
           "properties": {},
-          "required": [],
           "additionalProperties": false
         }
       },
@@ -465,8 +481,14 @@
         },
         "args": {
           "type": "object",
-          "properties": {},
-          "required": [],
+          "properties": {
+            "on": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "on"
+          ],
           "additionalProperties": false
         }
       },
@@ -491,6 +513,38 @@
         "type"
       ],
       "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "cmd_ack"
+        },
+        "cmdId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "status": {
+          "enum": [
+            "applied",
+            "rejected",
+            "expired",
+            "duplicate"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 100
+        }
+      },
+      "required": [
+        "type",
+        "cmdId",
+        "status"
+      ],
+      "additionalProperties": false
     }
-  ]
+  ],
+  "deprecated": true,
+  "description": "Archived flat Stage1 frame schema. NOT the Stage7–9 wire authority; use contracts/sync/schemas and docs/contracts/SYNC_CONTRACT.md. Production relay migration belongs to8L."
 }

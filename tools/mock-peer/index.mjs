@@ -1,3 +1,4 @@
+import {validateFrame,validateBody,validatePlaintextEnvelope} from '../lib/contract-validate.mjs';
 import { WebSocket } from 'ws';
 import crypto from 'crypto';
 import {
@@ -43,7 +44,9 @@ export class MockPeer {
     this.kP2L = null;
     this.sendCtr = 1;
     this.lastReceivedCtr = 0;
-    this.lastSeqAcked = 0;
+    this.eventLedger=options.eventLedger??null;
+    this.receiveQueue=Promise.resolve();
+    this.lastSeqAcked = this.eventLedger?.upToSeq??0;
 
     // Event & message queues
     this.receivedMessages = [];
@@ -59,8 +62,7 @@ export class MockPeer {
 
   // --- Pairing Flow ---
   async pair({ code, attack = null } = {}) {
-    this.keyPair = generateP256KeyPair();
-    this.nonce = crypto.randomBytes(16);
+    if(this.role==='laptop'){this.keyPair=generateP256KeyPair();this.nonce=crypto.randomBytes(16);}
 
     const roomId = getRendezvousRoomId(code);
     const wsUrl = `${this.relayUrl}?room=${roomId}&device=${this.role}`;
@@ -91,6 +93,8 @@ export class MockPeer {
 
         if (this.role === 'phone') {
           if (frame.t === 'pair_offer') {
+            if(this.laptopCommit){this.logRejection('duplicate_offer');return;}
+            this.keyPair=generateP256KeyPair();this.nonce=crypto.randomBytes(16);
             this.laptopCommit = Buffer.from(frame.commit, 'base64');
             // 2. Phone sends pair_join
             this.ws.send(JSON.stringify({
@@ -206,6 +210,7 @@ export class MockPeer {
     this.sessionId = sid || this.sessionId;
     this.pairingKey = PK || this.pairingKey;
 
+    this.helloResponded=false;
     this.sessionNonce = crypto.randomBytes(16);
     this.sendCtr = 1;
     this.lastReceivedCtr = 0;
@@ -250,6 +255,7 @@ export class MockPeer {
             return;
           }
 
+          if(!this.helloResponded){this.helloResponded=true;const sn=this.sessionNonce.toString('base64');this.ws.send(JSON.stringify({v:1,t:'hello',device:this.role,sn,proto:[1],lastSeqAcked:this.lastSeqAcked,mac:computeHelloMac(this.pairingKey,this.role,sn,this.lastSeqAcked).toString('base64')}));}
           this.peerSessionNonce = Buffer.from(frame.sn, 'base64');
           const snL = this.role === 'laptop' ? this.sessionNonce : this.peerSessionNonce;
           const snP = this.role === 'phone' ? this.sessionNonce : this.peerSessionNonce;
@@ -261,7 +267,7 @@ export class MockPeer {
           resolve();
         } else if (frame.c !== undefined) {
           // Encrypted session frame
-          this.handleEncryptedFrame(frame);
+          this.receiveQueue=this.receiveQueue.then(()=>this.handleEncryptedFrame(frame)).catch(()=>this.logRejection('receive_failed'));
         }
       });
 
@@ -269,7 +275,8 @@ export class MockPeer {
     });
   }
 
-  handleEncryptedFrame(frame) {
+  async handleEncryptedFrame(frame) {
+    if(!validateFrame(frame).valid){this.logRejection('schema_invalid');return;}
     const expectedDir = this.role === 'phone' ? 'l2p' : 'p2l';
     if (frame.d !== expectedDir) {
       this.logRejection('wrong_direction');
@@ -294,7 +301,11 @@ export class MockPeer {
     this.lastReceivedCtr = frame.ctr;
 
     try {
-      const plaintext = JSON.parse(plaintextBuf.toString('utf8'));
+      if(plaintextBuf.length>32768)throw Error('too_large');
+      let plaintext = JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(plaintextBuf));
+      if(!validatePlaintextEnvelope(plaintext).valid)throw Error('schema_invalid');
+      if(frame.t==='events'){if(!this.eventLedger){this.logRejection('persistence_unavailable');return;}let settled;try{settled=await this.eventLedger.settle(plaintext.b);}catch(error){this.logRejection(['schema_mismatch','persistence_failure','identity_conflict','invalid_identity','invalid_sequence','late_unsettled_sequence','ledger_full'].includes(error.message)?error.message:'schema_invalid');return;}this.lastSeqAcked=settled.upToSeq;this.sendFrame('ack',{upToSeq:settled.upToSeq});plaintext={...plaintext,b:{fromSeq:plaintext.b.fromSeq,events:settled.applied}};}
+      if(frame.t!=='events'&&!validateBody(frame.t,plaintext.b).valid)throw Error('schema_invalid');
       this.receivedPlaintexts.push({ type: frame.t, plaintext });
       if (this.onMessageCallback) {
         this.onMessageCallback(frame.t, plaintext);

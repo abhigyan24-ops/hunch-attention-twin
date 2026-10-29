@@ -100,7 +100,7 @@ test('relay strict frame variants and command-specific allowlists', () => {
   ajv.addSchema(read('context-snapshot.schema.json')); ajv.addSchema(read('event.schema.json'));
   const validate = ajv.compile(read('relay-frame.schema.json'));
   const session = { task:'coding', plannedMin:30, strict:true };
-  const frames = [{type:'hello',device:'phone',version:'1.0.0',lastSeqAcked:0}, ...['ping','pong'].map(type => ({type,t0:0,t1:1,t2:2,t3:3})), {type:'events',fromSeq:1,events:[fixture('screen_on')]},{type:'ack',upToSeq:1},{type:'state',focusState:'working',phoneState:'screen_off',confidence:0.5,declared:null,heldCount:0},{type:'pet_event',kind:'held',count:1},{type:'encrypted'}, ...Object.entries({declare_session:session,end_session:{},show_now:{notifKey:'fixture-key'},kill_switch:{}}).map(([cmd,args]) => ({type:'command',commandId:fixture('screen_on').id,issuedAt:1,expiresAt:2,cmd,args}))];
+  const frames = [{type:'hello',device:'phone',version:'1.1.0',lastSeqAcked:0}, ...['ping','pong'].map(type => ({type,t0:0,t1:1,t2:2,t3:3})), {type:'events',fromSeq:1,events:[fixture('screen_on')]},{type:'ack',upToSeq:1},{type:'state',focusState:'working',phoneState:'screen_off',confidence:0.5,declared:null,heldCount:0},{type:'pet_event',kind:'held',count:1},{type:'encrypted'}, ...Object.entries({declare_session:session,end_session:{},show_now:{heldId:'fixture-id'},kill_switch:{on:true}}).map(([cmd,args]) => ({type:'command',commandId:fixture('screen_on').id,issuedAt:1,expiresAt:2,cmd,args}))];
   for (const frame of frames) {
     assert.equal(validate(frame),true,JSON.stringify(validate.errors));
     assert.equal(validate({...frame,extra:true}),false);
@@ -115,12 +115,12 @@ test('all three checks pass on repository and reject violations in isolated scra
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(),'dhyan-1a-'));
   t.after(() => fs.rmSync(scratch,{recursive:true,force:true}));
   const put = (p,text) => {const file=path.join(scratch,p);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,text);};
-  put('core-spec/SCHEMA_VERSION','1.0.0');put('core-spec/event.schema.json',JSON.stringify(read('event.schema.json')));
-  put('phone/app/SchemaVersion.kt','const val SCHEMA_VERSION = "1.0.0"');assert.match(checkSchemaSync(scratch),/PASS/);
+  put('core-spec/SCHEMA_VERSION','1.1.0');put('core-spec/event.schema.json',JSON.stringify(read('event.schema.json')));
+  put('phone/app/SchemaVersion.kt','const val SCHEMA_VERSION = "1.1.0"');assert.match(checkSchemaSync(scratch),/PASS/);
   put('SchemaVersion.kt','const val SCHEMA_VERSION = "2.0.0"');assert.throws(() => checkSchemaSync(scratch));
-  put('SchemaVersion.kt','const val SCHEMA_VERSION = "1.0.0"');
+  put('SchemaVersion.kt','const val SCHEMA_VERSION = "1.1.0"');
   put('phone/app/SchemaVersion.kt','const val SCHEMA_VERSION = "2.0.0"');assert.throws(() => checkSchemaSync(scratch));
-  put('phone/app/SchemaVersion.kt','const val SCHEMA_VERSION = "1.0.0"');put('core-spec/SCHEMA_VERSION','2.0.0');assert.throws(() => checkSchemaSync(scratch));
+  put('phone/app/SchemaVersion.kt','const val SCHEMA_VERSION = "1.1.0"');put('core-spec/SCHEMA_VERSION','2.0.0');assert.throws(() => checkSchemaSync(scratch));
   for (const prefix of ['android','androidx']) {put('phone/app/twin/params/Test.kt',`import ${prefix}.example.Test`);assert.throws(() => checkTwinPurity(scratch));}
   put('phone/app/twin/params/Test.kt','import kotlin.math.exp');assert.match(checkTwinPurity(scratch),/PASS/);
   for (const module of ['phone','laptop']) for (const ref of ['../../tools/personas/test','..\\tools\\personas\\test']) {
@@ -138,8 +138,8 @@ test('root hygiene and governance preserve stage boundaries and complete spec in
   const text = p => fs.readFileSync(path.join(root,p),'utf8');
   const ignore = text('.gitignore').split(/\r?\n/);
   for (const pattern of ['node_modules/','dist/','out/','build/','.gradle/','.kotlin/','.idea/','local.properties','*.apk','.env','.env.*','!.env.example','*.log','tools/dataset/out/*.raw']) assert.ok(ignore.includes(pattern));
-  assert.equal(text('.env.example'),'OPENAI_API_KEY=\nOPENAI_MODEL=\nRELAY_URL=\n');
-  assert.equal(text('core-spec/SCHEMA_VERSION'),'1.0.0');
+  assert.equal(text('.env.example').replace(/\r\n/g,'\n'),'OPENAI_API_KEY=\nOPENAI_MODEL=\nRELAY_URL=\n');
+  assert.equal(text('core-spec/SCHEMA_VERSION'),'1.1.0');
   const pkg=JSON.parse(text('package.json'));assert.equal(pkg.type,'module');
   assert.equal(pkg.scripts.test,'node --test tools/test/*.test.mjs');
   assert.deepEqual(Object.keys(pkg.devDependencies).sort(),['ajv','ajv-formats']);

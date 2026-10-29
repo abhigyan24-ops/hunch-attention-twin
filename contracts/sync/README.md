@@ -1,9 +1,9 @@
-# Dhyan Sync Protocol v1.0.0 — Test Vectors & Reference Crypto
+# Dhyan Sync Protocol v1.1.0 — Test Vectors & Reference Crypto
 
 This directory contains deterministic test vectors and reference crypto implementation for the Dhyan Sync Protocol (P-256 ECDH, HKDF-SHA256, HMAC-SHA256, AES-256-GCM).
 
 ## Files
-- `VERSION`: Semver `1.0.0`
+- `VERSION`: Semver `1.1.0`
 - `CHANGELOG.md`: Log of contract changes.
 - `schemas/`: JSON schemas for all sync frames (outer, session, and local ingest).
 - `fixtures/`: Valid and invalid JSON fixture payloads.
@@ -15,7 +15,7 @@ This directory contains deterministic test vectors and reference crypto implemen
 ### In TypeScript / Node.js
 Run the contract test suite:
 ```bash
-npm run test:contracts
+npm run check:contracts
 ```
 The test suite loads `test-vectors.json` and asserts:
 1. P-256 public keys generated from `privateScalarHex` match `publicKeyHex`.
@@ -36,3 +36,6 @@ In `phone/app/src/test/java/com/dhyan/app/sync/CryptoVectorsTest.kt`:
 3. Compute `KeyAgreement.getInstance("ECDH")` to verify `sharedSecretHex`.
 4. Verify HKDF-SHA256 (RFC 5869 extract and expand) matching `PK`, `k_l2p`, `k_p2l`.
 5. Verify `Cipher.getInstance("AES/GCM/NoPadding")` with 12-byte IV (`0x00000000 || ctr`) and `updateAAD(aadAscii.toByteArray(StandardCharsets.US_ASCII))` decrypts `ciphertextWithTagBase64`.
+
+Public fixed vectors are TEST ONLY, never production keys or nonces. W3 changes schema metadata only; cryptographic intermediates remain identical. Both platforms must independently pass vectors before merging an actual sync integration. See sync contract section15 for exact declared/adapterHealthy semantics and migration limitations.
+

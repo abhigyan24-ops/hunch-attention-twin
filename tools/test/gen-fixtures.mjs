@@ -74,7 +74,7 @@ const validFixtures = {
     laptopState: "flowing",
     phoneState: "screen_off",
     confidence: 0.85,
-    declared: false,
+    declared: null,
     heldCount: 2,
     minutesInState: 25.0
   },
@@ -163,7 +163,7 @@ const invalidFixtures = {
     ts: 1729864000000,
     focusState: "deep_focus",
     confidence: 0.8,
-    declared: false,
+    declared: null,
     heldCount: 0,
     title: "Leaked Notification Title"
   },

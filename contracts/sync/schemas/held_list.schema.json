@@ -3,17 +3,48 @@
   "title": "HeldListBody",
   "type": "object",
   "properties": {
-    "total": { "type": "integer", "minimum": 0 },
+    "total": {
+      "type": "integer",
+      "minimum": 0
+    },
     "items": {
       "type": "array",
       "maxItems": 50,
       "items": {
         "type": "object",
         "properties": {
-          "heldId": { "type": "string", "minLength": 1, "maxLength": 64 },
-          "appCat": { "type": "string", "minLength": 1, "maxLength": 32 },
-          "heldAt": { "type": "integer", "minimum": 0 },
-          "expiresAt": { "type": "integer", "minimum": 0 },
+          "heldId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "appCat": {
+            "type": "string",
+            "enum": [
+              "coding",
+              "docs",
+              "communication",
+              "social",
+              "video",
+              "short_video",
+              "games",
+              "shopping",
+              "news",
+              "music",
+              "learning",
+              "utility",
+              "system",
+              "unknown"
+            ]
+          },
+          "heldAt": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "expiresAt": {
+            "type": "integer",
+            "minimum": 0
+          },
           "status": {
             "enum": [
               "HELD",
@@ -26,11 +57,20 @@
             ]
           }
         },
-        "required": ["heldId", "appCat", "heldAt", "expiresAt", "status"],
+        "required": [
+          "heldId",
+          "appCat",
+          "heldAt",
+          "expiresAt",
+          "status"
+        ],
         "additionalProperties": false
       }
     }
   },
-  "required": ["total", "items"],
+  "required": [
+    "total",
+    "items"
+  ],
   "additionalProperties": false
 }

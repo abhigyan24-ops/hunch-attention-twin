@@ -23,3 +23,7 @@ relay-frame.schema.json uses flat frames with a type discriminator following sec
 The encrypted type is reserved as {"type":"encrypted"} only. It carries no ciphertext and is not an operational encryption capability. Do not accept arbitrary ciphertext fields until Stage 8 defines authenticated metadata, nonce uniqueness, replay rejection, rotation, and a reviewed pairing design under 25.8. WSS, rate limits, per-frame byte caps and nested event byte validation require later relay implementation; no relay deployment is verified.
 
 See DECISIONS_PENDING.md for unresolved contracts. SCHEMA_VERSION 1.0.0 is the Stage 1A baseline; downstream work must resolve pending items through an explicitly approved canonical-contract change rather than silently broadening a schema.
+
+## W3 reconciliation (1.1.0)
+
+`docs/OWNER_DECISIONS.md` DD-1–DD-9 authorizes the controlled1.1.0 event bump and reviewed field changes. The core event envelope remains the telemetry authority. `relay-frame.schema.json` is now explicitly archival/deprecated: it is not a Stage7–9 network validator. Use `contracts/sync/schemas/` and `docs/contracts/SYNC_CONTRACT.md` for outer frames, authenticated hello, AEAD, state, control and acknowledgements. Production relay migration belongs8L. gap reason tokens remain open strings; local collector gaps use the emitting role as both endpoints. See the sync contract registry for documented values. No wire command contains a notification key; show_now uses only opaque heldId or all:true.

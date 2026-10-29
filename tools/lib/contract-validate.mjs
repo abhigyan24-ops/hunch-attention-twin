@@ -15,13 +15,14 @@ const FORBIDDEN_SET = new Set(FORBIDDEN_FIELDS);
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 addFormats(ajv);
 
+ajv.addSchema(JSON.parse(fs.readFileSync(path.join(ROOT, 'core-spec/context-snapshot.schema.json'), 'utf8')));
 // Load core-spec event schema
 const coreEventSchema = JSON.parse(fs.readFileSync(path.join(ROOT, 'core-spec/event.schema.json'), 'utf8'));
 ajv.addSchema(coreEventSchema, 'https://dhyan.local/event.schema.json');
 
 // Load sync schemas
 const schemaFiles = fs.readdirSync(SCHEMAS_DIR).filter(f => f.endsWith('.schema.json'));
-const validators = {};
+const validators = Object.create(null);
 
 for (const file of schemaFiles) {
   const fullPath = path.join(SCHEMAS_DIR, file);
@@ -53,6 +54,7 @@ export function validateFrame(frame) {
     return { valid, errors: valid ? [] : val.errors.map(e => `${e.instancePath || '/'} ${e.message}`) };
   }
 
+  if (!['pair_offer','pair_join','pair_reveal','pair_confirm','pair_cancel','hello'].includes(type)) return {valid:false,errors:['invalid_outer_type']};
   // Pairing & Hello frames
   const val = validators[type];
   if (!val) {
@@ -161,4 +163,11 @@ export function walkForbiddenFields(obj, currentPath = '') {
   }
 
   return null;
+}
+
+
+// Envelope-only validation: event payloads are settled individually by the durable receiver.
+export function validatePlaintextEnvelope(value) {
+  const valid = validators.frame_envelope(value);
+  return {valid:Boolean(valid),errors:valid?[]:['schema_invalid']};
 }

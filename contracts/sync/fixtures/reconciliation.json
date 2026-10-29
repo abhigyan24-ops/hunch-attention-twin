@@ -1,0 +1,295 @@
+[
+  {
+    "name": "adapter-true",
+    "type": "state",
+    "body": {
+      "ts": 1729864000000,
+      "focusState": "deep_focus",
+      "laptopState": "flowing",
+      "phoneState": "screen_off",
+      "confidence": 0.85,
+      "declared": null,
+      "heldCount": 2,
+      "minutesInState": 25,
+      "adapterHealthy": true
+    },
+    "valid": true
+  },
+  {
+    "name": "adapter-false",
+    "type": "state",
+    "body": {
+      "ts": 1729864000000,
+      "focusState": "deep_focus",
+      "laptopState": "flowing",
+      "phoneState": "screen_off",
+      "confidence": 0.85,
+      "declared": null,
+      "heldCount": 2,
+      "minutesInState": 25,
+      "adapterHealthy": false
+    },
+    "valid": true
+  },
+  {
+    "name": "adapter-absent",
+    "type": "state",
+    "body": {
+      "ts": 1729864000000,
+      "focusState": "deep_focus",
+      "laptopState": "flowing",
+      "phoneState": "screen_off",
+      "confidence": 0.85,
+      "declared": null,
+      "heldCount": 2,
+      "minutesInState": 25
+    },
+    "valid": true
+  },
+  {
+    "name": "adapter-number",
+    "type": "state",
+    "body": {
+      "ts": 1729864000000,
+      "focusState": "deep_focus",
+      "laptopState": "flowing",
+      "phoneState": "screen_off",
+      "confidence": 0.85,
+      "declared": null,
+      "heldCount": 2,
+      "minutesInState": 25,
+      "adapterHealthy": 1
+    },
+    "valid": false
+  },
+  {
+    "name": "declared-active",
+    "type": "state",
+    "body": {
+      "ts": 1729864000000,
+      "focusState": "deep_focus",
+      "laptopState": "flowing",
+      "phoneState": "screen_off",
+      "confidence": 0.85,
+      "declared": {
+        "task": "coding",
+        "plannedMin": 30,
+        "strict": true,
+        "startedTs": 0
+      },
+      "heldCount": 2,
+      "minutesInState": 25
+    },
+    "valid": true
+  },
+  {
+    "name": "declared-boolean",
+    "type": "state",
+    "body": {
+      "ts": 1729864000000,
+      "focusState": "deep_focus",
+      "laptopState": "flowing",
+      "phoneState": "screen_off",
+      "confidence": 0.85,
+      "declared": false,
+      "heldCount": 2,
+      "minutesInState": 25
+    },
+    "valid": false
+  },
+  {
+    "name": "declared-extra",
+    "type": "state",
+    "body": {
+      "ts": 1729864000000,
+      "focusState": "deep_focus",
+      "laptopState": "flowing",
+      "phoneState": "screen_off",
+      "confidence": 0.85,
+      "declared": {
+        "task": "coding",
+        "plannedMin": 30,
+        "strict": true,
+        "startedTs": 0,
+        "title": "synthetic-canary"
+      },
+      "heldCount": 2,
+      "minutesInState": 25
+    },
+    "valid": false
+  },
+  {
+    "name": "declare_session-valid",
+    "type": "command",
+    "body": {
+      "cmdId": "123e4567-e89b-12d3-a456-426614174000",
+      "cmd": "declare_session",
+      "args": {
+        "task": "coding",
+        "plannedMin": 30,
+        "strict": true
+      },
+      "issuedTs": 1729864000000,
+      "exp": 1729864030000
+    },
+    "valid": true
+  },
+  {
+    "name": "declare_session-invalid",
+    "type": "command",
+    "body": {
+      "cmdId": "123e4567-e89b-12d3-a456-426614174000",
+      "cmd": "declare_session",
+      "args": {
+        "task": "coding",
+        "plannedMin": 4,
+        "strict": true
+      },
+      "issuedTs": 1729864000000,
+      "exp": 1729864030000
+    },
+    "valid": false
+  },
+  {
+    "name": "end_session-valid",
+    "type": "command",
+    "body": {
+      "cmdId": "123e4567-e89b-12d3-a456-426614174000",
+      "cmd": "end_session",
+      "args": {},
+      "issuedTs": 1729864000000,
+      "exp": 1729864030000
+    },
+    "valid": true
+  },
+  {
+    "name": "end_session-invalid",
+    "type": "command",
+    "body": {
+      "cmdId": "123e4567-e89b-12d3-a456-426614174000",
+      "cmd": "end_session",
+      "args": {
+        "on": true
+      },
+      "issuedTs": 1729864000000,
+      "exp": 1729864030000
+    },
+    "valid": false
+  },
+  {
+    "name": "show_now-valid",
+    "type": "command",
+    "body": {
+      "cmdId": "123e4567-e89b-12d3-a456-426614174000",
+      "cmd": "show_now",
+      "args": {
+        "heldId": "opaque-test-id"
+      },
+      "issuedTs": 1729864000000,
+      "exp": 1729864030000
+    },
+    "valid": true
+  },
+  {
+    "name": "show_now-invalid",
+    "type": "command",
+    "body": {
+      "cmdId": "123e4567-e89b-12d3-a456-426614174000",
+      "cmd": "show_now",
+      "args": {
+        "notifKey": "forbidden-identifier"
+      },
+      "issuedTs": 1729864000000,
+      "exp": 1729864030000
+    },
+    "valid": false
+  },
+  {
+    "name": "kill_switch-valid",
+    "type": "command",
+    "body": {
+      "cmdId": "123e4567-e89b-12d3-a456-426614174000",
+      "cmd": "kill_switch",
+      "args": {
+        "on": true
+      },
+      "issuedTs": 1729864000000,
+      "exp": 1729864030000
+    },
+    "valid": true
+  },
+  {
+    "name": "kill_switch-invalid",
+    "type": "command",
+    "body": {
+      "cmdId": "123e4567-e89b-12d3-a456-426614174000",
+      "cmd": "kill_switch",
+      "args": {},
+      "issuedTs": 1729864000000,
+      "exp": 1729864030000
+    },
+    "valid": false
+  },
+  {
+    "name": "show-all",
+    "type": "command",
+    "body": {
+      "cmdId": "123e4567-e89b-12d3-a456-426614174000",
+      "cmd": "show_now",
+      "args": {
+        "all": true
+      },
+      "issuedTs": 1729864000000,
+      "exp": 1729864030000
+    },
+    "valid": true
+  },
+  {
+    "name": "show-false",
+    "type": "command",
+    "body": {
+      "cmdId": "123e4567-e89b-12d3-a456-426614174000",
+      "cmd": "show_now",
+      "args": {
+        "all": false
+      },
+      "issuedTs": 1729864000000,
+      "exp": 1729864030000
+    },
+    "valid": false
+  },
+  {
+    "name": "declare-high",
+    "type": "command",
+    "body": {
+      "cmdId": "123e4567-e89b-12d3-a456-426614174000",
+      "cmd": "declare_session",
+      "args": {
+        "task": "coding",
+        "plannedMin": 481,
+        "strict": true
+      },
+      "issuedTs": 1729864000000,
+      "exp": 1729864030000
+    },
+    "valid": false
+  },
+  {
+    "name": "cmd-ack-valid",
+    "type": "cmd_ack",
+    "body": {
+      "cmdId": "123e4567-e89b-12d3-a456-426614174000",
+      "status": "duplicate"
+    },
+    "valid": true
+  },
+  {
+    "name": "cmd-ack-bad",
+    "type": "cmd_ack",
+    "body": {
+      "cmdId": "123e4567-e89b-12d3-a456-426614174000",
+      "status": "done"
+    },
+    "valid": false
+  }
+]

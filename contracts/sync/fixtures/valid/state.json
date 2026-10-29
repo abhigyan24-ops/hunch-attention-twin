@@ -4,7 +4,7 @@
   "laptopState": "flowing",
   "phoneState": "screen_off",
   "confidence": 0.85,
-  "declared": false,
+  "declared": null,
   "heldCount": 2,
   "minutesInState": 25
 }

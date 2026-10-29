@@ -5,6 +5,6 @@ import org.junit.Test
 
 class SchemaVersionTest {
     @Test fun schemaVersionMatchesCanonicalContract() {
-        assertEquals("1.0.0", SchemaVersion.VERSION)
+        assertEquals("1.1.0", SchemaVersion.VERSION)
     }
 }

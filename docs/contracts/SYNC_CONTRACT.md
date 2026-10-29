@@ -1,4 +1,4 @@
-# DHYAN Sync and Ingest Contract v1.0.0
+# DHYAN Sync and Ingest Contract v1.1.0
 
 Commit this file as `docs/contracts/SYNC_CONTRACT.md` on `main`. It is the single authority for everything that crosses a process or device boundary in Stages 7 to 9: the extension-to-laptop ingest protocol, the pairing flow, the relay protocol, session encryption, commands, time and ordering.
 
@@ -167,7 +167,7 @@ All bodies have `additionalProperties: false`. Unknown fields are rejected. Sche
 | `pong` | both | `{t0, t1, t2}`: `t1` responder receive time, `t2` responder send time |
 | `events` | both | `{fromSeq, events:[Event...]}` with `Event` exactly as in `core-spec/event.schema.json`. Only that sender's own events |
 | `ack` | both | `{upToSeq}` cumulative |
-| `state` | both | `{ts, focusState, laptopState?, phoneState?, confidence, declared, heldCount, minutesInState?}` using the enums in `core-spec/context-snapshot.schema.json` |
+| `state` | both | `{ts, focusState, laptopState?, phoneState?, confidence, declared, heldCount, minutesInState?, adapterHealthy?, adapterHealthy?}` using the enums in `core-spec/context-snapshot.schema.json` |
 | `pet_event` | phone to laptop | `{kind: "held"\|"released"\|"nudge"\|"celebrate", count}` |
 | `held_list` | phone to laptop | `{total, items:[{heldId, appCat, heldAt, expiresAt, status}]}` at most 50 items; **no text, no sender, no package** |
 | `command` | both | `{cmdId, cmd, args, issuedTs, exp}` (section 8) |
@@ -302,7 +302,7 @@ If no `ext_heartbeat` for 15 s the laptop marks that extension feed `offline`. O
 
 ## 13. Versioning
 
-`contracts/sync/VERSION` holds `1.0.0`. Bump rules: patch for clarifications and test fixtures, minor for backward-compatible additions (new optional field, new message type with a version gate), major for incompatible changes (needs a new `PROTOCOL_VERSION`). `contracts/sync/CHANGELOG.md` records each change and the vectors hash.
+`contracts/sync/VERSION` holds `1.1.0`. Bump rules: patch for clarifications and test fixtures, minor for backward-compatible additions (new optional field, new message type with a version gate), major for incompatible changes (needs a new `PROTOCOL_VERSION`). `contracts/sync/CHANGELOG.md` records each change and the vectors hash.
 
 ---
 
@@ -319,3 +319,30 @@ If no `ext_heartbeat` for 15 s the laptop marks that extension feed `offline`. O
 | CA-7 | `gap` reasons `peer_silent`, `relay_down`, `schema_mismatch` | needed to record sync failures; requires a core-spec minor bump if missing (handled in Prompt C0) |
 | CA-8 | `kill_switch on:false` only from the phone | a laptop must never be able to re-enable holding on the phone |
 | CA-9 | Constants chosen without spec values: ingest port 47821, JSONL rotation 10 MB and 14 days, stale thresholds 15 s and 30 s, pairing validity 5 min | tune later without a protocol change |
+
+## 15. Owner-signed W3 reconciliation (DD-1–DD-9, 2026-10-29)
+
+This section overrides older conflicting wording above; the signed owner record is docs/OWNER_DECISIONS.md. Sync contract1.1.0 retains wire v=1, P-256/HKDF/GCM byte formulas and public fixed vector inputs. The schema revision is not a security audit or a claim of completed cross-platform deployment.
+
+- The core event envelope is schemaVersion1.1.0. tab_category.videoState is optional, and when present is exactly playing, paused or none. Field absence remains valid. Reject unknown values and extra properties; do not silently drop a supplied signal.
+- Commands are a closed union: declare_session args task from canonical taskType enum, integer plannedMin5..480 and strict boolean; end_session args empty; show_now args heldId (opaque nonempty id) OR all:true; kill_switch args on boolean. Never expose notifKey to the laptop. cmd_ack stays independent from telemetry ack. The existing direction, expiry and idempotency rules in section8 remain mandatory; schema validation alone is not authorization. Laptop kill_switch.on=false remains forbidden.
+- state.declared is null OR the canonical declaredSession shape {task,plannedMin,strict,startedTs}; it is never a boolean. Reuse core ContextSnapshot enums, including phoneState. adapterHealthy is an OPTIONAL boolean in the sync state body. laptopState=offline plus adapterHealthy=true means active but unclassified; adapterHealthy=false means collector silent. Omitted adapterHealthy means availability is unknown, not a fabricated offline or focus state. No new laptopState enum is added. confidence from the laptop rule runner remains uncalibrated and must not be rendered as a correctness percentage.
+- Local collector gaps have deviceFrom=deviceTo=the emitting role. Documented reason tokens: peer_silent, relay_down, schema_mismatch, queue_overflow, notif_listener_disconnected, a11y_disconnected, usage_query_failed, service_restarted, device_rebooted, clock_changed, permission_revoked, persistence_failure, adapter_offline. The reason field remains an open nonempty classification-token string (no raw input text). No time interval is encoded in deviceFrom/deviceTo.
+- This outer/encrypted contract supersedes the deprecated core flat relay schema. Production relay changes occur only in8L, not W3. Phone events need durable canonical id/seq/deviceId/schemaVersion; migration belongs phone8P1 after approvedM0 and ownerGate2, with no destructive migration.
+- Migration/compatibility: old event schemaVersion1.0.0 rejects at the1.1.0 validator. Map historical versions only through a reviewed mapping; preserve identity/sequence. Strict1.0 peers may reject the added optional state property. Both peers must be updated before emitting it; no unimplemented capability negotiation or downgrade compatibility is claimed. Wire crypto labels remain dhyan-pair-v1 and dhyan|1|..., not1.1; changing those would change key derivation/authentication and is not approved here.
+
+Outstanding independent CCRs from RECONCILIATION_REPORT.md (initial offer delivery/order, partial-invalid-batch durable ACK semantics, ingest lockout identity and ambiguous limits) are not silently decided by this reconciliation. Existing mock tests cannot resolve these design questions. They remain required before dependent production7C/8L behavior is finalized; do not advertise the mocks as a security proof.
+
+## 16. W3 resolved pairing and settlement CCRs
+
+Owner explicitly approved retention of the original offer and delegated the ACK design choice to Codex in this chat. This section supersedes the older conflicting descriptions in sections3/4/5.2/6/7.2.
+
+**Rendezvous:** the mock relay retains only the first valid laptop pair_offer, immutable for that rendezvous lifetime. Deliver it to a late phone before accepting pair_join. The phone waits for that offer before generating/sending its key share. Reject replacement offers, wrong roles and out-of-order join/reveal/confirm. Clear the offer on cancel or5minute expiry. Production relay implements this in8L; W3 changes only mocks. Session hellos are not retained: a peer answers the first authenticated peer hello with its own already-fresh hello once, so a late peer can establish a session without a dropped first hello deadlock.
+
+**Durable settled cursor:** preserve partial acceptance. Before applying a batch, validate all event identities (UUID, seq, sender device/deviceId), increasing order/fromSeq and compatible schemaVersion. Invalid identity or incompatible version rejects the entire batch without ACK or partial apply. For otherwise identifiable events, persist valid canonical events OR rejection tombstones containing only {deviceId,device,seq,id,reason}. Controlled tombstone reasons are schema_invalid, future_timestamp or duplicate; never store the rejected payload or its text/keys. Persist the whole batch settlement atomically before advancing the cumulative cursor or sending ack{upToSeq}. Missing seqs that were never transmitted remain permitted holes. A transmitted sequence below the cursor with no prior settlement is an error, not a silently forgotten event.
+
+ACK and hello.lastSeqAcked now mean highest **durably settled** peer sequence, not a false promise that rejected payloads were stored. Valid-invalid-valid can ACK the third sequence only after the two canonical events and the middle rejection metadata are persisted. Restart reconstructs both accepted and rejected dedup identities. Duplicate IDs at a new seq settle as controlled duplicate markers; conflicting IDs at an existing seq reject. Storage failure sends no ACK and advances no cursor. Commands remain separately live-only/idempotent and never execute from replayed telemetry.
+
+The C0 DurableEventLedger is a bounded mock reference (50000records), atomic snapshot+file sync+rename, not the production Room or JSONL implementation or a power-loss guarantee.8L/8P1 must implement equivalent transactional settlement and migration in their own stores before cross-platform acceptance. Their validators must not reject a whole event wrapper merely because one identifiable event has a forbidden payload key; per-event privacy rejection happens before storing or publishing that event. Receiver callbacks and diagnostic buffers must contain only the applied valid events, never rejected content.
+
+Remaining unrelated ingest lockout-identity wording still requires a reviewed7C implementation decision; it is not resolved by these ACK choices. Plaintext byte limit is enforced conservatively on the entire decrypted {mid,ts,b} in mocks, not just b, to avoid an oversized wrapper bypass. No deployment or audited-security claim.

@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -84,7 +85,8 @@ export function generateTestVectors() {
   const p2lCiphertextBase64 = encryptFramePayload(k_p2l, "pong", "p2l", p2lCtr, p2lPlaintext);
 
   return {
-    description: "Cross-language crypto test vectors for Dhyan Sync Protocol v1.0.0",
+    description: "PUBLIC TEST ONLY: Cross-language crypto test vectors for Dhyan Sync Protocol v1.1.0",
+    contractVersion: '1.1.0',
     generatedAt: "2026-10-25T21:45:00.000Z",
     constants: {
       pairingCode: code,
@@ -149,5 +151,5 @@ export function generateTestVectors() {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const vectors = generateTestVectors();
   fs.writeFileSync(VECTORS_FILE, JSON.stringify(vectors, null, 2) + '\n');
-  console.log(`Generated test vectors committed to: ${VECTORS_FILE}`);
+  console.log('Public test vectors generated; sha256='+createHash('sha256').update(fs.readFileSync(VECTORS_FILE)).digest('hex'));
 }

@@ -1,0 +1,64 @@
+
+> check:contracts
+> node --test tools/test/contract-*.test.mjs
+
+✔ public vectors reproduce deterministically (11.0303ms)
+✔ HKDF matches RFC 5869 SHA256 case 1 (0.6349ms)
+✔ P256 key pair generation and shared secret match vectors (1.0866ms)
+✔ pairing transcript, SAS digits, and confirm MACs match vectors (0.6783ms)
+✔ session handshake, hello MACs, and session keys match vectors (0.5292ms)
+✔ both directions authenticate and reject changed metadata, key and ciphertext (1.3525ms)
+✔ counter nonce is big endian with 12 bytes (0.3254ms)
+✔ SAS preserves leading zeros and formats 6 digits grouped 3-3 (1.3083ms)
+✔ mock-ingest handles all attack cases correctly (278.8596ms)
+✔ mock-relay and mock-peers execute complete authenticated pairing and session communication (293.0515ms)
+✔ W3 core video-playing (9.9755ms)
+✔ W3 core video-paused (0.4299ms)
+✔ W3 core video-none (0.2654ms)
+✔ W3 core video-invalid (0.2575ms)
+✔ W3 core video-false (0.2522ms)
+✔ W3 core old-event-version (0.2424ms)
+✔ W3 body adapter-true (0.8996ms)
+✔ W3 body adapter-false (0.1509ms)
+✔ W3 body adapter-absent (0.1309ms)
+✔ W3 body adapter-number (0.1863ms)
+✔ W3 body declared-active (0.1138ms)
+✔ W3 body declared-boolean (0.2021ms)
+✔ W3 body declared-extra (0.1049ms)
+✔ W3 body declare_session-valid (1.0155ms)
+✔ W3 body declare_session-invalid (0.0886ms)
+✔ W3 body end_session-valid (0.077ms)
+✔ W3 body end_session-invalid (0.1275ms)
+✔ W3 body show_now-valid (0.0656ms)
+✔ W3 body show_now-invalid (0.0584ms)
+✔ W3 body kill_switch-valid (0.0832ms)
+✔ W3 body kill_switch-invalid (0.0605ms)
+✔ W3 body show-all (0.0627ms)
+✔ W3 body show-false (0.0505ms)
+✔ W3 body declare-high (0.0517ms)
+✔ W3 body cmd-ack-valid (0.2321ms)
+✔ W3 body cmd-ack-bad (0.0426ms)
+✔ W3 versions and public vectors are synchronized (7.9258ms)
+✔ W3 never treats decrypted telemetry or commands as valid clear outer frames (0.1993ms)
+✔ W3 command argument unions are closed at every level (1.5116ms)
+✔ W3 held item appCat is a canonical category, not arbitrary content (1.7355ms)
+✔ all valid fixtures validate according to their schema (61.705ms)
+✔ all invalid fixtures are rejected (16.9946ms)
+✔ walkForbiddenFields catches forbidden keys in shallow and nested structures (0.3715ms)
+✔ body schemas reject extra properties and invalid bounds (0.2494ms)
+✔ W3 delayed phone receives the original commitment and pairs successfully (86.7301ms)
+✔ W3 original offer cannot be replaced; fake clock expiry destroys cached commitment (18.8571ms)
+✔ W3 valid-invalid-valid settles rejected metadata only; restart/backfill dedups both identities (59.1369ms)
+✔ W3 failed durable commit never advances the cursor; bad identity/version rejects before partial apply (4.628ms)
+✔ W3 encrypted events ACK only after commit; rejected raw content never reaches the receiver callback (51.5811ms)
+✔ W3 failed encrypted settlement sends no ACK and publishes no event (25.9132ms)
+✔ verify-sync detects clean sync and violations (44.3501ms)
+✔ privacy-scan detects forbidden fields and canary strings (4.655ms)
+ℹ tests 52
+ℹ suites 0
+ℹ pass 52
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1122.145

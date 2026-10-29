@@ -4,7 +4,7 @@
   "type": "object",
   "properties": {
     "schemaVersion": {
-      "const": "1.0.0"
+      "const": "1.1.0"
     },
     "id": {
       "type": "string",
@@ -461,7 +461,14 @@
                 "other"
               ]
             },
-            "videoState": false,
+            "videoState": {
+              "type": "string",
+              "enum": [
+                "playing",
+                "paused",
+                "none"
+              ]
+            },
             "scrollCount": {
               "type": "integer",
               "minimum": 0
@@ -1315,7 +1322,14 @@
                   "other"
                 ]
               },
-              "videoState": false,
+              "videoState": {
+                "type": "string",
+                "enum": [
+                  "playing",
+                  "paused",
+                  "none"
+                ]
+              },
               "scrollCount": {
                 "type": "integer",
                 "minimum": 0
