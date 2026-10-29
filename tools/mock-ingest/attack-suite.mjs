@@ -8,10 +8,10 @@ export async function runIngestAttackSuite(ingestInstance = null) {
   const inst = ingestInstance || await startMockIngest({
     port: 0,
     token: 'test-secret-token-32-chars-long-1',
-    allowedExtensionIds: ['allowed-test-ext']
+    allowedExtensionIds: ['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa']
   });
 
-  const baseUrl = `ws://127.0.0.1:${inst.port}`;
+  const baseUrl = `ws://127.0.0.1:${inst.port}/ingest`;
   const results = { passed: 0, failed: 0, details: [] };
 
   function logPass(name) {
@@ -24,6 +24,7 @@ export async function runIngestAttackSuite(ingestInstance = null) {
     const req = http.request({
       hostname: '127.0.0.1',
       port: inst.port,
+      path: '/ingest',
       headers: {
         'Origin': 'https://attacker.site',
         'Connection': 'Upgrade',
@@ -43,7 +44,7 @@ export async function runIngestAttackSuite(ingestInstance = null) {
   // 2. Token attack: wrong token closes with 1008
   await new Promise((resolve) => {
     const ws = new WebSocket(baseUrl, {
-      headers: { 'Origin': 'chrome-extension://allowed-test-ext' }
+      headers: { 'Origin': 'chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }
     });
     ws.on('open', () => {
       ws.send(JSON.stringify({ kind: 'auth', token: 'wrong-token-value', client: 'browser', clientVersion: '1.0.0' }));
@@ -71,7 +72,7 @@ export async function runIngestAttackSuite(ingestInstance = null) {
   // 4. Successful auth and message sending
   const clientWs = await new Promise((resolve) => {
     const ws = new WebSocket(baseUrl, {
-      headers: { 'Origin': 'chrome-extension://allowed-test-ext' }
+      headers: { 'Origin': 'chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }
     });
     ws.on('open', () => {
       ws.send(JSON.stringify({ kind: 'auth', token: inst.token, client: 'browser', clientVersion: '1.0.0' }));
@@ -150,5 +151,5 @@ export async function runIngestAttackSuite(ingestInstance = null) {
 if (process.argv[1] && process.argv[1].endsWith('tools/mock-ingest/attack-suite.mjs')) {
   console.log('Running Ingest Attack Suite...');
   const res = await runIngestAttackSuite();
-  console.log(`Ingest Attacks: ${res.passed} passed, ${results.failed || 0} failed.`);
+  console.log(`Ingest Attacks: ${res.passed} passed, ${res.failed || 0} failed.`);
 }

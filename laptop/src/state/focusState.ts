@@ -1,12 +1,13 @@
 export type LaptopState='flowing'|'stuck'|'idle_open'|'browsing'|'gaming'|'away'|'offline';
-export interface FocusInputs {nowMs:number;lastReportMs:number|null;category:string;idleSec:number;switchesPerMin:number;continuous:boolean;stuckEvidence:boolean;browserFocused:boolean}
+export interface FocusInputs {nowMs:number;lastReportMs:number|null;category:string;idleSec:number;switchesPerMin:number;continuous:boolean;stuckEvidence:boolean;browserFocused:boolean;vscode?:{state:'flowing'|'stuck'|'idle_open';windowFocused:boolean;editsPerMin:number|null}|null;browser?:{domainCat:string;surface:string;tabActive:boolean}|null}
 /** Unclassified activity remains offline rather than fabricating a focus state. */
 export function inferFocusState(input:FocusInputs):LaptopState {
  if(input.lastReportMs===null||input.nowMs-input.lastReportMs>=15000)return 'offline';
  if(input.idleSec>=300)return 'away';const work=['coding','docs','learning'].includes(input.category);
- if(work&&input.idleSec>=60)return 'idle_open';if(work&&input.stuckEvidence)return 'stuck';
- if(work&&input.continuous&&input.switchesPerMin<3)return 'flowing';
- if(input.category==='games')return 'gaming';if(input.browserFocused&&['social','news','shopping','video'].includes(input.category))return 'browsing';return 'offline';
+ if(work&&input.idleSec>=60)return 'idle_open';if(work&&(input.stuckEvidence||input.vscode?.windowFocused&&input.vscode.state==='stuck'))return 'stuck';
+ if(work&&input.vscode?.windowFocused&&input.vscode.state==='idle_open')return 'idle_open';
+ if(work&&(input.continuous||input.vscode?.windowFocused&&input.vscode.state==='flowing'&&(input.vscode.editsPerMin??0)>0)&&input.switchesPerMin<3)return 'flowing';
+ if(input.category==='games')return 'gaming';if(input.browserFocused&&input.browser?.tabActive&&['feed','shorts','watch'].includes(input.browser.surface)&&['social','news','shopping','video','short_video'].includes(input.browser.domainCat))return 'browsing';if(input.browserFocused&&['social','news','shopping','video'].includes(input.category))return 'browsing';return 'offline';
 }
 export interface FocusSnapshot {laptopState:LaptopState;minutesInState:number;confidence:number;ts:number}
 export class FocusRunner {

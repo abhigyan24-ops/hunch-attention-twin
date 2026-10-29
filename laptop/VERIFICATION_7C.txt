@@ -1,0 +1,112 @@
+
+> check:s7
+> npm --prefix laptop run check:s7
+
+
+> dhyan-laptop@0.1.0 check:s7
+> node scripts/check-s7.mjs
+
+
+> dhyan-laptop@0.1.0 typecheck
+> tsc --noEmit
+
+
+> dhyan-laptop@0.1.0 build
+> electron-vite build
+
+vite v7.3.7 building ssr environment for production...
+transforming...
+✓ 34 modules transformed.
+rendering chunks...
+out/main/index.js  86.19 kB
+✓ built in 520ms
+vite v7.3.7 building ssr environment for production...
+transforming...
+✓ 1 modules transformed.
+rendering chunks...
+out/preload/index.cjs  0.92 kB
+✓ built in 24ms
+vite v7.3.7 building client environment for production...
+transforming...
+✓ 30 modules transformed.
+rendering chunks...
+../../out/renderer/index.html                   0.54 kB
+../../out/renderer/assets/index-CZ9ydrI_.css    1.36 kB
+../../out/renderer/assets/index-DAD1p2Ze.js   657.12 kB
+✓ built in 1.32s
+
+> dhyan-laptop@0.1.0 test
+> node --test test/*.test.mjs
+
+✔ privacy canary: AW bucket discovery reduces raw responses before callback (113.0547ms)
+✔ fallback uses injected process and idle sources and reports no fabricated data after failure (3.1942ms)
+✔ window debounce discards transient switches and tracks idle transitions (1.1567ms)
+✔ label-once and pseudonymous settings survive restart (51.1303ms)
+✔ every focus rule and offline threshold has an explicit fixture (0.7963ms)
+✔ focus runner emits heartbeat and one offline transition gap using injected clock (0.6467ms)
+✔ signed DD-11 communication is not work until explicitly labelled; paths remain rejected (9.3344ms)
+✔ Electron installer resolves the same addon-free extractor (3.059ms)
+✔ installer adapter rejects relative paths (0.9778ms)
+✔ Windows installer adapter extracts a real archive with literal spaced paths (2436.3316ms)
+✔ shared seven-case attack suite runs against the real loopback server (293.9388ms)
+✔ exact endpoint and Origin allowlist; authenticated replacement and revocation (28.2772ms)
+✔ auth deadline; five failures block new attempts for five minutes, not established peers (93.889ms)
+✔ strict schemas, UTF8, binary, kind ownership and canaries are dropped without payload diagnostics (27.3338ms)
+✔ safeStorage injection persists ciphertext, reuses token and fails closed (14.3153ms)
+✔ heartbeat receipt, edit expiry, trend, resume association and reconnect reset (0.8181ms)
+✔ real ingest maps into guarded JSONL with laptop identity and fresh-only stuck evidence (35.8743ms)
+✔ feed state rows preserve uncalibrated and unknown states; no numerical stuck heuristic (0.3676ms)
+✔ allowlist updates survive restart, deduplicate, and reject paths or malformed IDs (27.3543ms)
+✔ rate limiter resets with clock; diagnostics and captured logs contain no rejected payload (20.6799ms)
+✔ Code.exe and code.exe map to coding (1.4391ms)
+✔ unknown processes map to unknown (0.2828ms)
+✔ github.com maps to coding (0.1874ms)
+✔ unknown domains map to unknown (0.1586ms)
+✔ canonical SCHEMA_VERSION is 1.1.0 (0.7627ms)
+✔ seven behaviors are reachable with explicit inputs and priority is deterministic (1.297ms)
+✔ missing, stale, silent, unclassified and ambiguous inputs never claim focus (0.2899ms)
+✔ stale remote inputs cannot continue cheering or overlap; per-type bubble cooldown is ten minutes (0.4346ms)
+✔ bus snapshots isolate subscribers and do not synthesize remote phone state (0.6649ms)
+✔ observed focus aggregates fixture JSONL intervals, caps stale spans and does not infer focus from app category (8.9021ms)
+✔ daily history reads canonical JSONL and reports missing state data honestly (39.0702ms)
+✔ local declarations have exact canonical shape; taskSource stays local; invalid inputs fail (4.6566ms)
+✔ bridge separates diagnostic evidence from offline-valued inference and preserves 7A exports (1.3864ms)
+✔ review: zero-duration or pre-day snapshots are no-data, but observed nonfocus can be zero (4.3632ms)
+✔ review: a simultaneous gap prevents a flowing snapshot claiming observed focus regardless of seq order (2.7786ms)
+✔ review: invalid declarations perform no storage work and local state copies only allowed fields (0.7982ms)
+✔ silence at 15s starts fallback; both silent means offline and exactly one gap per outage (52.7607ms)
+✔ normalizer, adapter and subscriber exceptions are isolated; later stages still operate (10.6585ms)
+✔ bounded backpressure drops oldest waiting events; stop waits for the in-flight write (19.2564ms)
+✔ disk-full pipeline keeps memory, emits one gap, resumes and clean stop flushes (16.3702ms)
+✔ pipeline restart removes partial final line and preserves monotonic reserved seq holes (24.4541ms)
+✔ 60-second switch window expires; gap cannot become focus; heartbeat timer is 5 seconds (13.8601ms)
+✔ privacy canary through AW, pipeline, guard and rotated JSONL; diagnostics and captured logs stay clean (138.8203ms)
+✔ broken optional AW bucket does not block window/afk; malformed raw keys are rejected (13.7575ms)
+✔ adapter callback-registration failure does not prevent fallback or shutdown (15.189ms)
+✔ privacy canary: invalid content and nested forbidden keys never reach disk (38.1192ms)
+✔ serialized concurrent appends recover exact sequence and isolate caller mutations (38.9604ms)
+✔ reservations survive a crash with permitted sequence holes (14.442ms)
+✔ truncated last line is removed; valid lines remain and max sequence recovers (17.2449ms)
+✔ rotation uses unique names even with unchanged clock; retention removes only matching old files (19.5117ms)
+✔ partial ENOSPC write pauses, keeps memory, emits one signal and retries without duplication (15.1ms)
+✔ ring and pending queue remain bounded during failure (110.8616ms)
+✔ streaming recovery retains rotated history and removes a tail larger than the chunk size (21.3028ms)
+ℹ tests 53
+ℹ suites 0
+ℹ pass 53
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2603.7057
+✔ privacy canary: AW bucket discovery reduces raw responses before callback (65.4206ms)
+✔ privacy canary through AW, pipeline, guard and rotated JSONL; diagnostics and captured logs stay clean (271.1155ms)
+✔ privacy canary: invalid content and nested forbidden keys never reach disk (18.931ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 888.2265

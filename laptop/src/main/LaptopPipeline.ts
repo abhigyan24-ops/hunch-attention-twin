@@ -3,7 +3,7 @@ import type {LaptopAdapter,RawLaptopEvent} from '../adapters/LaptopAdapter';
 import {JsonlStore,type CategorizedEvent} from './jsonlStore';
 import {isPrivateEvent} from './privacyGuard';
 import {WindowNormalizer,type ProcessLabels} from '../normalizer/windowNormalizer';
-import {FocusRunner,type FocusSnapshot} from '../state/focusState';
+import {FocusRunner,type FocusSnapshot,type FocusInputs} from '../state/focusState';
 import categories from '../../../core-spec/categories.json';
 export interface PipelineChange {type:string;source:string;ts:number;payload:Record<string,unknown>}
 export interface PipelineOptions {
@@ -21,6 +21,8 @@ export class LaptopPipeline {
  private running=false;private accepting=false;private started=0;private primaryReport:number|null=null;
  private lastProcess:number|null=null;private lastIdle:number|null=null;private idleSec=0;private category='unknown';private browserFocused=false;
  private switches:number[]=[];private hasProcess=false;private fallbackActive=false;private offlineReported=false;private storageReported=false;
+ private feedProvider:(()=>Pick<FocusInputs,'vscode'|'browser'>)|null=null;
+ setFeedProvider(provider:()=>Pick<FocusInputs,'vscode'|'browser'>){this.feedProvider=provider;}
  private stuckEvidence=false;private stuckAt:number|null=null;private timer:ReturnType<typeof setInterval>|undefined;
  readonly focus:FocusRunner;
  constructor(private readonly options:PipelineOptions){
@@ -42,7 +44,8 @@ export class LaptopPipeline {
  }
  private inputs(){const now=this.now();this.switches=this.switches.filter(ts=>ts>now-60000&&ts<=now);
   const report=this.lastProcess===null||this.lastIdle===null?null:Math.min(this.lastProcess,this.lastIdle);
-  return {lastReportMs:report,category:this.category,idleSec:this.idleSec,switchesPerMin:this.switches.length,continuous:this.idleSec<60,stuckEvidence:this.stuckEvidence&&this.stuckAt!==null&&now-this.stuckAt<15000,browserFocused:this.browserFocused};
+  let feeds:Pick<FocusInputs,'vscode'|'browser'>={};try{feeds=this.feedProvider?.()??{};}catch{this.counters.stageErrors++;}
+  return {...feeds,lastReportMs:report,category:this.category,idleSec:this.idleSec,switchesPerMin:this.switches.length,continuous:this.idleSec<60,stuckEvidence:this.feedProvider?Boolean(feeds.vscode?.windowFocused&&feeds.vscode.state==='stuck'):this.stuckEvidence&&this.stuckAt!==null&&now-this.stuckAt<15000,browserFocused:this.browserFocused};
  }
  tick():FocusSnapshot|undefined {if(!this.running)return;
   const now=this.now();
@@ -56,8 +59,10 @@ export class LaptopPipeline {
  injectFeedEvent(event:FeedEvent):boolean {if(!this.accepting)return false;return this.accept(event,'feed');}
  private safeRaw(raw:RawLaptopEvent):boolean {
   if(!raw||typeof raw!=='object'||!Number.isSafeInteger(raw.ts)||raw.ts<0||raw.ts>this.now()+300000)return false;
-  const keys:Record<string,string[]>={process:['kind','ts','process'],idle:['kind','ts','idleSec'],domain:['kind','ts','domainCategory'],edit:['kind','ts','editsPerMin','saves','errors','warnings']};
+  const keys:Record<string,string[]>={process:['kind','ts','process'],idle:['kind','ts','idleSec'],domain:['kind','ts','domainCategory'],edit:['kind','ts','editsPerMin','saves','errors','warnings'],resume:['kind','ts','delayMs'],tab:['kind','ts','domainCat','surface','videoState','scrollCount','tabActive']};
   const allowed=keys[raw.kind];if(!allowed||Object.keys(raw).some(key=>!allowed.includes(key)))return false;
+  if(raw.kind==='resume')return Number.isSafeInteger(raw.delayMs)&&raw.delayMs>=0&&raw.delayMs<=3600000;
+  if(raw.kind==='tab')return categories.categories.includes(raw.domainCat)&&categories.surfaces.includes(raw.surface)&&typeof raw.tabActive==='boolean'&&(raw.videoState===undefined||['playing','paused','none'].includes(raw.videoState))&&(raw.scrollCount===undefined||Number.isSafeInteger(raw.scrollCount)&&raw.scrollCount>=0);
   if(raw.kind==='process')return typeof raw.process==='string'&&/^[\w .-]{1,100}$/.test(raw.process);
   if(raw.kind==='domain')return categories.categories.includes(raw.domainCategory);
   if(raw.kind==='idle')return Number.isFinite(raw.idleSec)&&raw.idleSec>=0;
@@ -75,6 +80,8 @@ export class LaptopPipeline {
     if(change){if(this.hasProcess)this.switches.push(raw.ts);this.hasProcess=true;this.category=String(change.payload.appCat);this.browserFocused=/^(chrome|msedge|firefox|brave)(\.exe)?$/i.test(raw.process);this.enqueue(change);}
    }else if(raw.kind==='idle'){this.lastIdle=raw.ts;this.idleSec=raw.idleSec;const change=this.normalizer.idleChange(raw.idleSec,raw.ts);if(change)this.enqueue(change);
    }else if(raw.kind==='domain'&&this.browserFocused){this.category=raw.domainCategory;
+   }else if(raw.kind==='resume'){this.enqueue({type:'resume_first_edit',source:'vscode',ts:raw.ts,payload:{delayMs:raw.delayMs}});
+   }else if(raw.kind==='tab'){this.enqueue({type:'tab_category',source:'browser',ts:raw.ts,payload:{domainCat:raw.domainCat,surface:raw.surface,...(raw.videoState!==undefined?{videoState:raw.videoState}:{}),...(raw.scrollCount!==undefined?{scrollCount:raw.scrollCount}:{})}});
    }else if(raw.kind==='edit'){this.enqueue({type:'edit_burst',source:'vscode',ts:raw.ts,payload:{editsPerMin:raw.editsPerMin,saves:raw.saves,errors:raw.errors,warnings:raw.warnings}});}
    return true;
   }catch{this.counters.stageErrors++;return false;}

@@ -63,3 +63,14 @@ Send only which checks passed/failed and controlled UI wording. Do not send JSON
 
 ## CX-1 update after W3
 The label-once form now lets the owner choose any canonical category for a process basename. Communication apps are not work until explicitly labelled coding/docs/learning. A label takes effect after a window change (existing7A semantics); switch away and back to exercise it. Game paths remain rejected. Automated suites now validate1.1.0 fixtures; manual desktop checks above are still pending.
+
+## 7C extension ingest checks
+
+Automated evidence: `npm run check:s7`, including test/ingest.test.mjs, passes strict authentication, shared attacks against the real server, 15-second heartbeat expiry, mapped JSONL events and privacy canaries. The 2026-10-29 local Electron smoke rendered Pip/panel, masked token, disconnected feed wording, and normal File > Exit. Actual VS Code/browser integration and Windows firewall behavior remain **not verified on target**.
+
+1. Launch `npm run dev`. Open Pip's panel and scroll to Extensions. Expect Local ingest is ready, port47821 and path /ingest. If unavailable, resolve OS encrypted storage or port conflict; no plaintext token fallback exists.
+2. Copy the token only into your VS Code/browser extension configuration. Do not paste it into logs, reports or screenshots. Add the installed Chrome/Edge extension's actual32-character ID in the allowlist, one per line. Browser Origins outside that list must fail. VS Code uses the no-Origin token-auth path.
+3. Point both extensions to ws://127.0.0.1:47821/ingest and wait for their5-second heartbeats. The panel should show Connected and last-seen times. Stop one extension: its socket disconnects or, if silent, it becomes Offline after15seconds. Resume it: old state must not survive reconnect before fresh state/heartbeat.
+4. Exercise edits/saves and VS Code's explicit stuck/flowing state; no numerical stuck threshold is implemented. Browse feed/shorts/watch surfaces in mapped distracting categories. Do not collect or share raw title/URL/content. No focus percentage should appear; confidence remains rule-based, not calibrated.
+5. Removing an allowed browser extension ID should disconnect its socket. Five authentication failures in60seconds block NEW loopback attempts for5minutes, so a misconfigured client may also delay another local client's reconnect; established authenticated peers continue. Correct its token and wait for the block to expire.
+6. Repeat7B click-through, tray and animation checks above separately. A successful ingest attack test does not verify these desktop interactions, cloud pairing or the phone.
