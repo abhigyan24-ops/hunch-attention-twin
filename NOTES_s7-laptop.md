@@ -160,3 +160,8 @@ Full output in laptop/VERIFICATION_7B.txt. The8new pet tests cover all behaviors
 No Electron launch, real Windows click-through/tray/animation behavior, live AW, fullscreen game behavior, phone, TLS/relay or actual paired held-item operation was executed. **not verified on target**. Exact owner checks are in laptop/MANUAL_CHECKS.md under7B, including dev-only seven-behavior inspection, transparent-area clicks, hover-only hitbox capture and reduced motion. Pausing Pip hides only the pet and never stops collection. Today's aggregation/collector-health requests remain visible limitations, not passed hardware checks.
 
 Stop after7B for review.7C and8L are not started here;7C still needs approved contract reconciliation/W3. No F1 files, core-spec, contracts, relay, root dependencies, shared governance or pitch document edited by7B.
+
+# CX-0 fresh rebase — 2026-10-29
+Rebased onto signed main7558bfc as requested. Fresh npm run check:s7 passed typecheck/build,39tests/39pass/0fail/duration_ms2650.886 and3privacytests/3pass/0fail/duration_ms700.6448; rootchecksPASS(schema1.0.0,96twinfiles,313productionfiles). Full stdout laptop/VERIFICATION_CX0.txt. Existing7B implementation retained; untracked t untouched. Main's F1 merge is owner-controlled, not a claim the earlier review findings were fixed. No GUI/hardware claim.
+
+CX-2 contract dependency cb2346a now provides approved schema1.1.0. Stack the laptop branch on that reviewed local dependency for combined validation; this does not merge either branch to main. Owner can review/merge contracts first, then laptop, as the runbook requires. Update only laptop test fixture version literals for the new schema; do not change7A inference semantics.
