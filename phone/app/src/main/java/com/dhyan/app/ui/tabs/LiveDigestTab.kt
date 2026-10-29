@@ -35,6 +35,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dhyan.app.twin.decision.PolicyMode
+import com.dhyan.app.twin.model.ContextSnapshot
+import com.dhyan.app.twin.model.LaptopState
 import com.dhyan.app.twin.model.FocusState
 import com.dhyan.app.ui.components.FocusRing
 import com.dhyan.app.ui.model.AttentionState
@@ -123,6 +125,11 @@ fun LiveDigestContent(
             isFake = uiState.isFakeProvider,
             onToggleKillSwitch = onToggleKillSwitch
         )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Laptop Companion Badge & Sync State (Spec 25.13)
+        LaptopCompanionBadge(snapshot = uiState.contextSnapshot)
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -671,6 +678,71 @@ private fun HistoryStripSection(history: List<LiveHeldItemUi>) {
                     color = TextMuted
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun LaptopCompanionBadge(
+    snapshot: ContextSnapshot?
+) {
+    if (snapshot == null) return
+    val laptopState = snapshot.laptopState
+    val isOffline = laptopState == LaptopState.OFFLINE
+    val overlap = snapshot.secondScreenOverlap
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(SurfaceElevated)
+            .border(0.5.dp, BorderSubtle, RoundedCornerShape(12.dp))
+            .padding(horizontal = 14.dp, vertical = 10.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(if (isOffline) TextMuted else StateDeepFocus)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "LAPTOP: ${laptopState.wire.uppercase()}",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = if (isOffline) TextMuted else TextPrimary
+                )
+            }
+            if (overlap) {
+                Text(
+                    text = "2ND SCREEN OVERLAP",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 9.sp),
+                    color = StateDrifting,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(StateDrifting.copy(alpha = 0.15f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                )
+            } else {
+                Text(
+                    text = if (isOffline) "Stale / Offline" else "Live Companion",
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
+                    color = TextMuted
+                )
+            }
+        }
+        if (isOffline) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Unsynced: laptop telemetry is stale (>15s). Decisions rely on phone signals.",
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
+                color = StateDrifting
+            )
         }
     }
 }

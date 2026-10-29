@@ -6,14 +6,18 @@ import com.dhyan.app.actuator.ActuatorConfig
 import com.dhyan.app.actuator.KillSwitchController
 import com.dhyan.app.actuator.digest.DigestBuilder
 import com.dhyan.app.actuator.digest.DigestPoster
+import com.dhyan.app.data.CmdLogEntity
 import com.dhyan.app.data.SettingsDao
 import com.dhyan.app.data.SettingsEntity
 import com.dhyan.app.data.VipDao
 import com.dhyan.app.data.VipEntity
 import com.dhyan.app.ingest.AppCategorizer
+import com.dhyan.app.sync.SyncManager
 import com.dhyan.app.twin.decision.PolicyMode
 import com.dhyan.app.twin.decision.PolicySettings
+import com.dhyan.app.twin.model.DeclaredSession
 import com.dhyan.app.ui.model.PolicySettingsHolder
+import com.dhyan.app.ui.settings.SyncUiStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,6 +37,7 @@ class SettingsViewModel(
     private val settingsDao: SettingsDao? = null,
     private val killSwitchController: KillSwitchController? = null,
     private val digestPoster: DigestPoster? = null,
+    private val syncManager: SyncManager? = null,
     val salt: String = "dhyan_salt_default",
     coroutineScope: kotlinx.coroutines.CoroutineScope? = null
 ) : ViewModel() {
@@ -40,6 +45,21 @@ class SettingsViewModel(
     private val scope = coroutineScope ?: viewModelScope
     private val _uiState = MutableStateFlow(SettingsUiState(settings = PolicySettingsHolder.get(), salt = salt))
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+
+    val syncStatus: StateFlow<SyncUiStatus> = syncManager?.syncStatus
+        ?: MutableStateFlow(SyncUiStatus.NotPaired)
+
+    val relayUrl: StateFlow<String> = syncManager?.relayUrl
+        ?: MutableStateFlow("ws://10.0.2.2:8080/ws")
+
+    val hasStoredCredentials: StateFlow<Boolean> = syncManager?.hasStoredCredentials
+        ?: MutableStateFlow(false)
+
+    val activeDeclaredSession: StateFlow<DeclaredSession?> = syncManager?.activeDeclaredSession
+        ?: MutableStateFlow(null)
+
+    val recentCommands: StateFlow<List<CmdLogEntity>> = syncManager?.recentCommands
+        ?: MutableStateFlow(emptyList())
 
     init {
         loadVips()
@@ -55,6 +75,22 @@ class SettingsViewModel(
             val hashes = vipDao.allHashes()
             _uiState.value = _uiState.value.copy(vipHashes = hashes)
         }
+    }
+
+    fun startPairing(code: String, url: String) {
+        syncManager?.startPairing(code, url)
+    }
+
+    fun confirmSas() {
+        syncManager?.confirmSas()
+    }
+
+    fun rejectSas() {
+        syncManager?.rejectSas()
+    }
+
+    fun unpair() {
+        syncManager?.unpair()
     }
 
     fun requestModeChange(mode: PolicyMode) {
