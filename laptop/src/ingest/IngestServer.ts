@@ -24,6 +24,7 @@ export class IngestServer {
   const error=(code:'schema_invalid'|'rate_limited',reason:string)=>{this.count('ingest.invalid');this.count(reason);if(ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify({kind:'error',code}));};
   ws.on('error',(error:Error&{code?:string})=>{this.count('ingest.invalid');this.count(error.code==='WS_ERR_UNSUPPORTED_MESSAGE_LENGTH'?'too_large':'frame_error');});
   ws.on('message',(data,binary)=>{
+   if(ws.readyState!==WebSocket.OPEN)return;
    const now=this.now();while(times.length&&now-times[0]>=1000)times.shift();if(times.length>=20){this.count('rate_limited');this.count('ingest.invalid');if(now-rateNotice>=1000){rateNotice=now;if(ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify({kind:'error',code:'rate_limited'}));}return;}times.push(now);
    let value:unknown;try{if(binary)throw Error();value=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(data as Buffer));}catch{if(!client){this.failAuth();ws.close(1008,'auth_invalid');}else error('schema_invalid','json_invalid');return;}
    if(!validateIngest(value)){if(!client){this.failAuth();ws.close(1008,'auth_invalid');}else error('schema_invalid','schema_invalid');return;}

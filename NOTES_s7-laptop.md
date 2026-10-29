@@ -225,3 +225,11 @@ Desktop smoke used the computer-use skill against the local Electron application
 Still not verified on target: transparent-region click-through to an underlying work app, all seven animated previews, tray pause/resume/menu, exclusive fullscreen and reduced motion; actual VS Code and browser extension connections/reconnects; Windows firewall behavior; live ActivityWatch; cloud relay and phone pairing/device behavior. No Gradle, APK, adb or Reno14 commands ran. Owner/manual instructions are in laptop/MANUAL_CHECKS.md. Baseline R7B-1 diagnostic ambiguity and missing persisted focus snapshots are unchanged; 7C does not fabricate those inputs. Lockout tradeoff and resume semantics are recorded in laptop/DECISIONS_7C.md.
 
 Ready for review on s7-laptop. No merge or push in this milestone. Existing untracked file t is untouched.
+
+## 7C review completion — 2026-10-29
+
+Review found and fixed three reproduced lifecycle/correlation bugs: queued frames after auth rejection, queued frames after allowlist revocation, and repeated unfocused VS Code updates fabricating a focus return. New regressions first failed3/3, then passed after fixes. Source review also hardened privileged IPC to exact Dhyan renderer URLs, blocking external navigation/redirects/new windows; the URL allowlist has a fourth regression covering production/dev documents and malicious variants. No real token disclosure or external attack page was attempted. Report: laptop/REVIEW_7C.md.
+
+Fresh verification: rootnpmtest117/pass117/fail0/duration_ms3367.6745; rootguardsPASS schema1.1.0/twin96/no-persona334. `npm run check:s7`: typecheck/buildPASS;57tests/pass57/fail0/duration_ms2180.1166;3selectedprivacytests/pass3/fail0/duration_ms727.8706. Exact stdout: laptop/VERIFICATION_7C_REVIEW.txt and laptop/VERIFICATION_7C_REVIEW_ROOT.txt. Local Electron smoke after IPC changes opened panel from Pip, loaded state and masked-token config, displayed ready ingest/disconnected feeds, and exited normally with0. Sync safeStorage deprecation warnings persist; no token was revealed/copied.
+
+No phone or shared contract/schema changes, no device command. Manual limitations listed in REVIEW_7C and MANUAL_CHECKS remain not verified on target. Ready for owner review; no merge/push. Untracked t untouched.

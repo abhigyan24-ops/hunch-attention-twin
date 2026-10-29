@@ -4,7 +4,7 @@ export class VsCodeFeed extends FeedClock {
  private lost:number|null=null;private returned:number|null=null;private resume:{lostTs:number;returnedTs:number;observedTs:number;delayMs:number}|null=null;
  override connect(){super.connect();this.state=null;this.edits=null;this.trend=null;this.lost=null;this.returned=null;this.resume=null;}
  accept(message:FeedMessage){this.touch();if(message.kind==='ext_heartbeat')this.beat();
-  if(message.kind==='vscode_state'){if(!message.windowFocused&&this.state?.windowFocused!==false){this.lost=message.ts;this.returned=null;this.resume=null;}else if(this.state?.windowFocused===false)this.returned=message.ts;this.state={...message};}
+  if(message.kind==='vscode_state'){if(!message.windowFocused&&this.state?.windowFocused!==false){this.lost=message.ts;this.returned=null;this.resume=null;}else if(message.windowFocused&&this.state?.windowFocused===false)this.returned=message.ts;this.state={...message};}
   if(message.kind==='edit_burst'){this.trend=this.edits?(message.errors>this.edits.errors?'rising':message.errors<this.edits.errors?'falling':'stable'):null;this.edits={...message};this.editAt=this.now();}
   if(message.kind==='resume_first_edit'){this.resume=this.lost!==null&&this.returned!==null&&message.ts>=this.returned?{lostTs:this.lost,returnedTs:this.returned,observedTs:message.ts,delayMs:message.delayMs}:null;}
  }
