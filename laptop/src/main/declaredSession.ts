@@ -9,6 +9,7 @@ export function declaredSessionEvent(input:Declaration,context:{deviceId:string;
  return isPrivateEvent(event)?event:null;
 }
 export async function declareLocally(input:Declaration,store:JsonlStore,context:{deviceId:string;schemaVersion:string;nowMs:number}):Promise<{session:DeclaredSession;persisted:boolean}|null>{
- const seq=await store.allocateSeq(),event=declaredSessionEvent(input,{...context,seq});if(!event)return null;
- await store.appendEvent(event);return {session:{...input,startedTs:context.nowMs,taskSource:'declared'},persisted:!store.health.paused};
+ const event=declaredSessionEvent(input,{...context,seq:0});if(!event)return null;
+ event.seq=await store.allocateSeq();
+ await store.appendEvent(event);return {session:{task:input.task,plannedMin:input.plannedMin,strict:input.strict,startedTs:context.nowMs,taskSource:'declared'},persisted:!store.health.paused};
 }
