@@ -10,6 +10,7 @@ import com.dhyan.app.actuator.AndroidNotificationGateway
 import com.dhyan.app.data.RoomDecisionLogStore
 import com.dhyan.app.ingest.AppCategorizer
 import com.dhyan.app.ingest.ClockOffset
+import com.dhyan.app.ingest.EpisodeRuntime
 import com.dhyan.app.ingest.Normalizer
 import com.dhyan.app.ingest.NotifExtractor
 import com.dhyan.app.twin.decision.Action
@@ -85,6 +86,15 @@ class NotifCollector : NotificationListenerService() {
         // Notify telemetry / ingest listeners
         scope.launch {
             onEvent?.invoke(norm.appCat, norm.notifCat, norm.senderHash, isVip, norm.ts)
+            EpisodeRuntime.instance?.onNotificationPosted(
+                key = sbn.key ?: "",
+                appCat = norm.appCat,
+                notifCat = norm.notifCat,
+                senderHash = norm.senderHash,
+                isVip = isVip,
+                urgencyScore = 0.0,
+                ts = norm.ts
+            )
         }
 
         // Decision and Actuation pipeline (Stage 5 + Stage 6 integration)

@@ -142,3 +142,68 @@ Zero existing behaviors or interfaces are broken. All additions use defaults for
 - Purity Suite: `npm run check:twin` -> **451 twin files PASS**.
 - Contract Suite: `npm run check:contracts` -> **59 / 59 PASS**.
 - Root Test Suite: `npm test` -> **117 / 117 PASS**.
+
+---
+
+## Milestone M3 & M4 Execution Report and Gate 3 Audit
+
+### 1. Gate 3 Audit and Security Clarifications (Fix 7)
+- **Status of Prior Automated ADB Execution:**
+  - The automated test executed via ADB on the Oppo Reno 14 was a **target-hardware smoke and connectivity check**, NOT full Gate 3.
+  - What was validated on target:
+    1. APK installation and process startup under ColorOS 15.
+    2. Persistent `DhyanForegroundService` lifecycle with notification channel creation.
+    3. Loopback WebSocket transport over USB ADB reverse (`127.0.0.1:8080/ws`).
+    4. Hardware Keystore key generation and AES-GCM cipher encryption.
+    5. Main UI rendering and 3-tab Compose navigation.
+  - What was NOT tested (requires manual human execution per `phone/MANUAL_CHECKS-gate3.md`):
+    1. Real-world third-party notifications held and released via Android Notification Listener.
+    2. Physical phone pickup and screen accelerometer wake events.
+    3. Multi-hour battery endurance measurement on target battery.
+    4. Real LAN WiFi rendezvous between two separate physical devices.
+- **Relay URL & Cleartext Protection:**
+  - `SyncManager.DEFAULT_RELAY_URL` dynamically detects target hardware and assigns loopback (`ws://127.0.0.1:8080/ws`) only for non-generic debug devices (`android.os.Build.TYPE != "user"`).
+  - ZERO LAN IP addresses (e.g., `192.168.x.x`) are committed to version control.
+  - In user release builds (`android.os.Build.TYPE == "user"`), `DEFAULT_RELAY_URL` defaults to empty, and any attempt to initialize a session with cleartext `ws://` throws `IllegalArgumentException("Cleartext WebSocket is prohibited in release builds. Use wss://")`.
+
+---
+
+### 2. Gap Handling and Outcome Semantics (Fix 1, 2, 3, 5)
+- **Gap Distinction:**
+  - Local collector failures (`usage`, `notif_listener`, `a11y`, `persistence`) directly compromise outcome measurements. They close the active episode with `label = CENSORED` and `isCensored = true`, and are strictly excluded from Bayesian parameter updates (neither success nor failure recorded).
+  - Remote telemetry losses (`relay_down`, `peer_silent`, `adapter_offline`) do NOT censor the episode. Dwell on phone remains valid and recorded; resume delay falls back to dwell-only (`defaultEstimatedResumeDelayMin = 3.0 min`) with `isResumeEstimated = true`.
+  - `EpisodeCloser` updates `p_pickup` and dwell distributions but skips updating learned lognormal resume distributions when `outcome.isResumeEstimated == true`.
+- **Work Categories & Proxy Resume:**
+  - Canonical constant `EpisodeBuilder.WORK_CATEGORIES = setOf("coding", "docs", "learning")` derived from `core-spec/categories.json`. Missing `domainCat` is ignored.
+  - `edit_burst` functions strictly as a proxy-resume trigger and never alters `TaskType` or bucket keys.
+
+---
+
+### 3. Stage 4 Recovery Re-Verification (Fix 4)
+- Exact git diff of `Stage4BParameterRecoveryTest.kt` against `origin/main` is empty (tolerances remain unchanged at $\pm 0.08$).
+- Verified recovered numbers:
+  - Rahul ground truth $p_{\text{pickup}}$: `0.62`
+  - Twin learned parent $p_{\text{pickup}}$: `0.6284074214367881` (`diff = 0.008407421436788076 <= 0.08`)
+  - Learned social dwell $\mu$: `2.3894` (ground truth: `2.6`)
+  - Learned coding resume $\mu$: `1.6847` (ground truth: `2.0`)
+
+---
+
+### 4. Production Pipeline Runtime (Fix 6)
+- Created `com.dhyan.app.ingest.EpisodeRuntime` outside `twin/`.
+- Manages `InMemoryParamStore`, `EpisodeBuilder`, `EpisodeCloser`, and `EventStreamAdapter`.
+- Dispatches live phone events (`NotifCollector`, `DhyanForegroundService` usage windows, screen events) off the main thread.
+- Automatically flushes learned parameter updates to Room persistence via `RoomParamPersistence`.
+- Wired into `DhyanApplication` and `SyncManager.attachEventStreamAdapter`.
+
+---
+
+### 5. Milestone M3: Snapshot with Provenance
+- `ContextFuser` exposes `currentProvenance(): String` returning `"observed"` vs `"estimated"`.
+- Flagged as `"estimated"` whenever laptop is stale (>15 s), offline, or when last distraction resumption was estimated.
+- `LiveDigestUiState.provenance` delivers status to UI, rendered with distinct visual treatments in `LaptopCompanionBadge` per Spec 25.13.
+
+---
+
+### 6. Milestone M4: Replay Proof & Manual Runbook
+- `phone/MANUAL_CHECKS-stage9.md` published with 4 test scenarios covering observed resumption, media distraction spillover, telemetry fallback, and local sensor dropouts.

@@ -96,3 +96,37 @@ The implementation guarantees the following identities:
 3. `STALE_CONTEXT`: Current time minus snapshot timestamp exceeds `staleSnapshotMs` (120 s).
 
 **Rule:** Callers must treat `NotReady` as `ALLOW`. Suppressing notifications during unready or stale states is strictly forbidden.
+
+---
+
+## 8. Cross-Device Episode Attribution and Outcome Measurement (Spec 7.1, 7.2, 25.4, 25.13, 25.14)
+
+### Episode Labels
+- `NOTIF_TRIGGERED`: Episode initiated by an incoming notification arriving during focus or between sessions.
+- `SELF_INITIATED`: Episode initiated by a manual phone pickup or session start without a preceding notification in the outcome window.
+- `SUPERSEDED`: Episode closed when a newer notification arrives while awaiting pickup. Superseded episodes close at the timestamp of the new notification with `pickedUp = false` per Spec 7.1.
+- `CENSORED`: Episode terminated due to local collector gaps or sensor dropouts that compromise outcome telemetry (Spec 25.4).
+- `NONE`: Neutral placeholder for cold or uninitialized state.
+
+### Outcome Fields and Estimations
+- `dwellMin`: Accumulated phone foreground focus duration during the distraction session.
+- `resumeDelayMin`: Elapsed focus minutes from phone session end to verified resumption of work on the laptop.
+- `laptopLeftWork`: Boolean indicating whether laptop switched to non-work or leisure apps/tabs during the episode.
+- `isResumeEstimated`: Flagged as `true` when laptop telemetry is unavailable, stale (>15 s), or disconnected (`relay_down`, `peer_silent`, `adapter_offline`), falling back to the prior default resume delay (`defaultEstimatedResumeDelayMin = 3.0 min`).
+- `isCensored`: Flagged as `true` when a local collector failure corrupts measurement.
+
+### Gap Handling and Censoring Semantics (Spec 25.4 Rule 2)
+1. **Local Collector Gaps (`usage`, `notif_listener`, `a11y`, `persistence`):**
+   - Directly compromise phone outcome telemetry.
+   - Immediately transition the active episode to `EpisodeLabel.CENSORED` with `isCensored = true`.
+   - **Protection Rule:** Censored episodes are strictly excluded from Bayesian parameter updates in `EpisodeCloser` (they record neither success nor failure).
+2. **Remote Laptop Telemetry Gaps (`relay_down`, `peer_silent`, `adapter_offline`):**
+   - Phone dwell time remains completely accurate and valid.
+   - Remote gaps do **NOT** censor the episode (`isCensored = false`).
+   - Outcome switches to dwell-only with `isResumeEstimated = true` and `resumeDelayMin` set to the prior default.
+   - **Parameter Hygiene:** `EpisodeCloser` updates `p_pickup` and dwell distributions normally, but strictly skips updating the learned resume delay lognormal distribution (`!outcome.isResumeEstimated`) to prevent prior estimate feedback loops.
+
+### Work Categories and Proxy Resumption
+- Canonical work categories: `coding`, `docs`, `learning` (derived from `core-spec/categories.json`).
+- If direct `resume_first_edit` is absent, first non-idle input via `edit_burst` (`editsPerMin > 0`) or return to a work window acts as the proxy resume.
+- `edit_burst` events must never alter `TaskType` or any bucket key.

@@ -11,6 +11,7 @@ import com.dhyan.app.collectors.NotifCollector
 import com.dhyan.app.data.DhyanDatabase
 import com.dhyan.app.data.RoomDecisionLogStore
 import com.dhyan.app.data.RoomParamPersistence
+import com.dhyan.app.ingest.EpisodeRuntime
 import com.dhyan.app.sync.SyncManager
 import com.dhyan.app.twin.decision.DecisionPipeline
 import com.dhyan.app.twin.decision.ImportanceModel
@@ -27,6 +28,8 @@ class DhyanApplication : Application() {
 
     companion object {
         lateinit var syncManager: SyncManager
+            private set
+        var episodeRuntime: EpisodeRuntime? = null
             private set
     }
 
@@ -67,6 +70,10 @@ class DhyanApplication : Application() {
             db = db,
             phoneControl = phoneControl
         )
+
+        val runtime = EpisodeRuntime(paramStore)
+        episodeRuntime = runtime
+        syncManager.attachEventStreamAdapter(runtime.eventStreamAdapter)
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
