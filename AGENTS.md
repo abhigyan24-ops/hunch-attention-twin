@@ -11,6 +11,7 @@ Master spec: `docs/SPEC.md` (sections 1–25). Section 25 overrides older wordin
 - Phone: Kotlin, Compose, Room, WorkManager, OkHttp, Koin. No `android.*` or `androidx.*` imports in `twin/`.
 - Laptop: Electron, TypeScript, `ws`; no native C++ addons or `better-sqlite3`.
 - Relay: Node 20, `ws`, in-memory.
+- Prompts live in `docs/prompts/`. Owner decisions live in `docs/OWNER_DECISIONS.md` and override defaults. Subagent rules: `docs/prompts/DHYAN_NEXT_PROMPTS.md` section L.
 
 Stage 1A must not modify `phone/`, `laptop/`, or `relay/`.
 
