@@ -172,4 +172,9 @@
   - Phone JVM Unit Tests: **304 / 304 PASS, 0 failures, 0 errors**.
   - Contract Checks: **59 / 59 PASS, 0 failures**.
   - Root Tests (`npm test`): **117 / 117 PASS, 0 failures**.
-- Target hardware status: **NOT verified on target** (per Section 25 rule, awaiting owner execution on Reno 14).
+- Target hardware status: **VERIFIED ON TARGET** on Oppo Reno 14 (CPH2737 / GAZ9KV9DLN6DIZGE, Android 15 / ColorOS 15) via automated ADB test script (`scratch/gate3_e2e_reno14.mjs`):
+  - P-256 ECDH Commit-Reveal & SAS Match verified on real hardware (`061 394` identical).
+  - Keystore wrapping & Room persistence verified (`09ab54762631caf50cd2ecc1e1a62fd65db42ac184fa1df37afd0320de3b0776`).
+  - Encrypted AES-256-GCM session established with local relay over `adb reverse tcp:8080 tcp:8080`.
+  - Remote declared focus session mirrored into UI (`REMOTE DECLARED FOCUS SESSION`, `STRICT`, `TASK: CODING`).
+  - Remote command executed & applied on Reno 14: `show_now` confirmed in UI with status `APPLIED`.

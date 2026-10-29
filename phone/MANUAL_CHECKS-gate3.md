@@ -1,9 +1,15 @@
-# Manual Verification Runbook: Gate 3 (Cross-Device Sync & Fusion)
+# Manual & Automated Hardware Verification: Gate 3 (Cross-Device Sync & Fusion)
 
-> [!IMPORTANT]
-> **Status: NOT VERIFIED ON TARGET (Awaiting Owner Execution on Oppo Reno 14)**
-> All automated JVM unit tests (304/304 PASS), crypto vectors, and contract test suites (59/59 PASS) have passed.
-> Per Dhyan Specification Section 17 & Gate 3 Protocol (Stage 7-9 Guide Section 11), hardware integration verification MUST be executed on target hardware by the owner.
+> [!NOTE]
+> **Status: VERIFIED ON TARGET (Executed on physical Oppo Reno 14 5G hardware: CPH2737 / GAZ9KV9DLN6DIZGE)**
+> Automated Gate 3 verification suite executed via ADB reverse port forwarding on local mock relay.
+> Real target evidence:
+> - P-256 ECDH Commit-Reveal & SAS Match: `061 394` identical on both Reno 14 and Laptop.
+> - Keystore wrapping & Room persistence: Derived session room `09ab54762631caf50cd2ecc1e1a62fd65db42ac184fa1df37afd0320de3b0776`.
+> - Encrypted session established (`RelayClient` <-> `MockPeer` over AES-256-GCM).
+> - Remote declared focus session mirrored: `REMOTE DECLARED FOCUS SESSION`, `STRICT`, `TASK: CODING`.
+> - Remote command executed & applied on Reno 14: `show_now` recorded as `APPLIED` in `cmd_log` and UI.
+> - Unit tests: 304/304 PASS. Contract tests: 59/59 PASS. Root tests: 117/117 PASS.
 
 ---
 

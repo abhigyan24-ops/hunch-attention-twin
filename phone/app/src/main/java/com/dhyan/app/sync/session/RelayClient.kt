@@ -151,8 +151,8 @@ open class RelayClient(
         return sendEncrypted("pong", """{"t0":$t0,"t1":$rxTime,"t2":$txTime}""")
     }
 
-    private fun sendLocalHello() {
-        val snBytes = secureRandomBytes(16)
+    private fun sendLocalHello(existingSn: ByteArray? = null) {
+        val snBytes = existingSn ?: secureRandomBytes(16)
         localSnBytes = snBytes
         val snBase64 = Base64.getEncoder().encodeToString(snBytes)
         val lastSeq = getLastSeqAcked()
@@ -221,7 +221,8 @@ open class RelayClient(
 
         // Handshake complete: derive session keys
         val peerSn = Base64.getDecoder().decode(snBase64)
-        val localSn = localSnBytes ?: return
+        val localSn = localSnBytes ?: secureRandomBytes(16).also { localSnBytes = it }
+        sendLocalHello(localSn)
 
         // Contract Section 5.3: salt = snL || snP
         val keys = SyncCrypto.deriveSessionKeys(pk, peerSn, localSn)
