@@ -58,7 +58,8 @@ data class LiveDigestUiState(
     val heldQueue: List<LiveHeldItemUi> = emptyList(),
     val decisionFeed: List<LiveDecisionItemUi> = emptyList(),
     val historyStrip: List<LiveHeldItemUi> = emptyList(),
-    val isFakeProvider: Boolean = true
+    val isFakeProvider: Boolean = true,
+    val provenance: String = "observed"
 )
 
 class LiveDigestViewModel(
@@ -68,6 +69,7 @@ class LiveDigestViewModel(
     private val killSwitchController: KillSwitchController? = null,
     private val clock: Clock = SystemClock,
     val isFakeProvider: Boolean = true,
+    val provenance: String = "observed",
     coroutineScope: kotlinx.coroutines.CoroutineScope? = null
 ) : ViewModel() {
 
@@ -81,6 +83,11 @@ class LiveDigestViewModel(
         heldNotifDao.observeHistory(10)
     ) { settings, snapshot, activeHeld, recentDecisions, history ->
         val now = clock.nowMs()
+        val prov = try {
+            com.dhyan.app.DhyanApplication.syncManager.contextFuser.currentProvenance()
+        } catch (_: Throwable) {
+            if (snapshot?.laptopState == com.dhyan.app.twin.model.LaptopState.OFFLINE) "estimated" else "observed"
+        }
         LiveDigestUiState(
             mode = settings.mode,
             killSwitchActive = settings.killSwitch,
@@ -88,7 +95,8 @@ class LiveDigestViewModel(
             heldQueue = activeHeld.map { it.toUi(now) },
             decisionFeed = recentDecisions.map { it.toUi(now) },
             historyStrip = history.map { it.toUi(now) },
-            isFakeProvider = isFakeProvider
+            isFakeProvider = isFakeProvider,
+            provenance = prov
         )
     }.stateIn(
         scope = scope,

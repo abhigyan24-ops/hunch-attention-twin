@@ -31,6 +31,16 @@ class EpisodeBuilder(
     val defaultEstimatedResumeDelayMin: Double = 3.0,
     private val onEpisodeClosed: EpisodeCloseListener? = null
 ) {
+    companion object {
+        /** Canonical work categories derived from core-spec/categories.json */
+        val WORK_CATEGORIES: Set<String> = setOf("coding", "docs", "learning")
+
+        /** Local collector gap keywords that damage the outcome measurement (spec 25.4) */
+        private val LOCAL_GAP_REASONS: Set<String> = setOf(
+            "usage", "notif_listener", "a11y", "persistence", "local_gap", "sensor_crash"
+        )
+    }
+
     private enum class AttentionState {
         FOCUSED,
         NOTIFIED,
@@ -51,12 +61,19 @@ class EpisodeBuilder(
     private var currentResumeDelayMin = 0.0
     private var currentLaptopLeftWork = false
     private var lastBackgroundTs = -1L
+    private var laptopTelemetryUnavailable = false
 
     // Baseline hazard tracking
     private var lastFocusStartTs: Long = 0L
     private val idCounter = AtomicLong(1L)
 
     var inSessionArrivalCount: Long = 0L
+        private set
+
+    val activeEpisodeLabel: EpisodeLabel
+        get() = activeEpisode?.label ?: EpisodeLabel.NONE
+
+    var lastOutcome: EpisodeOutcome? = null
         private set
 
     /**
@@ -134,6 +151,7 @@ class EpisodeBuilder(
         currentDwellMin = 0.0
         currentResumeDelayMin = 0.0
         currentLaptopLeftWork = false
+        laptopTelemetryUnavailable = false
         lastNotifTs = ts
     }
 
@@ -179,6 +197,7 @@ class EpisodeBuilder(
                     currentDwellMin = 0.0
                     currentResumeDelayMin = 0.0
                     currentLaptopLeftWork = false
+                    laptopTelemetryUnavailable = false
                     state = AttentionState.IN_APP
                 }
             }
@@ -202,7 +221,21 @@ class EpisodeBuilder(
         if (state == AttentionState.IN_APP) {
             currentDwellMin += maxOf(0.0, durationMs / 60_000.0)
             lastBackgroundTs = ts
-            state = AttentionState.RESUMING
+
+            if (laptopTelemetryUnavailable) {
+                // Laptop telemetry is missing/stale -> complete dwell-only with estimated resume (spec 7.2)
+                closeEpisode(
+                    closedTs = ts,
+                    label = activeEpisode?.label ?: EpisodeLabel.NONE,
+                    outcome = buildCurrentOutcome(isResumeEstimated = true).copy(
+                        resumeDelayMin = defaultEstimatedResumeDelayMin
+                    )
+                )
+                state = AttentionState.FOCUSED
+                lastFocusStartTs = ts
+            } else {
+                state = AttentionState.RESUMING
+            }
         }
     }
 
@@ -212,7 +245,19 @@ class EpisodeBuilder(
     fun onScreenOff(ts: Long) {
         if (state == AttentionState.IN_APP) {
             lastBackgroundTs = ts
-            state = AttentionState.RESUMING
+            if (laptopTelemetryUnavailable) {
+                closeEpisode(
+                    closedTs = ts,
+                    label = activeEpisode?.label ?: EpisodeLabel.NONE,
+                    outcome = buildCurrentOutcome(isResumeEstimated = true).copy(
+                        resumeDelayMin = defaultEstimatedResumeDelayMin
+                    )
+                )
+                state = AttentionState.FOCUSED
+                lastFocusStartTs = ts
+            } else {
+                state = AttentionState.RESUMING
+            }
         }
     }
 
@@ -223,7 +268,7 @@ class EpisodeBuilder(
         appCat: String,
         ts: Long
     ) {
-        val isWork = (appCat == "productivity" || appCat == "coding" || appCat == "learning" || appCat == "docs")
+        val isWork = appCat in WORK_CATEGORIES
         if (state == AttentionState.IN_APP || state == AttentionState.RESUMING) {
             if (!isWork) {
                 currentLaptopLeftWork = true
@@ -249,11 +294,24 @@ class EpisodeBuilder(
     }
 
     /**
-     * Handles service gap or telemetry loss (Spec 25.4).
+     * Handles service gap or telemetry loss (Spec 25.4 & Fix 1).
+     *
+     * Local collector gaps (usage, notif listener, a11y, persistence) damage the outcome -> censor.
+     * Remote laptop gaps (relay_down, peer_silent, adapter_offline) must NOT censor;
+     * they switch the outcome to dwell-only with isResumeEstimated = true.
      */
-    fun onServiceGap(ts: Long) {
+    fun onServiceGap(
+        reason: String,
+        ts: Long
+    ) {
         val ep = activeEpisode ?: return
-        if (!ep.isClosed) {
+        if (ep.isClosed) return
+
+        val normalized = reason.lowercase()
+        val isLocal = LOCAL_GAP_REASONS.any { normalized.contains(it) }
+
+        if (isLocal) {
+            // Local collector gap damages the outcome measurement -> censor
             closeEpisode(
                 closedTs = ts,
                 label = EpisodeLabel.CENSORED,
@@ -261,6 +319,22 @@ class EpisodeBuilder(
             )
             state = AttentionState.FOCUSED
             lastFocusStartTs = ts
+        } else {
+            // Remote laptop gaps must NOT censor; switch to dwell-only with isResumeEstimated = true
+            if (state == AttentionState.RESUMING) {
+                val outcome = buildCurrentOutcome(isResumeEstimated = true).copy(
+                    resumeDelayMin = defaultEstimatedResumeDelayMin
+                )
+                closeEpisode(
+                    closedTs = ts,
+                    label = ep.label,
+                    outcome = outcome
+                )
+                state = AttentionState.FOCUSED
+                lastFocusStartTs = ts
+            } else {
+                laptopTelemetryUnavailable = true
+            }
         }
     }
 
@@ -342,6 +416,7 @@ class EpisodeBuilder(
             isClosed = true
         )
         activeEpisode = null
+        lastOutcome = outcome
         onEpisodeClosed?.onEpisodeClosed(finalized)
     }
 }

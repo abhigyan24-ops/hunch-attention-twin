@@ -56,6 +56,9 @@ class ContextFuser(
     private var remoteDeclaredSession: DeclaredSession? = null
     private var laptopLastReceivedMs: Long = 0L
 
+    // Provenance (Spec 25.13 & Milestone M3)
+    var isLastResumeEstimated: Boolean = false
+
     // Relay Connectivity
     private var isRelayConnected: Boolean = false
 
@@ -170,6 +173,20 @@ class ContextFuser(
     fun isLaptopStale(): Boolean {
         val now = timeProvider()
         return laptopLastReceivedMs == 0L || (now - laptopLastReceivedMs > config.laptopStaleMs)
+    }
+
+    /**
+     * Computes the provenance of the fused context snapshot per Spec 25.13 & Milestone M3.
+     * Flagged as "estimated" when the laptop is stale/offline or when resumption delay was estimated.
+     */
+    fun currentProvenance(): String {
+        val nowMs = timeProvider()
+        val isStale = laptopLastReceivedMs == 0L || (nowMs - laptopLastReceivedMs > config.laptopStaleMs)
+        return if (isStale || isLastResumeEstimated || remoteLaptopState == LaptopState.OFFLINE) {
+            "estimated"
+        } else {
+            "observed"
+        }
     }
 
     fun isRelayConnected(): Boolean = isRelayConnected

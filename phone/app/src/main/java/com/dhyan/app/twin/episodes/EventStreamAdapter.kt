@@ -126,25 +126,21 @@ class EventStreamAdapter(
                 }
             }
             "window_change" -> {
-                val appCat = payload["appCat"] as? String ?: "coding"
+                val appCat = payload["appCat"] as? String ?: return
                 val app = payload["app"] as? String ?: ""
+                val isWork = appCat in EpisodeBuilder.WORK_CATEGORIES || app.contains("code", ignoreCase = true)
                 when {
-                    appCat == "coding" || appCat == "productivity" || app.contains("code") -> {
-                        currentTaskType = TaskType.CODING
+                    isWork -> {
+                        currentTaskType = if (appCat == "learning") TaskType.STUDYING else TaskType.CODING
                         currentLaptopState = LaptopState.FLOWING
                         currentFocusState = FocusState.DEEP_FOCUS
-                    }
-                    appCat == "learning" || appCat == "studying" -> {
-                        currentTaskType = TaskType.STUDYING
-                        currentLaptopState = LaptopState.FLOWING
-                        currentFocusState = FocusState.WORKING
                     }
                     appCat == "games" || appCat == "gaming" -> {
                         currentTaskType = TaskType.GAMING
                         currentLaptopState = LaptopState.GAMING
                         currentFocusState = FocusState.BREAK
                     }
-                    appCat == "system" || app.contains("away") -> {
+                    appCat == "system" || app.contains("away", ignoreCase = true) -> {
                         currentLaptopState = LaptopState.AWAY
                     }
                     else -> {
@@ -154,26 +150,20 @@ class EventStreamAdapter(
                 episodeBuilder.onLaptopWindowChange(appCat, effectiveTs)
             }
             "tab_category" -> {
-                val domainCat = payload["domainCat"] as? String ?: "coding"
-                val isWork = domainCat in setOf("coding", "docs", "learning")
+                val domainCat = payload["domainCat"] as? String ?: return
+                val isWork = domainCat in EpisodeBuilder.WORK_CATEGORIES
                 if (!isWork) {
                     currentLaptopState = LaptopState.BROWSING
                     episodeBuilder.onLaptopWindowChange(domainCat, effectiveTs)
                 } else {
                     currentLaptopState = LaptopState.FLOWING
-                    if (domainCat == "coding") {
-                        currentTaskType = TaskType.CODING
-                    } else if (domainCat == "learning") {
-                        currentTaskType = TaskType.STUDYING
-                    }
                 }
             }
             "edit_burst" -> {
                 val editsPerMin = (payload["editsPerMin"] as? Number)?.toDouble() ?: 0.0
                 if (editsPerMin > 0.0) {
                     currentLaptopState = LaptopState.FLOWING
-                    currentTaskType = TaskType.CODING
-                    currentFocusState = FocusState.DEEP_FOCUS
+                    // Do not change TaskType or any bucket key (Fix 3)
                     episodeBuilder.onLaptopEditBurst(editsPerMin, effectiveTs)
                 }
             }
@@ -190,7 +180,8 @@ class EventStreamAdapter(
                 currentLaptopState = LaptopState.FLOWING
             }
             "gap" -> {
-                episodeBuilder.onServiceGap(effectiveTs)
+                val reason = payload["reason"] as? String ?: "relay_down"
+                episodeBuilder.onServiceGap(reason, effectiveTs)
             }
         }
     }

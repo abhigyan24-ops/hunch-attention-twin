@@ -95,13 +95,23 @@ class DhyanForegroundService : Service() {
     // ── Event stubs — Stage 4 replaces these with real Room writes ─────────
 
     private fun onUsageWindow(appCat: String, surface: String, durationMin: Double, ts: Long) {
-        // TODO Stage 4: insert EventEntity(kind="usage_window", ...) into EventDao
-        //               call InMemoryParamStore.observeDwell(appCat, surface, durationMin, ts)
+        EpisodeRuntime.instance?.let { runtime ->
+            val startTs = ts - (durationMin * 60_000).toLong()
+            runtime.onAppForeground(appCat, surface, startTs)
+            runtime.onAppBackground((durationMin * 60_000).toLong(), ts)
+        }
+
     }
 
     private fun onScreenEvent(kind: String, ts: Long) {
-        // TODO Stage 4: insert EventEntity(kind=kind, ...) into EventDao
-        //               if kind == "pickup": call InMemoryParamStore.observePickupLatency(...)
+        EpisodeRuntime.instance?.let { runtime ->
+            when (kind) {
+                "screen_off" -> runtime.onScreenOff(ts)
+                "screen_on"  -> runtime.onScreenOn(ts)
+                "pickup"     -> runtime.onPickup(ts)
+            }
+        }
+
     }
 
     // ── Notification helpers ────────────────────────────────────────────────

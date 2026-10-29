@@ -150,6 +150,30 @@ class CrossDeviceEpisodeTest {
     }
 
     @Test
+    fun tabCategory_missingDomainCat_isIgnored() {
+        val t0 = 10_000_000L
+        adapter.processEvent("window_change", t0, mapOf("appCat" to "coding"))
+        assertEquals(TaskType.CODING, adapter.currentTaskType)
+        assertEquals(LaptopState.FLOWING, adapter.currentLaptopState)
+
+        // Missing domainCat should be ignored, leaving current laptop state unchanged
+        adapter.processEvent("tab_category", t0 + 1000L, emptyMap())
+        assertEquals(LaptopState.FLOWING, adapter.currentLaptopState)
+    }
+
+    @Test
+    fun editBurst_doesNotChangeTaskType() {
+        val t0 = 10_000_000L
+        adapter.processEvent("window_change", t0, mapOf("appCat" to "learning"))
+        assertEquals(TaskType.STUDYING, adapter.currentTaskType)
+
+        // edit_burst must not alter TaskType
+        adapter.processEvent("edit_burst", t0 + 5000L, mapOf("editsPerMin" to 40.0))
+        assertEquals(TaskType.STUDYING, adapter.currentTaskType)
+        assertEquals(LaptopState.FLOWING, adapter.currentLaptopState)
+    }
+
+    @Test
     fun crossDeviceEpisode_proxyResumeViaEditBurst() {
         val t0 = 10_000_000L
         adapter.processEvent("notif_posted", t0, mapOf("key" to "notif_edit", "appCat" to "comms"))
@@ -268,7 +292,7 @@ class CrossDeviceEpisodeTest {
     }
 
     @Test
-    fun telemetryGap_marksEpisodeCensoredAndExcludesFromIgnores() {
+    fun localCollectorGap_censorsEpisodeAndExcludesFromIgnores() {
         val closer = EpisodeCloser(store)
         val closerEpisodes = mutableListOf<Episode>()
         val closingBuilder = EpisodeBuilder(onEpisodeClosed = {
@@ -283,10 +307,10 @@ class CrossDeviceEpisodeTest {
         val prevSnap = store.resolve(bucket, baselineBucket, notifInput)!!
 
         val t0 = 10_000_000L
-        closingAdapter.processEvent("notif_posted", t0, mapOf("key" to "notif_gap", "appCat" to "social"))
+        closingAdapter.processEvent("notif_posted", t0, mapOf("key" to "notif_local_gap", "appCat" to "social"))
 
-        // Telemetry gap occurs before outcome resolves
-        closingAdapter.processEvent("gap", t0 + 60_000L, mapOf("reason" to "relay_down"))
+        // Local collector gap (usage) damages the outcome -> must censor
+        closingAdapter.processEvent("gap", t0 + 60_000L, mapOf("reason" to "usage_collector_gap"))
 
         assertEquals(1, closerEpisodes.size)
         val ep = closerEpisodes[0]
@@ -296,6 +320,31 @@ class CrossDeviceEpisodeTest {
         // Per Spec 25.4: Censored outcomes stay excluded from ordinary failure updates
         val afterGapSnap = store.resolve(bucket, baselineBucket, notifInput)!!
         assertEquals("Censored episode must not increment beta failures", prevSnap.pickupBeta, afterGapSnap.pickupBeta, 1e-6)
+    }
+
+    @Test
+    fun remoteLaptopGap_doesNotCensor_switchesToDwellOnlyWithEstimatedResume() {
+        val t0 = 10_000_000L
+        // 1. Notification posted on phone
+        adapter.processEvent("notif_posted", t0, mapOf("key" to "notif_remote_gap", "appCat" to "social"))
+
+        // 2. User picks up phone at t0 + 30s
+        adapter.processEvent("app_foreground", t0 + 30_000L, mapOf("appCat" to "social", "surface" to "feed"))
+
+        // 3. User finishes phone session at t0 + 330s (5m dwell) -> now RESUMING
+        adapter.processEvent("app_background", t0 + 330_000L, mapOf("durationMs" to 300_000L))
+
+        // 4. Laptop gap occurs (relay_down / peer_silent) -> must NOT censor!
+        adapter.processEvent("gap", t0 + 360_000L, mapOf("reason" to "relay_down"))
+
+        assertEquals("Remote gap should close episode as dwell-only", 1, closedEpisodes.size)
+        val ep = closedEpisodes[0]
+        assertEquals("Remote gap must not censor episode", EpisodeLabel.NOTIF_TRIGGERED, ep.label)
+        val outcome = ep.outcome!!
+        assertFalse("Remote gap outcome is not censored", outcome.isCensored)
+        assertTrue("Resume is flagged as estimated", outcome.isResumeEstimated)
+        assertEquals(5.0, outcome.dwellMin, 1e-4)
+        assertEquals(3.5, outcome.resumeDelayMin, 1e-4)
     }
 
     @Test
@@ -402,7 +451,7 @@ class CrossDeviceEpisodeTest {
         )
 
         val batch = listOf(
-            mapOf("id" to "ev_1", "seq" to 1L, "deviceId" to "laptop", "kind" to "window_change", "schemaVersion" to "1.1.0"),
+            mapOf("id" to "ev_1", "seq" to 1L, "deviceId" to "laptop", "kind" to "window_change", "appCat" to "coding", "schemaVersion" to "1.1.0"),
             mapOf("id" to "ev_2", "seq" to 2L, "deviceId" to "laptop", "kind" to "edit_burst", "schemaVersion" to "1.1.0")
         )
         engine.processInboundBatch(1L, batch)

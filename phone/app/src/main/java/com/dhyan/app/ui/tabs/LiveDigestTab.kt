@@ -129,7 +129,7 @@ fun LiveDigestContent(
         Spacer(modifier = Modifier.height(12.dp))
 
         // Laptop Companion Badge & Sync State (Spec 25.13)
-        LaptopCompanionBadge(snapshot = uiState.contextSnapshot)
+        LaptopCompanionBadge(snapshot = uiState.contextSnapshot, provenance = uiState.provenance)
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -684,7 +684,8 @@ private fun HistoryStripSection(history: List<LiveHeldItemUi>) {
 
 @Composable
 private fun LaptopCompanionBadge(
-    snapshot: ContextSnapshot?
+    snapshot: ContextSnapshot?,
+    provenance: String = "observed"
 ) {
     if (snapshot == null) return
     val laptopState = snapshot.laptopState
@@ -716,6 +717,17 @@ private fun LaptopCompanionBadge(
                     text = "LAPTOP: ${laptopState.wire.uppercase()}",
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                     color = if (isOffline) TextMuted else TextPrimary
+                )
+                val isEstimated = provenance == "estimated" || isOffline
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (isEstimated) "ESTIMATED" else "OBSERVED",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                    color = if (isEstimated) StateDrifting else DhyanPrimary,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(if (isEstimated) StateDrifting.copy(alpha = 0.15f) else DhyanPrimary.copy(alpha = 0.15f))
+                        .padding(horizontal = 4.dp, vertical = 1.dp)
                 )
             }
             if (overlap) {
