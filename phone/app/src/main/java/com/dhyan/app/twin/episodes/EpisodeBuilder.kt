@@ -23,10 +23,12 @@ fun interface EpisodeCloseListener {
  * 4. Pickups with no notification in the prior 2 minutes establish a self_initiated episode.
  *
  * @param windowMin Outcome window duration in minutes (spec default: 30.0).
+ * @param defaultEstimatedResumeDelayMin Fallback resume delay when laptop is missing/stale (spec 7.2).
  * @param onEpisodeClosed Callback invoked whenever an episode finishes.
  */
 class EpisodeBuilder(
     val windowMin: Double = 30.0,
+    val defaultEstimatedResumeDelayMin: Double = 3.0,
     private val onEpisodeClosed: EpisodeCloseListener? = null
 ) {
     private enum class AttentionState {
@@ -93,7 +95,9 @@ class EpisodeBuilder(
                         firstSurface = null,
                         dwellMin = 0.0,
                         resumeDelayMin = 0.0,
-                        laptopLeftWork = false
+                        laptopLeftWork = false,
+                        isResumeEstimated = false,
+                        isCensored = false
                     )
                 )
             }
@@ -219,11 +223,44 @@ class EpisodeBuilder(
         appCat: String,
         ts: Long
     ) {
+        val isWork = (appCat == "productivity" || appCat == "coding" || appCat == "learning" || appCat == "docs")
         if (state == AttentionState.IN_APP || state == AttentionState.RESUMING) {
-            val isWork = (appCat == "productivity" || appCat == "coding" || appCat == "learning")
             if (!isWork) {
                 currentLaptopLeftWork = true
+            } else if (state == AttentionState.RESUMING && currentResumeDelayMin == 0.0) {
+                // Spec 7.2: Return to work app acts as the proxy for first non-idle input
+                val delayMs = if (lastBackgroundTs > 0L) maxOf(0L, ts - lastBackgroundTs) else 0L
+                onResumeFirstEdit(delayMs, ts)
             }
+        }
+    }
+
+    /**
+     * Handles laptop edit burst events (Spec 7.2 proxy for first non-idle input).
+     */
+    fun onLaptopEditBurst(
+        editsPerMin: Double,
+        ts: Long
+    ) {
+        if (state == AttentionState.RESUMING && editsPerMin > 0.0 && currentResumeDelayMin == 0.0) {
+            val delayMs = if (lastBackgroundTs > 0L) maxOf(0L, ts - lastBackgroundTs) else 0L
+            onResumeFirstEdit(delayMs, ts)
+        }
+    }
+
+    /**
+     * Handles service gap or telemetry loss (Spec 25.4).
+     */
+    fun onServiceGap(ts: Long) {
+        val ep = activeEpisode ?: return
+        if (!ep.isClosed) {
+            closeEpisode(
+                closedTs = ts,
+                label = EpisodeLabel.CENSORED,
+                outcome = buildCurrentOutcome(isCensored = true)
+            )
+            state = AttentionState.FOCUSED
+            lastFocusStartTs = ts
         }
     }
 
@@ -255,7 +292,9 @@ class EpisodeBuilder(
         if (ep.isClosed) return
 
         if (nowTs >= ep.outcomeWindowEndTs) {
-            val outcome = buildCurrentOutcome()
+            val isEstimated = currentPickedUp && currentResumeDelayMin == 0.0 && state == AttentionState.RESUMING
+            val effectiveResumeDelay = if (isEstimated) defaultEstimatedResumeDelayMin else currentResumeDelayMin
+            val outcome = buildCurrentOutcome(isResumeEstimated = isEstimated).copy(resumeDelayMin = effectiveResumeDelay)
             val label = if (currentPickedUp) ep.label else EpisodeLabel.NONE
             val closeAt = minOf(nowTs, ep.outcomeWindowEndTs)
             closeEpisode(closeAt, label, outcome)
@@ -275,14 +314,19 @@ class EpisodeBuilder(
         }
     }
 
-    private fun buildCurrentOutcome(): EpisodeOutcome = EpisodeOutcome(
+    private fun buildCurrentOutcome(
+        isResumeEstimated: Boolean = false,
+        isCensored: Boolean = false
+    ): EpisodeOutcome = EpisodeOutcome(
         pickedUp = currentPickedUp,
         pickupLatencyMin = currentPickupLatencyMin,
         firstAppCat = currentFirstAppCat,
         firstSurface = currentFirstSurface,
         dwellMin = currentDwellMin,
         resumeDelayMin = currentResumeDelayMin,
-        laptopLeftWork = currentLaptopLeftWork
+        laptopLeftWork = currentLaptopLeftWork,
+        isResumeEstimated = isResumeEstimated,
+        isCensored = isCensored
     )
 
     private fun closeEpisode(
