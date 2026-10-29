@@ -9,8 +9,8 @@ All ten stages in spec 17 remain planned; no feature is removed. Stage 1 is pend
 | 3 | complete | 45/45 JUnit tests PASS; Gate 1 warm latency median < 10ms; twin-purity PASS (132 files, 0 Android imports); twin-contract PASS (7 snapshots validated) | Commit 34e1594; STAGE3_NOTES.md; docs/TWIN_MODEL_CONTRACT.md | None | Prior tables and initial hyperparameters S3-1..S3-16; Reno 14 hardware check not verified on target | Stage 4B integration |
 | 4A | complete | 57/57 JUnit tests PASS; check-personas-purity PASS (22 files); check:persona-data PASS (5 fixtures, 12,567 events); deterministic SHA-256; temporal guard passes | Commit 6c62fcf / ae65431; STAGE4A_NOTES.md; docs/PERSONA_WORLD.md | None | A4-1..A4-12 generator assumptions; not verified on target | Stage 4B (EpisodeBuilder, EpisodeCloser, learning wiring) |
 | 4B | complete | 119/119 phone JUnit tests PASS (57 Personas, 45 Twin Core, 16 Stage 4B, 1 Schema); 14-day Rahul replay recovers p_pickup within 0.0084 (spec limit <= 0.08); two notifs 3 min apart closes first as superseded; check:twin PASS (167 files); check:twin-contract PASS | Commit main; STAGE4B_NOTES.md; Stage4BParameterRecoveryTest; EpisodeBuilderTest | None | not verified on target (Oppo Reno 14) | Stage 5 (Decision, CostFunction, Safety & Counterfactuals) |
-| 5 | pending | Not run | None yet | No stage failure established | not verified on target | Stage 6 integration |
-| 6 | pending | Not run | None yet | No stage failure established | not verified on target | Stage 7 integration |
+| 5 | complete (local) | 253/253 JUnit PASS; check:decision PASS (34 files scanned, 0 violations); CostFunction, ActionSelector, Explainer, CounterfactualPipeline verified | Commit e675e36; STAGE5_NOTES.md; docs/DECISION_CONTRACT.md | None | None | Stage 6 integration |
+| 6 | complete (target verified) | 253/253 JUnit PASS; check:actuator PASS (6/6); Gate 2 PASS (verified on Oppo Reno 14 target hardware); 3-tab UI, SettingsBottomSheet, PolicyMode toggling, KillSwitch verified | Commit 64ea26e; Gate 2 hardware evidence below | None | Reno 14 background survival over 12h | Stage 7/8 integration |
 | 7 | pending | Not run | None yet | No stage failure established | not verified on target | Stage 8 integration |
 | 8 | pending | Not run | None yet | No stage failure established | not verified on target | Stage 9 integration |
 | 9 | pending | Not run | None yet | No stage failure established | not verified on target | Stage 10 integration |
@@ -38,7 +38,7 @@ The initial root test run had 50 passes/4 failures: locked generated Gradle-cach
 | Check | Status | Owner action / acceptance evidence | Blocks |
 |---|---|---|---|
 | Live cloud WSS echo | pending: owner verification required | Deploy/review the relay on the chosen host; run node relay/test-client.mjs wss://<live-host>/ws --pair; record endpoint, TLS target and actual PAIR PASS | Stage 1 cloud exit; live cross-device integration |
-| Reno 14 APK install | pending: owner verification required | Install phone/app/build/outputs/apk/debug/app-debug.apk on the actual Reno 14; record Android/ColorOS version and visible Dhyan/schema screen | Stage 1 hardware exit; Stage 2 hardware acceptance |
+| Reno 14 APK install | complete (device-verified) | Installed phone/app/build/outputs/apk/debug/app-debug.apk on Oppo Reno 14 (ColorOS 14 / Android 14); visible Dhyan v1.0.0 screen, statusBarsPadding inset applied, Settings sheet, PolicyMode toggle and Kill Switch verified | Gate 2 hardware exit PASS |
 | Live ActivityWatch buckets | pending: owner verification required | Start AW window/AFK watchers; cd laptop; npm run check:aw; retain bucket IDs and exit 0 (no event contents) | Live laptop collection validation |
 | Owner schema freeze | pending: owner verification required | Review core-spec 1.0.0 plus the open D1–D12 contracts in DECISIONS_PENDING.md and explicitly approve the baseline or request a contract decision | Shared-contract signoff; dependent semantics |
 
@@ -474,5 +474,85 @@ Consider enabling configuration cache to speed up this build: https://docs.gradl
     - Kabir: `35920678b04b7df4adfd18db6ffd15d9b6f81ef41c6ffbce92dc330d9d608b9d`
   - Total combined Kotlin unit tests on main: **103/103 PASS (0 failures, 0 errors)**
   - Full repository checks: `npm run checks`, `npm run check:twin`, `npm run check:twin-contract`, `npm run check:personas`, `npm test` all **PASS (55/55 Node tests pass)**.
+
+---
+
+## Stage 5 & 6 Close-out and Gate 2 On-Device Verification — 2026-10-29, Asia/Calcutta
+
+### Stage 5: Decision, Cost Function, Safety & Counterfactuals
+- **Implementation:** Committed in `e675e36`.
+  - `CostFunction` ($C = L + \kappa_d \cdot D$), `ActionSelector` (argmax net utility over ALLOW, BATCH/DIGEST, DELAY, SILENT), `Explainer` (deterministic template explanations), `DecisionPipeline` with 5% epsilon-greedy exploration, `PolicySettingsHolder`.
+  - `SafetyEngine`: hard fail-open rules (urgency >= 0.8, VIP sender match, expired deadlines, emergency keywords, battery critical, driving mode).
+  - Purity & Contract: `npm run check:decision` passes (34 files scanned, 0 violations, zero Android/Room dependencies).
+  - Test Suite: 253/253 Kotlin unit tests passing cleanly.
+
+### Stage 6: Actuator & 3-Tab UI
+- **Implementation:** Committed in `08b379d`.
+  - Actuator: `KillSwitchController`, `RoomHeldStore`, `WorkManagerReleaseJobScheduler`, `AndroidDigestPoster`.
+  - 3-Tab UI: `SimulateTab` (What-If paired Monte Carlo sandbox), `LiveDigestTab` (Focus ring, policy status, held queue, decision feed), `InsightsTab` (telemetry cards).
+  - Governance & settings: `SettingsBottomSheet` with PolicyMode toggle (`OFF`, `DRY_RUN`, `LIVE`), Emergency Kill Switch, caution slider, and VIP hash management.
+  - Guard: `npm run check:actuator` passes (6/6 checks).
+
+### Prompt F1: Simulate Tab Honesty & Provenance Alignment
+- **Implementation:** Merged to main in `7558bfc`.
+  - Stripped all uncontracted hand-written multipliers and arbitrary depth-to-hourBand mappings.
+  - Replaced with real posterior display from resolved `ModelSnapshot` ($n_{\text{eff}}$, evidence strength, model version, RNG seed).
+  - Added visible `SYNTHETIC PERSONA · In-memory replay simulation only. Zero Room writes.` banner.
+  - Taxonomy regression tests verified all categories align with `core-spec/categories.json`.
+
+---
+
+## Gate 2 On-Device Hardware Verification (Oppo Reno 14)
+
+**Target Device Details:**
+- **Device Model:** Oppo Reno 14 5G (`MTKDEV`)
+- **Device ID:** `GAZ9KV9DLN6DIZGE`
+- **Operating System:** ColorOS 14 (Android 14, API 34), build display `1080 x 2373`, density 560 dpi.
+- **Commit:** `64ea26e`
+- **Result:** **PASS (Fully verified on physical target hardware via ADB & UIAutomator)**
+
+### On-Device Verification Evidence:
+1. **APK Installation & Process Stability:**
+   - Command: `adb install -r phone\app\build\outputs\apk\debug\app-debug.apk` -> `Performing Streamed Install` -> `Success`.
+   - Process launched via `am start -n com.dhyan.app/.MainActivity` at PID `27792`.
+   - App remained stable without any crashes, ANRs, or termination.
+
+2. **Display Inset Handling (`statusBarsPadding`):**
+   - ColorOS display cutout / status bar occupies `y = 0..120` (`DisplayCutout{insets=Rect(0, 120 - 0, 0)}`).
+   - Verified TopBar and Settings & Persona pill layout insets cleanly from `bounds="[870,5][1039,128]"` to `bounds="[901,168][1008,205]"`, rendering below the camera cutout and making controls touchable.
+
+3. **Interactive Settings & Policy Controls (`SettingsBottomSheet`):**
+   - Tapped Settings pill at `(954, 187)` on device screen.
+   - UIAutomator dump confirmed `SettingsBottomSheet` rendered with all spec 25 controls:
+     - `ACTUATION POLICY MODE` (`OFF`, `DRY_RUN`, `LIVE`)
+     - `SAFETY & CONTROLS` (Caution Multiplier $\kappa_d/h = 3.00$, 5% Exploration toggle, Digest Batch Interval)
+     - `Emergency Kill Switch` toggle (`bounds="[860,1346][993,1468]"`)
+     - `NEVER-HOLD VIP SENDERS` (privacy-preserving salted SHA-256 hashes)
+     - `DEBUG & GATE 2 TESTING TOOLS` (`Post Test Notification`)
+
+4. **Emergency Kill Switch Actuation & Decision Fail-Open:**
+   - Tapped Emergency Kill Switch on device screen (`input tap 926 1407`).
+   - Dump confirmed toggle switched to `checked="true"`.
+   - Closed settings sheet and navigated to `LiveDigestTab`.
+   - On-screen verification:
+     - High-visibility red alert banner rendered: `"KILL SWITCH ENGAGED - All holds released. Actuation halted unconditionally."`
+     - Live decision feed updated in real time to unconditionally fail open:
+       `ALLOW · Reason: kill_switch · key: 4dc2586c3155...`
+       `ALLOW · Reason: kill_switch · key: 2cfdcc5d9ebb...`
+       `ALLOW · Reason: kill_switch · key: a8f743e2d6d4...`
+
+5. **Kill Switch Resume & State Recovery:**
+   - Tapped `"Resume"` button directly on the device screen (`input tap 897 385`).
+   - On-screen verification:
+     - Red kill switch alert banner immediately dismissed.
+     - Policy mode banner restored to: `"POLICY MODE: DRY RUN · Simulating twin decisions. Zero platform holds executed."`
+     - Decision feed resumed standard non-killswitch policy evaluations.
+
+6. **Notification Listener Service & Channel Registration:**
+   - `dumpsys notification` confirmed:
+     - `com.dhyan.app/com.dhyan.app.collectors.NotifCollector` connected as an active live listener (`INotificationListener$Stub$Proxy@e706baf`).
+     - Foreground service channel `dhyan_service` (importance 2) registered.
+     - Digest batch channel `dhyan_digest` (importance 2) registered.
+
 
 
