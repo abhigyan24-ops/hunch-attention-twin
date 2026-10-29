@@ -1,28 +1,33 @@
-import { app, BrowserWindow, ipcMain, powerMonitor, dialog } from 'electron';
+import {app,BrowserWindow,ipcMain,powerMonitor,dialog,Tray,Menu,nativeImage} from 'electron';
+import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
 import {startLaptopCore} from './laptopCore';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-export const SCHEMA_VERSION = readFileSync(new URL('../../../core-spec/SCHEMA_VERSION',import.meta.url),'utf8').trim();
-let petWindow: BrowserWindow | null = null;
-let core:Awaited<ReturnType<typeof startLaptopCore>>|undefined;
-if(!app.requestSingleInstanceLock())app.quit();
-app.on('second-instance',()=>{petWindow?.show();petWindow?.focus();});
-function trusted(event:Electron.IpcMainInvokeEvent){return petWindow && event.sender===petWindow.webContents && event.senderFrame===petWindow.webContents.mainFrame;}
-ipcMain.handle('storage-health',event=>trusted(event)?{...core?.store.health,...core?.diagnostics}:null);
-ipcMain.handle('label-process',async(event,process:unknown,category:unknown)=>{if(!trusted(event)||typeof process!=='string'||typeof category!=='string'||!core)return false;return core.labels.labelOnce(process,category).catch(()=>false);});
-function createWindow(): void {
- petWindow = new BrowserWindow({width:440,height:480,transparent:true,frame:false,alwaysOnTop:true,skipTaskbar:true,resizable:false,webPreferences:{preload:fileURLToPath(new URL('../preload/index.cjs',import.meta.url)),contextIsolation:true,nodeIntegration:false,sandbox:true,additionalArguments:[`--schema-version=${SCHEMA_VERSION}`]}});
- petWindow.setAlwaysOnTop(true,'screen-saver');
- petWindow.setIgnoreMouseEvents(true,{forward:true});
- petWindow.on('closed',()=>{petWindow=null;});
- if(process.env.ELECTRON_RENDERER_URL) void petWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
- else void petWindow.loadFile(fileURLToPath(new URL('../renderer/index.html',import.meta.url)));
-}
-ipcMain.on('set-ignore-mouse',(event,ignore:unknown)=>{
- if(petWindow && event.sender===petWindow.webContents && event.senderFrame===petWindow.webContents.mainFrame && typeof ignore==='boolean') petWindow.setIgnoreMouseEvents(ignore,{forward:true});
-});
-app.whenReady().then(async()=>{try{core=await startLaptopCore(app.getPath('userData'),SCHEMA_VERSION,()=>powerMonitor.getSystemIdleTime());}catch{dialog.showErrorBox('Dhyan storage unavailable','Local storage needs recovery. Collection is paused.');}createWindow();app.on('activate',()=>{if(!petWindow)createWindow();});});
-let shutdownStarted=false;
-let shutdownFinished=false;
-app.on('before-quit',event=>{if(!core||shutdownFinished)return;event.preventDefault();if(shutdownStarted)return;shutdownStarted=true;void core.stop().then(()=>{if(core?.store.health.paused)dialog.showErrorBox('Dhyan storage unavailable','Persistence is paused; some recent events remain only in memory.');}).catch(()=>{dialog.showErrorBox('Dhyan storage unavailable','Some recent events could not be flushed.');}).finally(()=>{shutdownFinished=true;app.quit();});});
-app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
+import {PetBridge} from './petBridge';
+import {declareLocally,type Declaration} from './declaredSession';
+import {readObservedToday} from './panelHistory';
+import type {UiSnapshot} from '../shared/ui';
+import type {PipBehavior} from '../pet/petStateMachine';
+export const SCHEMA_VERSION=readFileSync(new URL('../../../core-spec/SCHEMA_VERSION',import.meta.url),'utf8').trim();
+let petWindow:BrowserWindow|null=null,panelWindow:BrowserWindow|null=null,tray:Tray|null=null;
+let core:Awaited<ReturnType<typeof startLaptopCore>>|undefined,bridge:PetBridge|undefined;
+let paused=false,history:UiSnapshot['focus']={minutes:null,provenance:'observed',label:'No data: persisted focus snapshots are not available'},historyAt=0,historyRead:Promise<void>|null=null;
+const ownsLock=app.requestSingleInstanceLock();if(!ownsLock)app.quit();
+function trusted(event:Electron.IpcMainEvent|Electron.IpcMainInvokeEvent){return [petWindow,panelWindow].some(window=>window&&event.sender===window.webContents&&event.senderFrame===window.webContents.mainFrame);}
+function preferences(){return {preload:fileURLToPath(new URL('../preload/index.cjs',import.meta.url)),contextIsolation:true,nodeIntegration:false,sandbox:true,additionalArguments:[`--schema-version=${SCHEMA_VERSION}`]};}
+function load(window:BrowserWindow,panel:boolean){if(process.env.ELECTRON_RENDERER_URL){const url=new URL(process.env.ELECTRON_RENDERER_URL);if(panel)url.searchParams.set('view','panel');void window.loadURL(url.href);}else void window.loadFile(fileURLToPath(new URL('../renderer/index.html',import.meta.url)),panel?{query:{view:'panel'}}:{});}
+function openPanel(){if(panelWindow){panelWindow.show();panelWindow.focus();return;}panelWindow=new BrowserWindow({width:620,height:820,show:false,webPreferences:preferences()});panelWindow.on('ready-to-show',()=>panelWindow?.show());panelWindow.on('closed',()=>{panelWindow=null;});load(panelWindow,true);}
+function createPet(){petWindow=new BrowserWindow({width:200,height:230,transparent:true,frame:false,alwaysOnTop:true,skipTaskbar:true,resizable:false,focusable:false,show:false,webPreferences:preferences()});petWindow.setAlwaysOnTop(true,'screen-saver');petWindow.setIgnoreMouseEvents(true,{forward:true});petWindow.on('ready-to-show',()=>{if(!paused)petWindow?.showInactive();});petWindow.on('closed',()=>{petWindow=null;});load(petWindow,false);}
+async function declare(input:Declaration){if(!core||!bridge)return {ok:false,message:'Collection is unavailable; session was not declared.'};try{const result=await declareLocally(input,core.store,{deviceId:core.settings.deviceId,schemaVersion:SCHEMA_VERSION,nowMs:Date.now()});if(!result)return {ok:false,message:'Choose a valid categorized task and duration.'};bridge.bus.setDeclaredSession(result.session);return {ok:true,message:result.persisted?'Declared locally. Phone sync is pending.':'Declared locally in memory; storage is paused.'};}catch{return {ok:false,message:'Storage is unavailable; session was not declared.'};}}
+function updateTray(){if(!tray)return;const items:Electron.MenuItemConstructorOptions[]=[{label:'Declare session',submenu:[{label:'Open session form',click:openPanel},{label:'Focus: coding, 2h, strict',click:()=>{void declare({task:'coding',plannedMin:120,strict:true}).then(result=>{if(!result.ok)dialog.showErrorBox('Dhyan',result.message);});}}]},{label:'Open panel',click:openPanel},{label:paused?'Resume Pip':'Pause Pip',click:()=>{paused=!paused;if(paused)petWindow?.hide();else petWindow?.showInactive();updateTray();}},{label:'Quit',click:()=>app.quit()}];
+ if(!app.isPackaged&&process.env.DHYAN_DEV_PET==='1'){const behaviors:PipBehavior[]=['deep_focus','held','drifting','distracted','recovering','fatigued','second_screen_overlap'];items.splice(items.length-1,0,{label:'DEV ONLY: simulate presentation',submenu:[{label:'Use real pipeline',click:()=>bridge?.simulate(null)},...behaviors.map(behavior=>({label:behavior,click:()=>bridge?.simulate(behavior)}))]});}tray.setContextMenu(Menu.buildFromTemplate(items));}
+function createTray(){const pixels=Buffer.alloc(16*16*4);for(let i=0;i<256;i++){pixels[i*4]=160;pixels[i*4+1]=110;pixels[i*4+2]=50;pixels[i*4+3]=255;}tray=new Tray(nativeImage.createFromBitmap(pixels,{width:16,height:16}));tray.setToolTip('Dhyan');tray.on('click',openPanel);updateTray();}
+ipcMain.on('set-ignore-mouse',(event,ignore:unknown)=>{if(petWindow&&event.sender===petWindow.webContents&&event.senderFrame===petWindow.webContents.mainFrame&&typeof ignore==='boolean')petWindow.setIgnoreMouseEvents(ignore,{forward:true});});
+ipcMain.on('open-panel',event=>{if(trusted(event))openPanel();});
+ipcMain.handle('ui-snapshot',event=>{if(!trusted(event))throw Error('unauthorized');const now=Date.now();if(core&&now-historyAt>=30000&&!historyRead){historyAt=now;historyRead=readObservedToday(app.getPath('userData'),now).then(value=>{history=value;}).catch(()=>{history={minutes:null,provenance:'observed',label:'No data: focus history could not be read'};}).finally(()=>{historyRead=null;});}return bridge?.snapshot(history)??{inputs:{local:null,collector:'unknown',remote:null,declaredSession:null,storagePaused:true},pet:{behavior:null,availability:'no_data',label:'No data: collector could not start',heldCount:null,calibration:'rule-based, not calibrated'},focus:history,pairing:{status:'not_paired',label:'Not paired'},diagnostics:{paused:true},ts:now,demo:false};});
+ipcMain.handle('declare-session',(event,input:unknown)=>{if(!trusted(event)||!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).sort().join(',')!=='plannedMin,strict,task')return {ok:false,message:'Invalid session request.'};return declare(input as Declaration);});
+ipcMain.handle('label-process',async(event,process:unknown,category:unknown)=>{if(!trusted(event)||!core||typeof process!=='string'||typeof category!=='string')return false;return core.labels.labelOnce(process,category).catch(()=>false);});
+ipcMain.handle('storage-health',event=>trusted(event)?core?.diagnostics??null:null);
+app.on('second-instance',openPanel);
+app.whenReady().then(async()=>{if(!ownsLock)return;try{core=await startLaptopCore(app.getPath('userData'),SCHEMA_VERSION,()=>powerMonitor.getSystemIdleTime());bridge=new PetBridge(core.pipeline);}catch{dialog.showErrorBox('Dhyan storage unavailable','Local storage needs recovery. Collection is paused.');}createPet();createTray();app.on('activate',openPanel);});
+let closing=false,closed=false;app.on('before-quit',event=>{if(!core||closed)return;event.preventDefault();if(closing)return;closing=true;bridge?.stop();void core.stop().then(()=>{if(core?.store.health.paused)dialog.showErrorBox('Dhyan storage unavailable','Recent events may remain only in memory.');}).catch(()=>dialog.showErrorBox('Dhyan storage unavailable','Some recent events could not be flushed.')).finally(()=>{closed=true;tray?.destroy();app.quit();});});
+app.on('window-all-closed',()=>{/* Tray owns lifecycle; closing the panel never stops collection. */});

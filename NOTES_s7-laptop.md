@@ -101,3 +101,62 @@ From `laptop/src/main/LaptopPipeline.ts`:
 `startLaptopCore(directory, schemaVersion, idleSeconds, now?)` now returns settings/store/labels/pipeline/focus, diagnostics getter, setStuckEvidence and async stop; existing trusted IPC remains compatible. Ingest server is not started by W2. Queue is2000 by default; oldest waiting change is dropped and counted, in-flight change remains. Store pending/ring memory remains independently2000 bounded. Shutdown stops intake/adapters/timers, drains accepted work and attempts one immediate retry; a full disk remains paused/visible, without claiming durable success. Monotonic100-seq reservations permit crash holes (1 then101 after restart). Unknown-state/continuity/stuck/confidence limits stay in laptop/DECISIONS_7A.md.
 
 W1 audit artifact: ../dhyan-contracts/docs/contracts/RECONCILIATION_REPORT.md, commit a59c208; owner approval/rejection still pending. F3 standalone source file and F1 NOTES_F1.md were absent when checked. No F1 M0 approval or W5 verdict is implied; W5 waits for its reportedM1–M4 completion. W6 waits for F1 merge.
+
+# 7B owner addendum — preflight
+Rebased s7-laptop onto main d3f4e13 as requested. Preserved both check:actuator and existing check:s7 in the sole rebase conflict; no new root script/dependency added. Untracked file `t` already existed before rebase and is left untouched/uncommitted. Read 7B, spec12.5/25.13, HANDOFF and laptop/DECISIONS_7A. No 7A inference/adapter/pipeline/store semantics will change.
+
+## 7B requests / unmapped inputs
+- **R7B-1 collector health:** LaptopPipeline.diagnostics has cumulative adapterErrors and fallbackActive but no current silent/healthy flag or observation timestamps. onEvent(adapter_offline gap) proves silence when emitted; a fresh window/idle event or non-offline snapshot proves later activity. Repeated offline-valued snapshots alone cannot distinguish renewed unclassified activity after a gap. Request a future reviewed read-only collectorSilent/lastProcessReportMs/lastIdleReportMs diagnostic. Until then show Collector status unavailable for ambiguous cases; do not label them focus or assert healthy/offline from error counts.
+- **R7B-2 observed daily focus:** 7A emits FocusSnapshot through onState but does not persist state_snapshot events; category/window events alone cannot establish focus. A pure JSONL aggregation will count only bounded, valid flowing state_snapshot intervals with gap/stale barriers. Current runtime displays no data until such history exists. Request reviewed persistence of local inference observations (or full canonical snapshots with defined missing context) in 7A/8L. No parallel journal, fabricated full ContextSnapshot or category-to-focus shortcut.
+- **R7B-3 declared taskSource:** canonical declared_session.payload permits only task/plannedMin/strict. taskSource=declared belongs to local declared-session state, not an extra payload field. Use the existing store and sequence allocator for the explicit user action, canonical event shape, plus local bus state; do not reinterpret injectFeedEvent or change it.
+- No local fatigue, second-screen overlap, phone-held list, remote focus or pairing input exists yet; display Not connected/Not paired/Pending, never sample values. 8L will supply the typed bus. No stuck thresholds, confidence calibration or path-based games are decided. Quiet working animation may use fresh local flowing as a visual behavior only; UI names the actual local rule, never a measured cognitive deep-focus state. All ambiguous/offline/stale/no-data inputs select no behavioral claim.
+
+# 7B implementation and verification — owner review
+
+Rebase completed onto main d3f4e13. Replayed M1 now7b242ed and M2 nowa2a23e0; their old hashes in historical sections remain historical. No push/merge. Only conflict was root scripts; preserved main check:actuator plus the existing check:s7. Root package has no7B delta. User's pre-existing untracked `t` remains untouched.
+
+Implemented: real pipeline-to-PetBridge state wiring; typed PetInputBus, pure presentation selector with seven behaviors and neutral missing-data behavior; pure per-type10minute bubbles; original SVG/CSS assets with reduced-motion; separate non-focusing click-through Pip and regular panel; tray Declare/Open/Pause/Quit; explicit no-data/stale/offline/unclassified/unknown/paused wording; local canonical declarations; observed-only JSONL aggregation; Not paired/Not connected/what-if pending/extension pending interfaces. Removed scaffold sample metrics, sender handles, fake pairing, fake held items and cost figures. Dev behavior simulation is behind !app.isPackaged AND DHYAN_DEV_PET=1; it affects presentation only and shows DEV SIMULATION in both views. No new dependency.
+
+## Actual final command outputs this session
+- npm run typecheck --prefix laptop: exit0, tsc --noEmit.
+- npm run build --prefix laptop: exit0, main64.48kB/preload0.69kB/renderer652.95kB produced.
+- npm run check:s7 --prefix laptop: exit0; typecheck/build repeated, tests:
+```
+ℹ tests 39
+ℹ suites 0
+ℹ pass 39
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2353.2124
+```
+Targeted privacy:
+```
+ℹ tests 3
+ℹ pass 3
+ℹ fail 0
+ℹ duration_ms 868.5309
+```
+Full output in laptop/VERIFICATION_7B.txt. The8new pet tests cover all behaviors/priority, no-data/stale/offline/unclassified/unknown, no game/category-to-focus inference, stale remote data, per-type cooldown, bus isolation, fixtureJSONL aggregation, canonical declaration, and diagnostic-vs-inference distinction. No failed local check in this7B run.
+- npm run checks: exit0; schema-syncPASS1.0.0(1Kotlinversionfile), twin-purityPASS96, no-persona-importsPASS309.
+- Installed laptop/node_modules native .node scan: Count0.
+- Source scan removed Math.random and scaffold3h48m/95percent/24min/fakepairing claims from laptop/src. Diff confirms no7B changes to7A LaptopPipeline, laptopCore, jsonlStore, focusState, adapters or normalizer. git diff --check clean after whitespace cleanup.
+
+## States and inputs not mapped (owner addendum)
+1. Current silent-vs-unclassified status cannot always be proven by7A's cumulative diagnostics. PetBridge uses only fresh gap/activity/non-offline-state evidence, and exposes Collector status unavailable in ambiguous cases. No new diagnostic meaning is assigned. R7B-1 requests explicit current-health read-only fields; no7A semantic change made.
+2. Today's numeric observed total is unavailable with current7A JSONL because state snapshots are not persisted. The aggregation is implemented/tested, UI shows No data until real canonical history is present. R7B-2 requests reviewed snapshot persistence; no fabricated full context or competing observation journal added.
+3. taskSource is local state only because the canonical event forbids that extra property. R7B-3 documents the schema-compatible declaration path. No local session modifies inference or phone behavior.
+4. Local cognitive focusState/fatigue/overlap, phone-held items, remote declared session, pairing and what-if estimates do not exist locally.8L will feed validated typed bus data.7B does not map local gaming or browsing to distracted, and does not decide stuck thresholds or confidence. All local rule confidence stays uncalibrated. Gaps/unknown/unclassified/stale never show quiet-focus behavior.
+5. Game classification remains the existing known process map or explicit user label, no file path input. The panel calls the existing label-once API; no category inference is added.
+
+## Integration exports for7C/8L
+- PetInputBus.snapshot/subscribe/setLocal/setRemote/setDeclaredSession/setStoragePaused; RemotePetInput holds only categorized/controlled metadata and opaque held IDs, never sender/package/content.8L owns strict protocol validation and timestamps before calling setRemote.
+- PetBridge.bus is the real presentation bus, wired to the existing LaptopPipeline.onState/onEvent. It never calls injectFeedEvent or setStuckEvidence to force a display state. Those7A hooks retain their documented signatures/semantics for7C.
+- PairingUi.snapshot(): {status,label}; unpairedUi currently returns Not paired;8L implements actual pairing UI.
+- trusted minimal preload: snapshot(), declareSession({task,plannedMin,strict}), labelProcess(process,category), openPanel(), setIgnoreMouseEvents(boolean), schemaVersion. No raw event/log/file access in renderer. Panel and Pip main-frame identity gates every IPC action; click-through handler accepts only Pip.
+
+## Not verified / next step
+No Electron launch, real Windows click-through/tray/animation behavior, live AW, fullscreen game behavior, phone, TLS/relay or actual paired held-item operation was executed. **not verified on target**. Exact owner checks are in laptop/MANUAL_CHECKS.md under7B, including dev-only seven-behavior inspection, transparent-area clicks, hover-only hitbox capture and reduced motion. Pausing Pip hides only the pet and never stops collection. Today's aggregation/collector-health requests remain visible limitations, not passed hardware checks.
+
+Stop after7B for review.7C and8L are not started here;7C still needs approved contract reconciliation/W3. No F1 files, core-spec, contracts, relay, root dependencies, shared governance or pitch document edited by7B.

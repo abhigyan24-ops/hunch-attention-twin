@@ -1,78 +1,31 @@
-export type PipBehavior =
-  | 'deep_focus'
-  | 'held'
-  | 'drifting'
-  | 'distracted'
-  | 'recovering'
-  | 'fatigued'
-  | 'second_screen_overlap';
-
-export interface PetState {
-  behavior: PipBehavior;
-  provenance: 'pending' | 'observed';
-  lastBubbleText: string;
-  lastBubbleTs: number;
-  heldCount: number;
-}
-
-export const initialPetState: PetState = {
-  behavior: 'deep_focus',
-  provenance: 'observed',
-  lastBubbleText: 'Pip is watching your focus flow quietly.',
-  lastBubbleTs: 0,
-  heldCount: 1
-};
-
-export const PIP_MESSAGES: Record<PipBehavior, string[]> = {
-  deep_focus: [
-    'Zzz... in deep flow. Not disturbing you.',
-    'Flowing quietly in VS Code.',
-    'Pip is resting while you build.'
-  ],
-  held: [
-    '1 notification held for your next natural break.',
-    'Batched a social ping. Stay in the zone!',
-    'Held quietly: focus cost would have been 24 min.'
-  ],
-  drifting: [
-    'Still working on this task block, or drifting?',
-    'Window switch detected. Need a quick pause?',
-    'Gentle nudge: ready to return to your editor?'
-  ],
-  distracted: [
-    'Off-task activity detected. Tap to resume flow.',
-    'Distraction hazard high: 14 min elapsed off-task.',
-    'Pip is waiting for you back in the editor!'
-  ],
-  recovering: [
-    'Welcome back into flow! Nicely resumed.',
-    'First edit burst detected. Resumption complete!',
-    'Flow re-established.'
-  ],
-  fatigued: [
-    '90 min of continuous work. Time for water & a stretch?',
-    'Attention fatigue rising. A 5 min break preserves tonight.',
-    'Yawwwwn... even Pip suggests a quick break.'
-  ],
-  second_screen_overlap: [
-    'Phone and laptop both busy? Pip noticed the dual-screen split.',
-    'Dual-screen hazard: attention divided between two surfaces.',
-    'Cross-device split detected.'
-  ]
-};
-
-const COOLDOWN_MS = 10 * 60 * 1000; // 10 min cooldown per Spec 12.5
-
-export function getPipMessage(
-  behavior: PipBehavior,
-  lastShownTs: number,
-  now: number = Date.now(),
-  force: boolean = false
-): { text: string; updatedTs: number } | null {
-  if (!force && lastShownTs > 0 && now - lastShownTs < COOLDOWN_MS) {
-    return null;
-  }
-  const messages = PIP_MESSAGES[behavior];
-  const text = messages[Math.floor(Math.random() * messages.length)];
-  return { text, updatedTs: now };
+import type {PetInputs} from './petInputBus';
+export type PipBehavior='deep_focus'|'held'|'drifting'|'distracted'|'recovering'|'fatigued'|'second_screen_overlap';
+export interface PetView {behavior:PipBehavior|null;availability:'no_data'|'stale'|'offline'|'unclassified'|'unknown'|'active';label:string;heldCount:number|null;calibration:'rule-based, not calibrated'}
+const calibration='rule-based, not calibrated' as const;
+/** Priority: no-data/stale/silent/uncertain local -> neutral; then fresh remote overlap,
+ * confirmed held count, fatigue, release/celebrate, distracted, drift/nudge; then
+ * fresh local flowing -> quiet working. Local stuck -> gentle pause cue only.
+ * No remote signal is synthesized from local categories. Missing remote means local-only.
+ * A remote connection becoming stale clears all remote behavioral claims.
+ */
+export function derivePetView(input:PetInputs,nowMs:number):PetView {
+ const base={behavior:null,heldCount:null,calibration} as const;
+ if(!input.local)return {...base,availability:'no_data',label:'No data yet'};
+ if(nowMs<input.local.ts||nowMs-input.local.ts>=15000)return {...base,availability:'stale',label:'Laptop data is stale'};
+ if(input.collector==='silent')return {...base,availability:'offline',label:'Collector offline'};
+ if(input.collector==='unknown')return {...base,availability:'unknown',label:'Collector status unavailable'};
+ if(input.local.laptopState==='offline')return {...base,availability:'unclassified',label:'Active but unclassified'};
+ const remote=input.remote&&input.remote.connected&&nowMs>=input.remote.ts&&nowMs-input.remote.ts<30000?input.remote:null;
+ const recentEvent=remote?.petEvent&&nowMs>=remote.petEvent.ts&&nowMs-remote.petEvent.ts<15000?remote.petEvent:null;
+ let behavior:PipBehavior|null=null;
+ if(remote?.secondScreenOverlap)behavior='second_screen_overlap';
+ else if(remote&&remote.heldCount>0)behavior='held';
+ else if(remote?.fatigueBand==='high')behavior='fatigued';
+ else if(recentEvent&&['released','celebrate'].includes(recentEvent.kind))behavior='recovering';
+ else if(remote?.focusState==='recovering')behavior='recovering';
+ else if(remote?.focusState==='distracted')behavior='distracted';
+ else if(remote?.focusState==='drifting'||recentEvent?.kind==='nudge')behavior='drifting';
+ else if(input.local.laptopState==='stuck')behavior='drifting';
+ else if(input.local.laptopState==='flowing')behavior='deep_focus';
+ return {behavior,heldCount:remote?remote.heldCount:null,availability:'active',label:input.local.laptopState==='flowing'?'Working (local rule)':input.local.laptopState.replace('_',' '),calibration};
 }
