@@ -8,20 +8,33 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * In-memory provider for the most recent [ContextSnapshot].
  *
- * Implements [SnapshotSource] interface so Stage 8 fusion can substitute
- * multi-device fused snapshots seamlessly.
+ * Implements [SnapshotSource] interface. Supports seamless delegation
+ * to the Stage 8 multi-device fused snapshot source (ContextFuser).
  */
 object LiveContextHolder : SnapshotSource {
-    private val _snapshot = MutableStateFlow<ContextSnapshot?>(null)
-    override val snapshot: StateFlow<ContextSnapshot?> = _snapshot.asStateFlow()
+    private val localSnapshot = MutableStateFlow<ContextSnapshot?>(null)
+    private var fusedSource: SnapshotSource? = null
 
-    override fun currentSnapshot(): ContextSnapshot? = _snapshot.value
+    override val snapshot: StateFlow<ContextSnapshot?>
+        get() = fusedSource?.snapshot ?: localSnapshot.asStateFlow()
+
+    override fun currentSnapshot(): ContextSnapshot? =
+        fusedSource?.currentSnapshot() ?: localSnapshot.value
+
+    fun attachFusedSource(source: SnapshotSource) {
+        fusedSource = source
+    }
+
+    fun detachFusedSource() {
+        fusedSource = null
+    }
 
     fun update(newSnapshot: ContextSnapshot?) {
-        _snapshot.value = newSnapshot
+        localSnapshot.value = newSnapshot
     }
 
     fun reset() {
-        _snapshot.value = null
+        localSnapshot.value = null
+        fusedSource = null
     }
 }

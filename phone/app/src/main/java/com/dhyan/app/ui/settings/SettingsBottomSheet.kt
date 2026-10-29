@@ -1,5 +1,6 @@
 package com.dhyan.app.ui.settings
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -49,6 +50,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dhyan.app.DhyanApplication
 import com.dhyan.app.actuator.digest.AndroidDigestPoster
 import com.dhyan.app.data.DhyanDatabase
 import com.dhyan.app.twin.decision.PolicyMode
@@ -56,7 +58,10 @@ import com.dhyan.app.ui.model.DhyanStateHolder
 import com.dhyan.app.ui.theme.BorderHighlight
 import com.dhyan.app.ui.theme.BorderSubtle
 import com.dhyan.app.ui.theme.DhyanPrimary
+import com.dhyan.app.ui.theme.StateDeepFocus
 import com.dhyan.app.ui.theme.StateDistracted
+import com.dhyan.app.ui.theme.StateDrifting
+import com.dhyan.app.ui.theme.StateWorking
 import com.dhyan.app.ui.theme.SurfaceBase
 import com.dhyan.app.ui.theme.SurfaceCard
 import com.dhyan.app.ui.theme.SurfaceElevated
@@ -75,11 +80,19 @@ fun SettingsBottomSheet(
     val context = LocalContext.current
     val db = remember(context) { DhyanDatabase.getInstance(context) }
     val digestPoster = remember(context) { AndroidDigestPoster(context) }
-    val viewModel = remember(db) {
+    val syncManager = remember {
+        try {
+            DhyanApplication.syncManager
+        } catch (_: Exception) {
+            null
+        }
+    }
+    val viewModel = remember(db, syncManager) {
         SettingsViewModel(
             vipDao = db.vipDao(),
             settingsDao = db.settingsDao(),
-            digestPoster = digestPoster
+            digestPoster = digestPoster,
+            syncManager = syncManager
         )
     }
     SettingsBottomSheet(viewModel = viewModel, onDismiss = onDismiss)
@@ -440,7 +453,12 @@ fun SettingsBottomSheet(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 4. Debug & Target Testing Tools
+            // 4. Cross-Device Sync & Laptop Companion (Milestone M3)
+            CrossDeviceSyncSection(viewModel = viewModel)
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 5. Debug & Target Testing Tools
             Text(
                 text = "DEBUG & GATE 2 TESTING TOOLS",
                 style = MaterialTheme.typography.labelMedium.copy(
@@ -488,6 +506,378 @@ fun SettingsBottomSheet(
             }
 
             Spacer(modifier = Modifier.height(30.dp))
+        }
+    }
+}
+
+@Composable
+fun CrossDeviceSyncSection(
+    viewModel: SettingsViewModel
+) {
+    val syncStatus by viewModel.syncStatus.collectAsState()
+    val relayUrlState by viewModel.relayUrl.collectAsState()
+    val hasStoredCredentials by viewModel.hasStoredCredentials.collectAsState()
+    val activeDeclaredSession by viewModel.activeDeclaredSession.collectAsState()
+    val recentCommands by viewModel.recentCommands.collectAsState()
+
+    var inputRelayUrl by remember(relayUrlState) { mutableStateOf(relayUrlState) }
+    var inputPairingCode by remember { mutableStateOf("") }
+    var showUnpairConfirmDialog by remember { mutableStateOf(false) }
+
+    if (showUnpairConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showUnpairConfirmDialog = false },
+            title = { Text("Confirm Unpair", fontWeight = FontWeight.Bold, color = TextPrimary) },
+            text = {
+                Text(
+                    "Are you sure you want to unpair from this laptop companion? Stored credentials and session keys will be cleared.",
+                    color = TextSecondary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.unpair()
+                        showUnpairConfirmDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = StateDistracted)
+                ) {
+                    Text("Unpair", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUnpairConfirmDialog = false }) {
+                    Text("Cancel", color = TextMuted)
+                }
+            },
+            containerColor = SurfaceCard
+        )
+    }
+
+    Text(
+        text = "CROSS-DEVICE SYNC & COMPANION",
+        style = MaterialTheme.typography.labelMedium.copy(
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.0.sp
+        ),
+        color = TextSecondary
+    )
+    Spacer(modifier = Modifier.height(8.dp))
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(SurfaceCard)
+            .border(1.dp, BorderSubtle, RoundedCornerShape(14.dp))
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        // Status indicator header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val (statusColor, statusTitle) = when (syncStatus) {
+                is SyncUiStatus.Connected -> StateDeepFocus to "CONNECTED"
+                is SyncUiStatus.Paired -> StateDeepFocus to "PAIRED"
+                is SyncUiStatus.Connecting, is SyncUiStatus.Joining, is SyncUiStatus.WaitingOffer -> StateDrifting to "CONNECTING"
+                is SyncUiStatus.SasVerification -> StateWorking to "VERIFY CODE"
+                is SyncUiStatus.Unsynced -> StateDrifting to "UNSYNCED (>15s)"
+                is SyncUiStatus.RelayDown -> StateDistracted to "RELAY DOWN"
+                is SyncUiStatus.WrongCode, is SyncUiStatus.Expired, is SyncUiStatus.Cancelled, is SyncUiStatus.Error -> StateDistracted to "PAIRING ERROR"
+                is SyncUiStatus.NotPaired -> TextMuted to "NOT PAIRED"
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(RoundedCornerShape(5.dp))
+                        .background(statusColor)
+                )
+                Text(
+                    text = statusTitle,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    ),
+                    color = statusColor
+                )
+            }
+
+            if (syncStatus is SyncUiStatus.Connected) {
+                Text(
+                    text = "seq ${(syncStatus as SyncUiStatus.Connected).peerLastSeq}",
+                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                    color = TextMuted
+                )
+            }
+        }
+
+        // Description
+        Text(
+            text = syncStatus.description(),
+            style = MaterialTheme.typography.bodySmall,
+            color = TextSecondary
+        )
+
+        // SAS Verification Section
+        if (syncStatus is SyncUiStatus.SasVerification) {
+            val rawSas = (syncStatus as SyncUiStatus.SasVerification).sasDigits
+            val formattedSas = if (rawSas.length == 6) {
+                "${rawSas.substring(0, 3)} ${rawSas.substring(3)}"
+            } else rawSas
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(SurfaceElevated)
+                    .border(1.dp, DhyanPrimary.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                    .padding(14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "CONFIRM 6-DIGIT CODE ON LAPTOP",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.0.sp
+                    ),
+                    color = DhyanPrimary
+                )
+
+                Text(
+                    text = formattedSas,
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        fontFamily = FontFamily.Monospace,
+                        letterSpacing = 4.0.sp
+                    ),
+                    color = TextPrimary
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Button(
+                        onClick = { viewModel.rejectSas() },
+                        colors = ButtonDefaults.buttonColors(containerColor = StateDistracted.copy(alpha = 0.2f)),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f),
+                        border = BorderStroke(1.dp, StateDistracted)
+                    ) {
+                        Text("Reject (Mismatch)", color = StateDistracted, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+
+                    Button(
+                        onClick = { viewModel.confirmSas() },
+                        colors = ButtonDefaults.buttonColors(containerColor = StateDeepFocus),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Confirm (Match)", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+
+        // Pairing Input Controls (if not paired and not in an active pairing session)
+        val isPairingActive = syncStatus is SyncUiStatus.Joining ||
+                syncStatus is SyncUiStatus.WaitingOffer ||
+                syncStatus is SyncUiStatus.SasVerification ||
+                syncStatus is SyncUiStatus.Paired ||
+                syncStatus is SyncUiStatus.Connecting ||
+                syncStatus is SyncUiStatus.Connected ||
+                syncStatus is SyncUiStatus.Unsynced
+
+        if (!hasStoredCredentials && !isPairingActive) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = inputRelayUrl,
+                    onValueChange = { inputRelayUrl = it },
+                    label = { Text("Relay WebSocket URL", color = TextMuted) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = DhyanPrimary,
+                        unfocusedBorderColor = BorderSubtle
+                    )
+                )
+
+                OutlinedTextField(
+                    value = inputPairingCode,
+                    onValueChange = { if (it.length <= 6) inputPairingCode = it.uppercase() },
+                    label = { Text("6-Char Pairing Code (e.g. ABC123)", color = TextMuted) },
+                    placeholder = { Text("From Laptop screen", color = TextMuted) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = DhyanPrimary,
+                        unfocusedBorderColor = BorderSubtle
+                    )
+                )
+
+                Button(
+                    onClick = {
+                        viewModel.startPairing(inputPairingCode.trim(), inputRelayUrl.trim())
+                    },
+                    enabled = inputPairingCode.length == 6,
+                    colors = ButtonDefaults.buttonColors(containerColor = DhyanPrimary),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Pair with Laptop", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            }
+        } else if (hasStoredCredentials) {
+            // Already Paired Controls
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Paired Companion",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = relayUrlState,
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                        color = TextMuted
+                    )
+                }
+
+                Button(
+                    onClick = { showUnpairConfirmDialog = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = StateDistracted.copy(alpha = 0.2f)),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, StateDistracted.copy(alpha = 0.5f))
+                ) {
+                    Text("Unpair", color = StateDistracted, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+            }
+        }
+
+        // Remote Declared Session Card
+        activeDeclaredSession?.let { session ->
+            val nowMs = System.currentTimeMillis()
+            val elapsedMin = (nowMs - session.startedTs) / 60000.0
+            val remainingMin = maxOf(0, (session.plannedMin - elapsedMin).toInt())
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(SurfaceElevated)
+                    .border(1.dp, StateDeepFocus.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "REMOTE DECLARED FOCUS SESSION",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = StateDeepFocus
+                    )
+                    if (session.strict) {
+                        Text(
+                            text = "STRICT",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = StateDistracted
+                        )
+                    }
+                }
+                Text(
+                    text = "Task: ${session.task.wire.uppercase()} • Planned: ${session.plannedMin.toInt()}m • Remaining: ${remainingMin}m",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextPrimary
+                )
+            }
+        }
+
+        // Recent Remote Commands
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = "RECENT REMOTE COMMANDS",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.8.sp
+                ),
+                color = TextSecondary
+            )
+
+            if (recentCommands.isEmpty()) {
+                Text(
+                    text = "No remote commands received yet.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextMuted
+                )
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    recentCommands.take(5).forEach { cmd ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(SurfaceElevated)
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = cmd.action,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace
+                                    ),
+                                    color = TextPrimary
+                                )
+                                Text(
+                                    text = "id: ${cmd.cmdId.take(8)}...",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontSize = 10.sp,
+                                        fontFamily = FontFamily.Monospace
+                                    ),
+                                    color = TextMuted
+                                )
+                            }
+
+                            val statusColor = when (cmd.status) {
+                                "executed" -> StateDeepFocus
+                                "expired" -> StateDrifting
+                                "duplicate" -> TextMuted
+                                else -> StateDistracted
+                            }
+
+                            Text(
+                                text = cmd.status.uppercase(),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                ),
+                                color = statusColor
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -3,12 +3,15 @@ package com.dhyan.app
 import android.app.Application
 import com.dhyan.app.actuator.ActuationCoordinator
 import com.dhyan.app.actuator.AndroidNotificationGateway
+import com.dhyan.app.actuator.KillSwitchController
+import com.dhyan.app.actuator.PhoneControlImpl
 import com.dhyan.app.actuator.RoomHeldStore
 import com.dhyan.app.actuator.release.WorkManagerReleaseJobScheduler
 import com.dhyan.app.collectors.NotifCollector
 import com.dhyan.app.data.DhyanDatabase
 import com.dhyan.app.data.RoomDecisionLogStore
 import com.dhyan.app.data.RoomParamPersistence
+import com.dhyan.app.sync.SyncManager
 import com.dhyan.app.twin.decision.DecisionPipeline
 import com.dhyan.app.twin.decision.ImportanceModel
 import com.dhyan.app.twin.decision.ModelImportanceProvider
@@ -21,6 +24,11 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 
 class DhyanApplication : Application() {
+
+    companion object {
+        lateinit var syncManager: SyncManager
+            private set
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -50,6 +58,15 @@ class DhyanApplication : Application() {
         NotifCollector.decisionLogStore = decisionLogStore
         NotifCollector.coordinator = coordinator
         NotifCollector.importanceProvider = importanceProvider
+
+        val phoneControl = PhoneControlImpl(
+            heldStore = heldStore,
+            killSwitchController = KillSwitchController(heldStore, releaseScheduler)
+        )
+        syncManager = SyncManager(
+            db = db,
+            phoneControl = phoneControl
+        )
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
