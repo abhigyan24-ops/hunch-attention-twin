@@ -82,10 +82,9 @@ class KeystoreKeyWrapper(
      * Returns Base64 encoded string: 12-byte IV || CiphertextWithTag.
      */
     fun wrap(plaintext: ByteArray): String {
-        val iv = ByteArray(12)
-        secureRandom.nextBytes(iv)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, getSecretKey(), GCMParameterSpec(128, iv))
+        cipher.init(Cipher.ENCRYPT_MODE, getSecretKey())
+        val iv = cipher.iv ?: ByteArray(12).also { secureRandom.nextBytes(it) }
         val ciphertext = cipher.doFinal(plaintext)
 
         val combined = ByteBuffer.allocate(iv.size + ciphertext.size)

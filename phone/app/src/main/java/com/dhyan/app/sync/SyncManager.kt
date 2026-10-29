@@ -72,7 +72,21 @@ class SyncManager(
     private var dataEngine: SyncDataEngine? = null
     private var commandDispatcher: SyncCommandDispatcher? = null
 
-    private val _relayUrl = MutableStateFlow("ws://10.0.2.2:8080/ws")
+    companion object {
+        val DEFAULT_RELAY_URL: String = run {
+            val fp = runCatching { android.os.Build.FINGERPRINT }.getOrNull()
+            val hw = runCatching { android.os.Build.HARDWARE }.getOrNull()
+            if (fp != null && (fp.contains("generic") || hw?.contains("goldfish") == true || hw?.contains("ranchu") == true)) {
+                "ws://10.0.2.2:8080/ws"
+            } else if (fp != null) {
+                "ws://127.0.0.1:8080/ws"
+            } else {
+                "ws://10.0.2.2:8080/ws"
+            }
+        }
+    }
+
+    private val _relayUrl = MutableStateFlow(DEFAULT_RELAY_URL)
     val relayUrl: StateFlow<String> = _relayUrl.asStateFlow()
 
     private val _hasStoredCredentials = MutableStateFlow(false)

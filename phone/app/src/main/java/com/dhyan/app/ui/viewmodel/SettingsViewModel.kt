@@ -50,7 +50,7 @@ class SettingsViewModel(
         ?: MutableStateFlow(SyncUiStatus.NotPaired)
 
     val relayUrl: StateFlow<String> = syncManager?.relayUrl
-        ?: MutableStateFlow("ws://10.0.2.2:8080/ws")
+        ?: MutableStateFlow(SyncManager.DEFAULT_RELAY_URL)
 
     val hasStoredCredentials: StateFlow<Boolean> = syncManager?.hasStoredCredentials
         ?: MutableStateFlow(false)
