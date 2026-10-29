@@ -554,5 +554,24 @@ Consider enabling configuration cache to speed up this build: https://docs.gradl
      - Foreground service channel `dhyan_service` (importance 2) registered.
      - Digest batch channel `dhyan_digest` (importance 2) registered.
 
+7. **Gate 2 POLICY MODE: LIVE On-Device Hardware Verification (2026-10-30):**
+   - **Target Device:** Oppo Reno 14 (`CPH2737`, Android 16 / API 36, Device ID: `GAZ9KV9DLN6DIZGE`).
+   - **Commit:** `d06addb`
+   - **Policy Mode:** Switched from `DRY_RUN` to `POLICY MODE: LIVE` via `SettingsBottomSheet` modal with human confirmation dialog (`Confirm LIVE Policy Mode` -> `Enable LIVE`).
+   - **Live Actuation Evidence:**
+     - `LiveDigestTab` banner rendered: `POLICY MODE: LIVE · Active actuation enabled on allowlisted applications.`
+     - Physical notification hold executed on target hardware:
+       - `DIGEST HELD · Reason: cost_selected · key: 4c4070e58d7e... · ΔL: 2.3m [estimated] · p(show): 1.00`
+       - `DIGEST HELD · Reason: cost_selected · key: 2998a06f9b92... · ΔL: 2.8m [estimated] · p(show): 1.00`
+     - Digest queue populated with held cards, individual `Show Now` buttons (`bounds="[138,1195][279,1232]"`), `Important` feedback (`bounds="[606,1195][729,1232]"`), and `Noise` feedback (`bounds="[871,1195][942,1232]"`).
+     - Individual `Show Now` release executed on device screen at `(208, 1213)`.
+     - Emergency Kill Switch actuation verified in LIVE mode:
+       - Toggled at `(926, 1145)` in settings sheet.
+       - Verified high-visibility red banner: `KILL SWITCH ENGAGED · All holds released. Actuation halted unconditionally.`
+       - All held items immediately released from queue: `DIGEST QUEUE: 0 held · Digest Queue Clear`.
+       - Live decision feed unconditionally failed open: `ALLOW · Reason: kill_switch · key: 6d68308abd08...`
+       - Resumed via on-screen `Resume` button at `(897, 385)`, dismissing red alert and restoring `POLICY MODE: LIVE`.
+   - **Gate 2 Result in LIVE Mode:** **PASS (Fully verified on target Reno 14 hardware).**
+
 
 
