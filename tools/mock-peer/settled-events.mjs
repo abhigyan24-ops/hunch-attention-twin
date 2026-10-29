@@ -5,7 +5,13 @@ const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** Mock reference only: atomic settlement ledger. Never persist rejected payloads. */
 export class DurableEventLedger {
  constructor(options,state={records:[],upToSeq:0}){this.options=options;this.state=state;this.queue=Promise.resolve();}
- static async open(options){let state;try{state=JSON.parse(await fs.readFile(options.file,'utf8'));if(!Array.isArray(state.records)||!Number.isSafeInteger(state.upToSeq))throw Error();}catch(error){if(error.code!=='ENOENT')throw Error('ledger_recovery_failed');}return new DurableEventLedger(options,state);}
+ static async open(options){let state;try{state=JSON.parse(await fs.readFile(options.file,'utf8'));if(!state||Object.keys(state).some(k=>!['records','upToSeq'].includes(k))||!Array.isArray(state.records)||state.records.length>(options.maxRecords??50000)||!Number.isSafeInteger(state.upToSeq)||state.upToSeq<0)throw Error();
+const seen=new Set();let highest=0;
+for(const record of state.records){if(!record||!['event','rejected'].includes(record.kind)||record.device!==options.device||record.deviceId!==options.deviceId||!Number.isSafeInteger(record.seq)||record.seq<0||!uuid.test(record.id)||seen.has(record.seq))throw Error();seen.add(record.seq);highest=Math.max(highest,record.seq);
+const keys=record.kind==='event'?['kind','deviceId','device','seq','id','event']:['kind','deviceId','device','seq','id','reason'];if(Object.keys(record).some(k=>!keys.includes(k)))throw Error();
+if(record.kind==='event'){if(!validateEvent(record.event).valid||record.event.id!==record.id||record.event.seq!==record.seq||record.event.deviceId!==record.deviceId||record.event.device!==record.device)throw Error();}
+else if(!['duplicate','schema_invalid','future_timestamp'].includes(record.reason))throw Error();}
+if(state.upToSeq!==highest)throw Error();}catch(error){if(error.code!=='ENOENT')throw Error('ledger_recovery_failed');}return new DurableEventLedger(options,state);}
  get upToSeq(){return this.state.upToSeq;}
  get records(){return structuredClone(this.state.records);}
  settle(body){const operation=this.queue.then(()=>this.apply(body));this.queue=operation.catch(()=>{});return operation;}

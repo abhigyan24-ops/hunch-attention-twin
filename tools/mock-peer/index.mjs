@@ -53,6 +53,11 @@ export class MockPeer {
     this.receivedPlaintexts = [];
     this.rejections = new Map(); // reason -> count
     this.onMessageCallback = null;
+    this.commandLedger=options.commandLedger??null;
+    this.commandHandler=options.onCommand??(async()=>false);
+    this.nowFn=options.nowFn??Date.now;
+    this.offsetToReceiver=options.offsetToReceiver??0;
+    this.tagFailures=[];
   }
 
   logRejection(reason) {
@@ -61,7 +66,8 @@ export class MockPeer {
   }
 
   // --- Pairing Flow ---
-  async pair({ code, attack = null } = {}) {
+  async pair({ code, attack = null, timeoutMs = 300000 } = {}) {
+    this.laptopCommit=null;
     if(this.role==='laptop'){this.keyPair=generateP256KeyPair();this.nonce=crypto.randomBytes(16);}
 
     const roomId = getRendezvousRoomId(code);
@@ -69,6 +75,8 @@ export class MockPeer {
 
     return new Promise((resolve, reject) => {
       this.ws = new WebSocket(wsUrl);
+      const timer=setTimeout(()=>{reject(Error('pair_timeout'));this.ws.close(1008,'pair_timeout');},timeoutMs);timer.unref();
+      this.ws.once('close',()=>{clearTimeout(timer);reject(Error('pair_closed'));});
 
       this.ws.on('open', () => {
         this.connected = true;
@@ -88,7 +96,10 @@ export class MockPeer {
       });
 
       this.ws.on('message', (data) => {
+        try {
         const frame = JSON.parse(data.toString('utf8'));
+        if(!validateFrame(frame).valid)throw Error('pair_invalid');
+        if(frame.t==='pair_cancel'){reject(Error('pair_cancelled'));this.ws.close(1008,'pair_cancelled');return;}
         this.receivedMessages.push(frame);
 
         if (this.role === 'phone') {
@@ -146,7 +157,7 @@ export class MockPeer {
             const { PK, sid } = derivePairingKeyAndRoom(this.secret, this.transcript);
             this.pairingKey = PK;
             this.sessionId = sid;
-            resolve({ PK, sid, sas: this.sas });
+            clearTimeout(timer); resolve({ PK, sid, sas: this.sas });
           }
         } else if (this.role === 'laptop') {
           if (frame.t === 'pair_join') {
@@ -196,12 +207,13 @@ export class MockPeer {
             const { PK, sid } = derivePairingKeyAndRoom(this.secret, this.transcript);
             this.pairingKey = PK;
             this.sessionId = sid;
-            resolve({ PK, sid, sas: this.sas });
+            clearTimeout(timer); resolve({ PK, sid, sas: this.sas });
           }
         }
+        }catch{this.logRejection('pair_invalid');reject(Error('pair_invalid'));this.ws.close(1008,'pair_invalid');}
       });
 
-      this.ws.on('error', (err) => reject(err));
+      this.ws.on('error',()=>{clearTimeout(timer);reject(Error('connection_failed'));});
     });
   }
 
@@ -295,6 +307,8 @@ export class MockPeer {
       plaintextBuf = decryptFramePayload(decryptKey, frame.t, frame.d, frame.ctr, frame.c);
     } catch (err) {
       this.logRejection('tag_failed');
+      const now=this.nowFn();this.tagFailures=this.tagFailures.filter(ts=>now-ts<60000);this.tagFailures.push(now);
+      if(this.tagFailures.length>=3)this.ws?.close(1008,'tag_failures');
       return;
     }
 
@@ -306,6 +320,16 @@ export class MockPeer {
       if(!validatePlaintextEnvelope(plaintext).valid)throw Error('schema_invalid');
       if(frame.t==='events'){if(!this.eventLedger){this.logRejection('persistence_unavailable');return;}let settled;try{settled=await this.eventLedger.settle(plaintext.b);}catch(error){this.logRejection(['schema_mismatch','persistence_failure','identity_conflict','invalid_identity','invalid_sequence','late_unsettled_sequence','ledger_full'].includes(error.message)?error.message:'schema_invalid');return;}this.lastSeqAcked=settled.upToSeq;this.sendFrame('ack',{upToSeq:settled.upToSeq});plaintext={...plaintext,b:{fromSeq:plaintext.b.fromSeq,events:settled.applied}};}
       if(frame.t!=='events'&&!validateBody(frame.t,plaintext.b).valid)throw Error('schema_invalid');
+      if(frame.t==='command'){
+        const command=plaintext.b,now=this.nowFn();let result;
+        if((command.cmd==='show_now'&&this.role!=='phone')||(command.cmd==='kill_switch'&&command.args.on===false&&this.role==='phone'))result={status:'rejected',reason:'unauthorized'};
+        else if(command.exp-command.issuedTs>60000||command.exp<command.issuedTs||command.issuedTs+this.offsetToReceiver>now)result={status:'rejected',reason:'invalid_expiry'};
+        else if(command.exp+this.offsetToReceiver<=now)result={status:'expired'};
+        else if(!this.commandLedger)result={status:'rejected',reason:'persistence_unavailable'};
+        else try{result=await this.commandLedger.execute(command,now,this.commandHandler);}catch{result={status:'rejected',reason:'persistence_failure'};}
+        this.sendFrame('cmd_ack',{cmdId:command.cmdId,...result});
+        if(result.status!=='applied'){this.logRejection(result.reason??result.status);return;}
+      }
       this.receivedPlaintexts.push({ type: frame.t, plaintext });
       if (this.onMessageCallback) {
         this.onMessageCallback(frame.t, plaintext);
