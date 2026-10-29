@@ -60,3 +60,6 @@ Remove-Item Env:DHYAN_DEV_PET
 Tray -> DEV ONLY: simulate presentation -> each of deep_focus, held, drifting, distracted, recovering, fatigued, second_screen_overlap. Both views must show DEV SIMULATION, and observed totals stay no-data. Select Use real pipeline to return. This menu is absent in packaged builds and when the environment flag is unset. Simulated presentation does not call injectFeedEvent, change inference parameters, persist events or act on notifications. Remote behavior tests use synthetic inputs only; no real phone connection is claimed. Each bubble type is limited to once per10minutes, including repeated clicks; reduced-motion preference disables animation.
 
 Send only which checks passed/failed and controlled UI wording. Do not send JSONL, unrelated window titles or notification content. 7C/8L, real pairing and phone-held actions remain pending.
+
+## CX-1 update after W3
+The label-once form now lets the owner choose any canonical category for a process basename. Communication apps are not work until explicitly labelled coding/docs/learning. A label takes effect after a window change (existing7A semantics); switch away and back to exercise it. Game paths remain rejected. Automated suites now validate1.1.0 fixtures; manual desktop checks above are still pending.

@@ -5,4 +5,4 @@ test('Code.exe and code.exe map to coding',()=>{assert.equal(categorizeProcess('
 test('unknown processes map to unknown',()=>assert.equal(categorizeProcess('unmapped.exe'),'unknown'));
 test('github.com maps to coding',()=>assert.equal(categorizeDomain('github.com'),'coding'));
 test('unknown domains map to unknown',()=>assert.equal(categorizeDomain('invalid.example'),'unknown'));
-test('canonical SCHEMA_VERSION is 1.0.0',()=>assert.equal(fs.readFileSync(new URL('../../core-spec/SCHEMA_VERSION',import.meta.url),'utf8').trim(),'1.0.0'));
+test('canonical SCHEMA_VERSION is 1.1.0',()=>assert.equal(fs.readFileSync(new URL('../../core-spec/SCHEMA_VERSION',import.meta.url),'utf8').trim(),'1.1.0'));

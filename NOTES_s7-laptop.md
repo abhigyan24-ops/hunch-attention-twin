@@ -165,3 +165,24 @@ Stop after7B for review.7C and8L are not started here;7C still needs approved co
 Rebased onto signed main7558bfc as requested. Fresh npm run check:s7 passed typecheck/build,39tests/39pass/0fail/duration_ms2650.886 and3privacytests/3pass/0fail/duration_ms700.6448; rootchecksPASS(schema1.0.0,96twinfiles,313productionfiles). Full stdout laptop/VERIFICATION_CX0.txt. Existing7B implementation retained; untracked t untouched. Main's F1 merge is owner-controlled, not a claim the earlier review findings were fixed. No GUI/hardware claim.
 
 CX-2 contract dependency cb2346a now provides approved schema1.1.0. Stack the laptop branch on that reviewed local dependency for combined validation; this does not merge either branch to main. Owner can review/merge contracts first, then laptop, as the runbook requires. Update only laptop test fixture version literals for the new schema; do not change7A inference semantics.
+
+# CX-1 / 7B revalidation on W3 1.1.0 — 2026-10-29
+
+Completed CX-0 first against main7558bfc, then stacked s7-laptop onto contracts cb2346a for combined1.1.0 validation. This is a local dependency stack, not a main merge. Owner review/merge order remains contracts then s7-laptop. Rebased existing7B is66fdbb4, not discarded or rebuilt as another competing UI.
+
+7B feature inventory: separate transparent/non-focusing Pip and normal panel; trusted minimal preload; click-through forward:true and hitbox hover wiring; pure seven-behavior selector with neutral no-data; per-type10min cooldown; typed local/remote PetInputBus; observed-only daily JSONL intervals (no category shortcut); canonical local declarations; tray Declare/Open/Pause/Quit; Not paired/Not connected/stale/pending what-if/extensions; dev-only clearly labelled presentation simulation; original SVG/CSS credits/reduced-motion. Existing manual7B checklist remains the target acceptance path.
+
+Changed only versioned laptop test inputs to1.1.0 and exposed the existing generic label-once store through a category selector. DD-11 communication remains unclassified until an explicit work-category label; known-list/user-label games remain path-free. Added a regression for both. No changes to7A LaptopPipeline/laptopCore/focusState/normalizer/adapters/store semantics. No inference threshold or probability invented. DD-9 permits optional wire adapterHealthy, but does not magically supply missing current-health producer data: R7B-1/R7B-2 remain documented requests for read-only diagnostic/persisted snapshot evidence. UI still shows Collector status unavailable or No data rather than invent evidence. Rule confidence stays rule-based, not calibrated.
+
+Real commands this session on the combined1.1.0 tree:
+- npm run typecheck --prefix laptop: exit0.
+- npm run build --prefix laptop: exit0; main64.59kB/preload0.69kB/renderer653.73kB.
+- npm run check:s7 --prefix laptop: exit0; tests40/pass40/fail0/duration_ms2106.9132; privacytests3/pass3/fail0/duration_ms724.2159. Exactstdout laptop/VERIFICATION_CX1.txt.
+- npm ci --ignore-scripts --offline at root: added7packages/audited8/0vulnerabilities; no manifest or lock changes.
+- npm test at root: tests110/pass110/fail0/duration_ms3457.3861. Exactstdout laptop/VERIFICATION_CX1_ROOT.txt.
+- npm run checks: schema-syncPASS1.1.0(1Kotlinversionfile); twin-purityPASS96; no-persona-importsPASS315.
+- laptop/node_modules .node scan: Count0.
+
+CX-2 root results on its branch:110root tests passed,52contract tests passed, schema1.1.0checkgreen; fullstdout and fixed-vectorhash in NOTES_contracts.md. See docs/contracts/ANTIGRAVITY_W3_HANDOFF.md for the version-only phone changes and migration/settlement coordination. No direct Antigravity chat delivery is claimed because no connected channel exists.
+
+No Electron GUI/Windows click-through/animations/tray, liveAW, phoneGradle/Kotlinvectors, device, cloudWSS or Gate2 was run during CX-0/CX-2/CX-1. These remain **not verified on target**. Electron binary presence is not a GUI pass. The existing untracked t remains untouched. No phone runtime/migration work,7C,8L, main merge or push. Ready for owner branch review; today's focus-history metric intentionally remains no-data with current7A observations until the recorded API request is addressed.
