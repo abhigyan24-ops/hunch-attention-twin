@@ -18,6 +18,14 @@ import com.dhyan.app.sync.command.SyncCommandDispatcher
 import com.dhyan.app.sync.crypto.KeystoreKeyWrapper
 import com.dhyan.app.sync.data.InboundEventListener
 import com.dhyan.app.sync.data.SyncDataEngine
+import com.dhyan.app.sync.data.PhoneEventStore
+import com.dhyan.app.sync.data.WireSchemas
+import com.dhyan.app.ingest.ClockOffset
+import androidx.room.withTransaction
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import com.dhyan.app.sync.pairing.OkHttpRendezvousTransport
 import com.dhyan.app.sync.pairing.PairingController
 import com.dhyan.app.sync.pairing.PairingState
@@ -74,6 +82,19 @@ class SyncManager(
     private var dataEngine: SyncDataEngine? = null
     private var commandDispatcher: SyncCommandDispatcher? = null
     private var eventStreamAdapter: EventStreamAdapter? = null
+    private val eventStore = PhoneEventStore(db)
+    private val initializationMutex = Mutex()
+    private var outgoingAck = 0L
+    private var highestSent = 0L
+    private var initializedSid: String? = null
+    val storagePaused = MutableStateFlow(false)
+
+    fun recordLocalEvent(type: String, source: String, payload: Map<String, Any?>, ts: Long) {
+        scope.launch {
+            runCatching { eventStore.append(type, source, payload, ts) }
+                .onFailure { storagePaused.value = true }
+        }
+    }
 
     fun attachEventStreamAdapter(adapter: EventStreamAdapter) {
         this.eventStreamAdapter = adapter
@@ -139,7 +160,12 @@ class SyncManager(
 
     init {
         // Wire LiveContextHolder to delegate directly to this ContextFuser
-        LiveContextHolder.attachFusedSource(contextFuser)
+        LiveContextHolder.attachFusedSource(contextFuser) { snapshot ->
+            contextFuser.updatePhoneState(snapshot.phoneState, taskType = snapshot.taskType,
+                declaredSession = snapshot.declaredSession, hourBand = snapshot.hourBand,
+                fatigueBand = snapshot.fatigueBand, recentInterrupts30m = snapshot.recentInterrupts30m,
+                baseConfidence = snapshot.confidence)
+        }
 
         // Observe stored credentials and auto-connect
         scope.launch {
@@ -189,12 +215,15 @@ class SyncManager(
         }
     }
 
-    private fun initializeSession(pk: ByteArray, sidHex: String, url: String) {
+    private suspend fun initializeSession(pk: ByteArray, sidHex: String, url: String) = initializationMutex.withLock {
+        if (initializedSid == sidHex && relayClient != null) return@withLock
         val isUserBuild = runCatching { android.os.Build.TYPE == "user" }.getOrDefault(false)
         if (isUserBuild && url.startsWith("ws://", ignoreCase = true)) {
             throw IllegalArgumentException("Cleartext WebSocket is prohibited in release builds. Use wss://")
         }
         relayClient?.disconnect()
+        initializedSid = sidHex
+        val deviceId = eventStore.deviceId()
         mirrorJobs.forEach { it.cancel() }
         mirrorJobs.clear()
 
@@ -211,38 +240,72 @@ class SyncManager(
         val engine = SyncDataEngine(
             eventDao = eventDao,
             relayClient = client,
+            localDeviceId = deviceId,
+            settingsDao = settingsDao,
+            transaction = { block -> db.withTransaction { block() } },
             inboundEventListener = InboundEventListener { type, ts, payload ->
                 eventStreamAdapter?.processEvent(type, ts, payload)
             }
         )
         dataEngine = engine
+        engine.restore()
 
         val dispatcher = SyncCommandDispatcher(
             phoneControl = phoneControl,
             cmdLogDao = cmdLogDao,
             relayClient = client,
             heldItemsView = heldItemsView
+            , transaction = { block -> db.withTransaction { block() } }
         )
         commandDispatcher = dispatcher
 
         // Track session state
-        scope.launch {
+        mirrorJobs.add(scope.launch {
             client.state.collect { sState ->
                 sessionStateFlow.value = sState
                 val isConnected = sState is SessionState.Connected
                 contextFuser.updateRelayConnectivity(isConnected)
 
                 if (isConnected) {
+                    outgoingAck = (sState as SessionState.Connected).peerLastSeqAcked
+                    highestSent = outgoingAck
                     // Outbound mirror on connect
                     dispatcher.sendHeldList()
                 }
             }
-        }
+        })
+        client.onPongReceived = { t0, t1, t2, t3 -> ClockOffset.recordSample(t0, t1, t2, t3) }
+        mirrorJobs.add(scope.launch {
+            var ticks = 0L
+            var peerSilent = false
+            while (isActive) {
+                delay(1_000L)
+                contextFuser.recompute()
+                if (client.state.value !is SessionState.Connected) continue
+                ticks++
+                try {
+                    if (ticks % 2L == 0L) {
+                        if (engine.exportOutboundBatch(outgoingAck)) highestSent = maxOf(highestSent, engine.lastExportedSeq)
+                    }
+                    if (ticks % 5L == 0L) contextFuser.currentSnapshot()?.let {
+                        engine.sendStateSnapshot(it, heldItemsView.currentHeldItems().size)
+                    }
+                    if (ticks % 30L == 0L) client.sendPing()
+                    val silent = System.currentTimeMillis() - client.lastPeerFrameMs > 30_000L
+                    if (silent && !peerSilent) eventStore.append("gap", "system",
+                        mapOf("deviceFrom" to "laptop", "deviceTo" to "phone", "reason" to "peer_silent"), System.currentTimeMillis())
+                    peerSilent = silent
+                    storagePaused.value = false
+                } catch (_: Exception) { storagePaused.value = true }
+            }
+        })
 
         // Handle incoming encrypted messages
         client.onMessageReceived = { type, bodyJson, _, _ ->
             scope.launch {
-                handleIncomingSessionMessage(type, bodyJson)
+                try { handleIncomingSessionMessage(type, bodyJson) }
+                catch (_: IllegalArgumentException) { client.sendEncrypted("error", """{"code":"schema_invalid"}""") }
+                catch (_: Exception) { storagePaused.value = true }
             }
         }
 
@@ -272,6 +335,7 @@ class SyncManager(
                 } else null
 
                 _activeDeclaredSession.value = declaredSession
+                contextFuser.adapterHealthy = parsed["adapterHealthy"] as? Boolean
                 contextFuser.updateLaptopState(lState, declaredSession)
             }
 
@@ -284,6 +348,12 @@ class SyncManager(
 
             "command" -> {
                 commandDispatcher?.handleInboundCommand(bodyJson)
+            }
+            "ack" -> {
+                val parsed = JsonReader.parse(bodyJson) as? Map<*, *> ?: return
+                val ack = SyncDataEngine.integer(parsed["upToSeq"]) ?: return
+                require(ack in outgoingAck..highestSent) { "invalid_ack" }
+                outgoingAck = ack
             }
         }
     }
@@ -336,12 +406,14 @@ class SyncManager(
             pairingController.unpair()
             relayClient?.disconnect()
             relayClient = null
+            initializedSid = null
             dataEngine = null
             commandDispatcher = null
             mirrorJobs.forEach { it.cancel() }
             mirrorJobs.clear()
             settingsDao.delete(PairingController.KEY_PAIRING_PK)
             settingsDao.delete(PairingController.KEY_SESSION_ROOM_ID)
+            settingsDao.delete("sync_peer_device_id")
             _hasStoredCredentials.value = false
             sessionStateFlow.value = SessionState.Disconnected
             contextFuser.reset()

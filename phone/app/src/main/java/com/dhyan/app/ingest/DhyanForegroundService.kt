@@ -48,7 +48,13 @@ class DhyanForegroundService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        startForeground(NOTIF_ID, buildForegroundNotification())
+        if (Build.VERSION.SDK_INT >= 34) {
+            startForeground(NOTIF_ID, buildForegroundNotification(), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        } else if (Build.VERSION.SDK_INT >= 29) {
+            startForeground(NOTIF_ID, buildForegroundNotification(), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_NONE)
+        } else {
+            startForeground(NOTIF_ID, buildForegroundNotification())
+        }
 
         // Start usage poller
         usageCollector = UsageCollector(this)
@@ -92,6 +98,8 @@ class DhyanForegroundService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    override fun onTimeout(startId: Int, fgsType: Int) { stopSelf() }
+
     // ── Event stubs — Stage 4 replaces these with real Room writes ─────────
 
     private fun onUsageWindow(appCat: String, surface: String, durationMin: Double, ts: Long) {
@@ -104,6 +112,9 @@ class DhyanForegroundService : Service() {
     }
 
     private fun onScreenEvent(kind: String, ts: Long) {
+        if (kind in setOf("screen_on", "screen_off", "pickup", "unlock")) {
+            com.dhyan.app.DhyanApplication.syncManager.recordLocalEvent(kind, "screen", emptyMap(), ts)
+        }
         EpisodeRuntime.instance?.let { runtime ->
             when (kind) {
                 "screen_off" -> runtime.onScreenOff(ts)

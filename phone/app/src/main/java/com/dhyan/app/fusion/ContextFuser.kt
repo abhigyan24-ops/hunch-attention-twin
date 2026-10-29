@@ -35,7 +35,21 @@ class ContextFuser(
     private val _snapshot = MutableStateFlow<ContextSnapshot?>(null)
     override val snapshot: StateFlow<ContextSnapshot?> = _snapshot.asStateFlow()
 
-    override fun currentSnapshot(): ContextSnapshot? = _snapshot.value
+    @Synchronized override fun currentSnapshot(): ContextSnapshot? {
+        if (_snapshot.value != null) recompute()
+        return _snapshot.value
+    }
+    @Volatile var adapterHealthy: Boolean? = null
+
+    fun laptopAvailability(): String = when {
+        laptopLastReceivedMs == 0L -> "No laptop data"
+        !isRelayConnected -> "Relay offline"
+        isLaptopStale() -> "Laptop data is stale"
+        remoteLaptopState == LaptopState.OFFLINE && adapterHealthy == true -> "Active but unclassified"
+        remoteLaptopState == LaptopState.OFFLINE && adapterHealthy == false -> "Collector offline"
+        remoteLaptopState == LaptopState.OFFLINE -> "Laptop activity unavailable"
+        else -> "Live companion"
+    }
 
     // State tracking
     private var lastFocusState: FocusState? = null
@@ -65,7 +79,7 @@ class ContextFuser(
     /**
      * Updates phone-side context telemetry.
      */
-    fun updatePhoneState(
+    @Synchronized fun updatePhoneState(
         phoneState: PhoneState,
         phoneAppCat: String? = null,
         taskType: TaskType = this.localTaskType,
@@ -89,7 +103,7 @@ class ContextFuser(
     /**
      * Ingests remote laptop state received from sync session.
      */
-    fun updateLaptopState(
+    @Synchronized fun updateLaptopState(
         state: LaptopState,
         declaredSession: DeclaredSession? = null,
         receivedAtMs: Long = timeProvider()
@@ -103,7 +117,7 @@ class ContextFuser(
     /**
      * Updates relay connection status.
      */
-    fun updateRelayConnectivity(connected: Boolean) {
+    @Synchronized fun updateRelayConnectivity(connected: Boolean) {
         this.isRelayConnected = connected
         recompute()
     }
@@ -111,16 +125,19 @@ class ContextFuser(
     /**
      * Recomputes the fused context snapshot and updates [snapshot] flow.
      */
-    fun recompute() {
+    @Synchronized fun recompute() {
         val nowMs = timeProvider()
         val isLaptopStale = laptopLastReceivedMs == 0L || (nowMs - laptopLastReceivedMs > config.laptopStaleMs)
-        val effectiveLaptopState = if (isLaptopStale) LaptopState.OFFLINE else remoteLaptopState
+        val effectiveLaptopState = if (isLaptopStale || !isRelayConnected || adapterHealthy == false) LaptopState.OFFLINE else remoteLaptopState
 
         // Overlap detection
         val overlap = detector.update(phoneState, effectiveLaptopState, isLaptopStale, nowMs)
 
         // Declared session resolution: remote laptop or phone
-        val effectiveDeclared = remoteDeclaredSession ?: phoneDeclaredSession
+        val validRemoteDeclared = remoteDeclaredSession?.takeIf {
+            !isLaptopStale && isRelayConnected && nowMs < it.startedTs + (it.plannedMin * 60_000).toLong()
+        }
+        val effectiveDeclared = validRemoteDeclared ?: phoneDeclaredSession
         val taskSource = if (effectiveDeclared != null) TaskSource.DECLARED else TaskSource.INFERRED
         val taskType = effectiveDeclared?.task ?: localTaskType
 
@@ -195,6 +212,7 @@ class ContextFuser(
         detector.reset()
         remoteLaptopState = LaptopState.OFFLINE
         remoteDeclaredSession = null
+        adapterHealthy = null
         laptopLastReceivedMs = 0L
         isRelayConnected = false
         lastFocusState = null

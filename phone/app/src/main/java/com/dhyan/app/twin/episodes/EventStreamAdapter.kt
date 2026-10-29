@@ -181,7 +181,8 @@ class EventStreamAdapter(
             }
             "gap" -> {
                 val reason = payload["reason"] as? String ?: "relay_down"
-                episodeBuilder.onServiceGap(reason, effectiveTs)
+                val local = payload["deviceFrom"] == "phone" && payload["deviceTo"] == "phone"
+                episodeBuilder.onServiceGap(if (local) reason else "relay_down", effectiveTs)
             }
         }
     }

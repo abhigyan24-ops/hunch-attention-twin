@@ -19,9 +19,16 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import com.dhyan.app.ingest.ClockOffset
+import org.junit.Before
 import org.junit.Test
 
 class SyncCommandDispatcherTest {
+
+    @Before
+    fun setUp() {
+        ClockOffset.reset()
+    }
 
     private class MockPhoneControl : PhoneControl {
         var killSwitchState: Boolean? = null
@@ -54,6 +61,7 @@ class SyncCommandDispatcherTest {
         val database = mutableListOf<CmdLogEntity>()
 
         override suspend fun insert(entry: CmdLogEntity) {
+            database.removeAll { it.cmdId == entry.cmdId }
             database.add(entry)
         }
 
@@ -95,7 +103,7 @@ class SyncCommandDispatcherTest {
         val client = TestableRelayClient()
         val dispatcher = SyncCommandDispatcher(phoneControl, dao, client, timeProvider = { 10_000L })
 
-        val cmdJson = """{"cmdId":"cmd-1","cmd":"kill_switch","args":{"on":true},"issuedTs":10000,"exp":20000}"""
+        val cmdJson = """{"cmdId":"00000000-0000-4000-8000-000000000001","cmd":"kill_switch","args":{"on":true},"issuedTs":10000,"exp":20000}"""
         val handled = dispatcher.handleInboundCommand(cmdJson)
         assertTrue(handled)
 
@@ -116,7 +124,7 @@ class SyncCommandDispatcherTest {
         val client = TestableRelayClient()
         val dispatcher = SyncCommandDispatcher(phoneControl, dao, client, timeProvider = { 10_000L })
 
-        val cmdJson = """{"cmdId":"cmd-2","cmd":"kill_switch","args":{"on":false},"issuedTs":10000,"exp":20000}"""
+        val cmdJson = """{"cmdId":"00000000-0000-4000-8000-000000000002","cmd":"kill_switch","args":{"on":false},"issuedTs":10000,"exp":20000}"""
         val handled = dispatcher.handleInboundCommand(cmdJson)
         assertTrue(handled)
 
@@ -143,14 +151,14 @@ class SyncCommandDispatcherTest {
         val dispatcher = SyncCommandDispatcher(phoneControl, dao, client, timeProvider = { 10_000L })
 
         // Valid show_now
-        val cmdValid = """{"cmdId":"cmd-3","cmd":"show_now","args":{"heldId":"held-valid"},"issuedTs":10000,"exp":20000}"""
+        val cmdValid = """{"cmdId":"00000000-0000-4000-8000-000000000003","cmd":"show_now","args":{"heldId":"held-valid"},"issuedTs":10000,"exp":20000}"""
         dispatcher.handleInboundCommand(cmdValid)
         assertEquals("held-valid", phoneControl.lastShowNowId)
         val ackValid = JsonReader.parse(client.sentFrames[0].second) as Map<*, *>
         assertEquals("applied", ackValid["status"])
 
         // Unknown show_now
-        val cmdInvalid = """{"cmdId":"cmd-4","cmd":"show_now","args":{"heldId":"held-unknown"},"issuedTs":10000,"exp":20000}"""
+        val cmdInvalid = """{"cmdId":"00000000-0000-4000-8000-000000000004","cmd":"show_now","args":{"heldId":"held-unknown"},"issuedTs":10000,"exp":20000}"""
         dispatcher.handleInboundCommand(cmdInvalid)
         val ackInvalid = JsonReader.parse(client.sentFrames[1].second) as Map<*, *>
         assertEquals("rejected", ackInvalid["status"])
@@ -165,7 +173,7 @@ class SyncCommandDispatcherTest {
         val dispatcher = SyncCommandDispatcher(phoneControl, dao, client, timeProvider = { 50_000L })
 
         // Expired command (now = 50000, exp = 20000)
-        val cmdExpired = """{"cmdId":"cmd-5","cmd":"end_session","args":{},"issuedTs":10000,"exp":20000}"""
+        val cmdExpired = """{"cmdId":"00000000-0000-4000-8000-000000000005","cmd":"end_session","args":{},"issuedTs":10000,"exp":20000}"""
         dispatcher.handleInboundCommand(cmdExpired)
         val ackExpired = JsonReader.parse(client.sentFrames[0].second) as Map<*, *>
         assertEquals("expired", ackExpired["status"])
@@ -173,7 +181,7 @@ class SyncCommandDispatcherTest {
         // Duplicate command
         dao.insert(
             CmdLogEntity(
-                cmdId = "cmd-dup",
+                cmdId = "00000000-0000-4000-8000-000000000099",
                 source = "laptop",
                 action = "end_session",
                 status = "applied",
@@ -182,7 +190,7 @@ class SyncCommandDispatcherTest {
                 executedAtMs = 10000L
             )
         )
-        val cmdDup = """{"cmdId":"cmd-dup","cmd":"end_session","args":{},"issuedTs":49000,"exp":60000}"""
+        val cmdDup = """{"cmdId":"00000000-0000-4000-8000-000000000099","cmd":"end_session","args":{},"issuedTs":49000,"exp":60000}"""
         dispatcher.handleInboundCommand(cmdDup)
         val ackDup = JsonReader.parse(client.sentFrames[1].second) as Map<*, *>
         assertEquals("duplicate", ackDup["status"])

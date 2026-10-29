@@ -35,6 +35,9 @@ class DhyanApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        com.dhyan.app.sync.data.WireSchemas.current = com.dhyan.app.sync.data.WireSchemas { name ->
+            assets.open("wire/$name").bufferedReader().use { it.readText() }
+        }
         startKoin {
             androidContext(this@DhyanApplication)
         }

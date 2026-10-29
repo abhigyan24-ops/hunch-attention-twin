@@ -98,6 +98,7 @@ class ContextFuserTest {
 
     @Test
     fun testDeclaredSessionPreference() {
+        fuser.updateRelayConnectivity(true)
         val phoneSession = DeclaredSession(TaskType.WRITING, 30.0, false, 90_000L)
         val laptopSession = DeclaredSession(TaskType.CODING, 45.0, true, 95_000L)
 

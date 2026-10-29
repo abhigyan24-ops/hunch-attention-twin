@@ -8,11 +8,13 @@ import com.dhyan.app.sync.crypto.SyncCrypto
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.security.KeyPair
+import java.security.MessageDigest
 import java.security.interfaces.ECPrivateKey
 import java.security.interfaces.ECPublicKey
 import java.util.Base64
@@ -40,6 +42,12 @@ class PairingController(
     private var sharedSecret: ByteArray? = null
     private var transcriptHash: ByteArray? = null
     private var pendingPermanentKey: SyncCrypto.PairingKeyAndRoom? = null
+    private var localConfirmed = false
+    private var peerConfirmed = false
+    private var saving = false
+    private var attempt = 0L
+    private var timeoutJob: Job? = null
+    private var persistenceJob: Job? = null
 
     init {
         scope.launch {
@@ -69,18 +77,21 @@ class PairingController(
         clearEphemeralContext()
         val roomId = SyncCrypto.getRendezvousRoomId(cleanCode)
 
-        // Generate ephemeral P-256 key pair & 16-byte nonce
-        val kp = SyncCrypto.generateP256KeyPair()
-        phoneKeyPair = kp
-        val nonce = ByteArray(16).also { java.security.SecureRandom().nextBytes(it) }
-        phoneNonce = nonce
-
-        _state.value = PairingState.Connecting(roomId)
+        val generation = attempt
+        _state.value = PairingState.WaitingForLaptopOffer
+        timeoutJob = scope.launch {
+            delay(300_000L)
+            if (attempt == generation) {
+                _state.value = PairingState.Failed("pairing_expired")
+                sendCancel("expired")
+                clearEphemeralContext()
+            }
+        }
 
         transport.connect(
             url = relayUrl,
             roomId = roomId,
-            onMessage = { msg -> handleIncomingFrame(msg) },
+            onMessage = { msg -> if (attempt == generation) handleIncomingFrame(msg) },
             onError = { err ->
                 _state.value = PairingState.Failed("Relay connection error")
                 clearEphemeralContext()
@@ -93,18 +104,10 @@ class PairingController(
             }
         )
 
-        // Dispatch pair_join immediately upon connecting
-        val pkBase64 = Base64.getEncoder().encodeToString(SyncCrypto.encodePublicKeyUncompressed(kp.public as ECPublicKey))
-        val nonceBase64 = Base64.getEncoder().encodeToString(nonce)
-        val joinJson = "{\"v\":1,\"t\":\"pair_join\",\"device\":\"phone\",\"pk\":\"$pkBase64\",\"n\":\"$nonceBase64\"}"
-        transport.send(joinJson)
-
-        if (laptopCommit == null) {
-            _state.value = PairingState.WaitingForLaptopOffer
-        }
     }
 
     fun confirmSas(accepted: Boolean) {
+        if (_state.value !is PairingState.AwaitingUserConfirmation) return
         if (!accepted) {
             sendCancel("User rejected SAS code")
             _state.value = PairingState.Cancelled("Rejected by user")
@@ -121,6 +124,7 @@ class PairingController(
             return
         }
 
+        localConfirmed = true
         _state.value = PairingState.ExchangingConfirmation
 
         // Send pair_confirm
@@ -128,6 +132,7 @@ class PairingController(
         val macBase64 = Base64.getEncoder().encodeToString(macP)
         val confirmJson = "{\"v\":1,\"t\":\"pair_confirm\",\"device\":\"phone\",\"mac\":\"$macBase64\"}"
         transport.send(confirmJson)
+        persistIfConfirmed()
     }
 
     fun cancelPairing(reason: String = "Cancelled by user") {
@@ -151,11 +156,19 @@ class PairingController(
 
             when (t) {
                 "pair_offer" -> {
+                    if (_state.value !is PairingState.WaitingForLaptopOffer || map["device"] != "laptop") return
                     val commitBase64 = map["commit"] as? String ?: return
-                    laptopCommit = Base64.getDecoder().decode(commitBase64)
-                    if (_state.value is PairingState.WaitingForLaptopOffer) {
-                        _state.value = PairingState.WaitingForLaptopReveal
-                    }
+                    val commit = Base64.getDecoder().decode(commitBase64)
+                    require(commit.size == 32)
+                    laptopCommit = commit
+                    val kp = SyncCrypto.generateP256KeyPair()
+                    phoneKeyPair = kp
+                    val nonce = ByteArray(16).also { java.security.SecureRandom().nextBytes(it) }
+                    phoneNonce = nonce
+                    val pk = Base64.getEncoder().encodeToString(SyncCrypto.encodePublicKeyUncompressed(kp.public as ECPublicKey))
+                    val n = Base64.getEncoder().encodeToString(nonce)
+                    _state.value = PairingState.WaitingForLaptopReveal
+                    transport.send("{\"v\":1,\"t\":\"pair_join\",\"device\":\"phone\",\"pk\":\"$pk\",\"n\":\"$n\"}")
                 }
                 "pair_reveal" -> {
                     handlePairReveal(map)
@@ -164,8 +177,7 @@ class PairingController(
                     handlePairConfirm(map)
                 }
                 "pair_cancel" -> {
-                    val reason = map["reason"] as? String ?: "Remote peer cancelled"
-                    _state.value = PairingState.Cancelled(reason)
+                    _state.value = PairingState.Cancelled("Remote peer cancelled")
                     transport.close()
                     clearEphemeralContext()
                 }
@@ -178,6 +190,7 @@ class PairingController(
     }
 
     private fun handlePairReveal(map: Map<String, Any?>) {
+        if (_state.value !is PairingState.WaitingForLaptopReveal || map["device"] != "laptop") return
         val commit = laptopCommit
         if (commit == null) {
             sendCancel("Reveal received before offer")
@@ -190,12 +203,14 @@ class PairingController(
 
         val pkLBytes = Base64.getDecoder().decode(pkBase64)
         val nLBytes = Base64.getDecoder().decode(nBase64)
+        require(nLBytes.size == 16)
 
         // Verify laptop commitment: SHA256(pkL || nL) == commitL
         val computedCommit = SyncCrypto.computePairCommit(pkLBytes, nLBytes)
-        if (!computedCommit.contentEquals(commit)) {
-            sendCancel("Commitment verification failed")
+        if (!MessageDigest.isEqual(computedCommit, commit)) {
             _state.value = PairingState.Failed("Commitment mismatch")
+            sendCancel("commit_mismatch")
+            clearEphemeralContext()
             return
         }
 
@@ -235,24 +250,34 @@ class PairingController(
 
         val secret = sharedSecret ?: return
         val t = transcriptHash ?: return
-        val keyAndRoom = pendingPermanentKey ?: return
+        if (pendingPermanentKey == null) return
 
         val expectedMacL = SyncCrypto.computePairConfirmMac(secret, t, "laptop")
-        if (!expectedMacL.contentEquals(macL)) {
-            sendCancel("Confirmation MAC verification failed")
+        if (!MessageDigest.isEqual(expectedMacL, macL)) {
             _state.value = PairingState.Failed("Peer confirmation mismatch")
+            sendCancel("confirm_mismatch")
+            clearEphemeralContext()
             return
         }
+        peerConfirmed = true
+        persistIfConfirmed()
+    }
 
-        // MAC verified! Persist permanent pairing key & sid
-        scope.launch {
+    private fun persistIfConfirmed() {
+        if (!localConfirmed || !peerConfirmed || saving) return
+        val keyAndRoom = pendingPermanentKey ?: return
+        val generation = attempt
+        saving = true
+        persistenceJob = scope.launch {
             try {
+                if (attempt != generation) return@launch
                 val wrappedPk = keyWrapper.wrap(keyAndRoom.pk)
                 val now = System.currentTimeMillis()
                 settingsDao.set(SettingsEntity(KEY_PAIRING_PK, wrappedPk, now))
                 settingsDao.set(SettingsEntity(KEY_SESSION_ROOM_ID, keyAndRoom.sidHex, now))
-
+                if (attempt != generation) return@launch
                 _state.value = PairingState.Paired(keyAndRoom.sidHex)
+                timeoutJob?.cancel()
                 transport.close()
                 clearEphemeralContext()
             } catch (e: Exception) {
@@ -271,6 +296,19 @@ class PairingController(
     }
 
     private fun clearEphemeralContext() {
+        attempt++
+        timeoutJob?.cancel()
+        timeoutJob = null
+        persistenceJob?.cancel()
+        persistenceJob = null
+        localConfirmed = false
+        peerConfirmed = false
+        saving = false
+        phoneNonce?.fill(0)
+        laptopNonce?.fill(0)
+        sharedSecret?.fill(0)
+        transcriptHash?.fill(0)
+        pendingPermanentKey?.pk?.fill(0)
         phoneKeyPair = null
         phoneNonce = null
         laptopCommit = null

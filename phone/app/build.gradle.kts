@@ -29,7 +29,9 @@ android {
   }
   getByName("test") {
    resources.srcDirs("src/test/resources")
+   resources.srcDir(layout.buildDirectory.dir("generated/wire-resources"))
   }
+  getByName("main") { assets.srcDir(layout.buildDirectory.dir("generated/wire-assets")) }
  }
 }
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
@@ -38,8 +40,29 @@ val copySyncTestVectors = tasks.register<Copy>("copySyncTestVectors") {
  from("${project.rootDir}/../contracts/sync/test-vectors.json")
  into(file("src/test/resources"))
 }
+val copyWireSchemas = tasks.register<Copy>("copyWireSchemas") {
+ from("${project.rootDir}/../contracts/sync/schemas") { into("wire") }
+ from("${project.rootDir}/../core-spec") {
+  include("event.schema.json", "context-snapshot.schema.json", "forbidden-fields.json")
+  into("wire")
+ }
+ into(layout.buildDirectory.dir("generated/wire-assets"))
+ doLast {
+  copy {
+   from(layout.buildDirectory.dir("generated/wire-assets"))
+   into(layout.buildDirectory.dir("generated/wire-resources"))
+  }
+ }
+}
+tasks.named("preBuild") { dependsOn(copyWireSchemas) }
+val copyWireFixtures = tasks.register<Copy>("copyWireFixtures") {
+ from("${project.rootDir}/../core-spec/fixtures") { into("core") }
+ from("${project.rootDir}/../contracts/sync/fixtures") { into("sync") }
+ into(layout.buildDirectory.dir("generated/wire-resources/fixtures"))
+}
 tasks.matching { it.name.contains("UnitTest", ignoreCase = true) }.configureEach {
  dependsOn(copySyncTestVectors)
+ dependsOn(copyWireSchemas, copyWireFixtures)
 }
 
 dependencies {

@@ -129,7 +129,7 @@ fun LiveDigestContent(
         Spacer(modifier = Modifier.height(12.dp))
 
         // Laptop Companion Badge & Sync State (Spec 25.13)
-        LaptopCompanionBadge(snapshot = uiState.contextSnapshot, provenance = uiState.provenance)
+        LaptopCompanionBadge(snapshot = uiState.contextSnapshot, provenance = uiState.provenance, availability = uiState.laptopAvailability)
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -312,7 +312,7 @@ private fun AttentionSection(uiState: LiveDigestUiState) {
             ) {
                 Chip(text = "Task: ${snapshot.taskType.wire}")
                 Chip(text = "Laptop: ${snapshot.laptopState.wire}")
-                Chip(text = "Confidence: ${(snapshot.confidence * 100).toInt()}%")
+                Chip(text = "Rule-based, not calibrated")
             }
         }
     } else {
@@ -685,7 +685,8 @@ private fun HistoryStripSection(history: List<LiveHeldItemUi>) {
 @Composable
 private fun LaptopCompanionBadge(
     snapshot: ContextSnapshot?,
-    provenance: String = "observed"
+    provenance: String = "observed",
+    availability: String = "No laptop data"
 ) {
     if (snapshot == null) return
     val laptopState = snapshot.laptopState
@@ -714,7 +715,7 @@ private fun LaptopCompanionBadge(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "LAPTOP: ${laptopState.wire.uppercase()}",
+                    text = "Laptop: $availability",
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                     color = if (isOffline) TextMuted else TextPrimary
                 )
@@ -742,7 +743,7 @@ private fun LaptopCompanionBadge(
                 )
             } else {
                 Text(
-                    text = if (isOffline) "Stale / Offline" else "Live Companion",
+                    text = availability,
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
                     color = TextMuted
                 )
@@ -751,7 +752,7 @@ private fun LaptopCompanionBadge(
         if (isOffline) {
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Unsynced: laptop telemetry is stale (>15s). Decisions rely on phone signals.",
+                text = availability,
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
                 color = StateDrifting
             )

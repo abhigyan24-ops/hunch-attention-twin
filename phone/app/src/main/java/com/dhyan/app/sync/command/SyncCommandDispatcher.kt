@@ -7,6 +7,10 @@ import com.dhyan.app.data.CmdLogDao
 import com.dhyan.app.data.CmdLogEntity
 import com.dhyan.app.personas.json.JsonReader
 import com.dhyan.app.sync.session.RelayClient
+import com.dhyan.app.sync.data.WireSchemas
+import com.dhyan.app.ingest.ClockOffset
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Dispatches and authorizes remote commands from laptop peer via relay,
@@ -19,21 +23,25 @@ class SyncCommandDispatcher(
     private val cmdLogDao: CmdLogDao,
     private val relayClient: RelayClient,
     private val heldItemsView: HeldItemsView? = null,
-    private val timeProvider: () -> Long = System::currentTimeMillis
+    private val timeProvider: () -> Long = System::currentTimeMillis,
+    private val transaction: suspend (suspend () -> Boolean) -> Boolean = { it() },
+    private val schemas: WireSchemas = WireSchemas.current
 ) {
+    private val commandMutex = Mutex()
 
     /**
      * Handles an incoming command frame body.
      */
-    suspend fun handleInboundCommand(bodyJson: String): Boolean {
+    suspend fun handleInboundCommand(bodyJson: String): Boolean = commandMutex.withLock {
         val parsed = try {
             JsonReader.parse(bodyJson) as? Map<*, *>
         } catch (_: Exception) {
-            return false
-        } ?: return false
+            return@withLock false
+        } ?: return@withLock false
+        if (!schemas.valid("command.schema.json", parsed)) return@withLock false
 
-        val cmdId = parsed["cmdId"] as? String ?: return false
-        val cmd = parsed["cmd"] as? String ?: return false
+        val cmdId = parsed["cmdId"] as String
+        val cmd = parsed["cmd"] as String
         val args = parsed["args"] as? Map<*, *> ?: emptyMap<String, Any?>()
         val issuedTs = (parsed["issuedTs"] as? Number)?.toLong() ?: 0L
         val exp = (parsed["exp"] as? Number)?.toLong() ?: 0L
@@ -41,17 +49,22 @@ class SyncCommandDispatcher(
         val now = timeProvider()
 
         // 1. Expiry check: exp - issuedTs <= 60s, local clock check
-        if (now > exp || exp - issuedTs > 60_000L || now < issuedTs - 30_000L) {
+        if (now >= ClockOffset.adjustIncomingTs(exp) || exp < issuedTs || exp - issuedTs > 60_000L || now < ClockOffset.adjustIncomingTs(issuedTs)) {
             recordLog(cmdId, "laptop", cmd, "expired", "command_expired", issuedTs, now)
             sendCmdAck(cmdId, "expired", "command_expired")
-            return true
+            return@withLock true
         }
 
         // 2. Idempotency store check (24h)
-        val existing = cmdLogDao.getById(cmdId)
-        if (existing != null) {
-            sendCmdAck(cmdId, "duplicate", existing.reason)
-            return true
+        val reserved = transaction {
+            if (cmdLogDao.getById(cmdId) != null) false else {
+                recordLog(cmdId, "laptop", cmd, "reserved", "outcome_unknown", issuedTs, now)
+                true
+            }
+        }
+        if (!reserved) {
+            sendCmdAck(cmdId, "duplicate", "already_received")
+            return@withLock true
         }
 
         // 3. Authorization and execution via PhoneControl facade
@@ -62,7 +75,7 @@ class SyncCommandDispatcher(
                     // Contract section 8: kill_switch with on:false is accepted ONLY from the phone
                     recordLog(cmdId, "laptop", cmd, "rejected", "unauthorized", issuedTs, now)
                     sendCmdAck(cmdId, "rejected", "unauthorized")
-                    return true
+                    return@withLock true
                 }
 
                 // on:true is fail-open and always allowed from peer
@@ -95,7 +108,7 @@ class SyncCommandDispatcher(
                 sendCmdAck(cmdId, "rejected", "unsupported_command")
             }
         }
-        return true
+        true
     }
 
     /**
@@ -104,18 +117,19 @@ class SyncCommandDispatcher(
      */
     suspend fun sendHeldList(): Boolean {
         val view = heldItemsView ?: return false
-        val items = view.currentHeldItems().take(50)
+        val allItems = view.currentHeldItems()
+        val items = allItems.take(50)
         val itemsList = items.map { item ->
             mapOf(
                 "heldId" to item.heldId,
                 "appCat" to item.appCat,
                 "heldAt" to item.heldAt,
                 "expiresAt" to item.expiresAt,
-                "status" to item.status.name.lowercase()
+                "status" to item.status.name
             )
         }
         val heldListMap = mapOf(
-            "total" to items.size,
+            "total" to allItems.size,
             "items" to itemsList
         )
         return relayClient.sendEncrypted("held_list", RelayClient.serializeJson(heldListMap))
@@ -157,7 +171,7 @@ class SyncCommandDispatcher(
                 source = source,
                 action = action,
                 status = status,
-                reason = reason,
+                reason = reason?.takeIf { Regex("^[a-z][a-z0-9_]{0,63}$").matches(it) } ?: "operation_result",
                 tsMs = issuedTs,
                 executedAtMs = nowMs
             )
@@ -165,7 +179,8 @@ class SyncCommandDispatcher(
     }
 
     private fun sendCmdAck(cmdId: String, status: String, reason: String?) {
-        val reasonPart = if (reason != null) ""","reason":"$reason"""" else ""
+        val safeReason = reason?.takeIf { Regex("^[a-z][a-z0-9_]{0,63}$").matches(it) }
+        val reasonPart = if (safeReason != null) ""","reason":"$safeReason"""" else ""
         val ackJson = """{"cmdId":"$cmdId","status":"$status"$reasonPart}"""
         relayClient.sendEncrypted("cmd_ack", ackJson)
     }

@@ -310,7 +310,7 @@ class CrossDeviceEpisodeTest {
         closingAdapter.processEvent("notif_posted", t0, mapOf("key" to "notif_local_gap", "appCat" to "social"))
 
         // Local collector gap (usage) damages the outcome -> must censor
-        closingAdapter.processEvent("gap", t0 + 60_000L, mapOf("reason" to "usage_collector_gap"))
+        closingAdapter.processEvent("gap", t0 + 60_000L, mapOf("reason" to "usage_query_failed", "deviceFrom" to "phone", "deviceTo" to "phone"))
 
         assertEquals(1, closerEpisodes.size)
         val ep = closerEpisodes[0]
@@ -451,16 +451,16 @@ class CrossDeviceEpisodeTest {
         )
 
         val batch = listOf(
-            mapOf("id" to "ev_1", "seq" to 1L, "deviceId" to "laptop", "kind" to "window_change", "appCat" to "coding", "schemaVersion" to "1.1.0"),
-            mapOf("id" to "ev_2", "seq" to 2L, "deviceId" to "laptop", "kind" to "edit_burst", "schemaVersion" to "1.1.0")
+            com.dhyan.app.sync.data.CanonicalTestEvents.event(1, "window_change", id = com.dhyan.app.sync.data.CanonicalTestEvents.uuid(1)),
+            com.dhyan.app.sync.data.CanonicalTestEvents.event(2, "edit_burst", id = com.dhyan.app.sync.data.CanonicalTestEvents.uuid(2))
         )
         engine.processInboundBatch(1L, batch)
         assertEquals("Both valid events should be emitted", listOf("window_change", "edit_burst"), capturedEvents)
 
         // Now replay with duplicate ev_2 and a new ev_3
         val batch2 = listOf(
-            mapOf("id" to "ev_2", "seq" to 3L, "deviceId" to "laptop", "kind" to "edit_burst", "schemaVersion" to "1.1.0"),
-            mapOf("id" to "ev_3", "seq" to 4L, "deviceId" to "laptop", "kind" to "resume_first_edit", "schemaVersion" to "1.1.0")
+            com.dhyan.app.sync.data.CanonicalTestEvents.event(3, "edit_burst", id = com.dhyan.app.sync.data.CanonicalTestEvents.uuid(2)),
+            com.dhyan.app.sync.data.CanonicalTestEvents.event(4, "resume_first_edit", id = com.dhyan.app.sync.data.CanonicalTestEvents.uuid(3))
         )
         engine.processInboundBatch(3L, batch2)
         // ev_2 must be rejected as duplicate and not delivered to listener
