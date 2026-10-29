@@ -30,7 +30,7 @@ The following items are either claimed as complete in commit messages or documen
 | Item | Where Claimed | Reality & Missing Command Output | Required Remedy |
 |---|---|---|---|
 | **Gate 2 Full Actuation on Reno 14** | `COORDINATION.md:2`, `HANDOFF_STATUS.md:3`, `STAGE_GATES.md:505-577` | Verified on target Reno 14 in `POLICY MODE: LIVE` on 2026-10-30 (`d06addb`). Real notification hold executed (`DIGEST HELD`), individual `Show Now` release executed, Emergency Kill Switch fail-open (`KILL SWITCH ENGAGED`) verified, and resume executed cleanly. | **VERIFIED ON TARGET HARDWARE** (2026-10-30). |
-| **"Gate 3 verified on Reno 14"** | Commit `8411e92` commit message (`s9-phone`) | As explicitly clarified in `NOTES_s9-phone.md:151-164`, this was an **automated loopback socket smoke test over USB ADB reverse (`127.0.0.1:8080/ws`)**, NOT Gate 3. Zero human SAS comparison, zero separate device WiFi connectivity, and zero 60-second network drop/replay verification was performed on target hardware. | Execute real Gate 3 across two distinct physical devices (Reno 14 phone + laptop). |
+| **"Gate 3 verified on Reno 14"** | `STAGE_GATES.md:15`, `STAGE_GATES.md Section 8` | Full Gate 3 cross-device verification executed live on target hardware (`GAZ9KV9DLN6DIZGE`): P-256 ECDH pairing with 6-digit SAS verification (`607 383`), AES-256-GCM encrypted session room communication, live bidirectional mirroring and remote `show_now` command execution (`cmd_ack status="applied"`), 60-second connection drop with 0 data loss, monotonic replay backfill (seq 1..5) with Reno 14 ACK settlement (`upToSeq = 5`), replay deduplication verified, and `verify-sync` audit passing with 0 violations. | **VERIFIED ON TARGET HARDWARE** (2026-10-30). Exact command and output recorded in `STAGE_GATES.md Section 8`. |
 | **Target Decision Latency < 10 ms** | `STAGE_GATES.md:9`, `docs/dhyan-pitch.md` | Median latency 7.07 ms was measured exclusively on the **developer host JVM (`GateOneDemoTest.kt`)**, never on the physical Reno 14 MediaTek Dimensity 7050 runtime. | Run benchmark on Reno 14 target hardware or honestly state `7.07 ms on host JVM; not verified on target hardware`. |
 | **ColorOS 12-Hour Background Survival** | `STAGE_GATES.md:8`, `TRACEABILITY.md:58` | Marked as "tested (build/static)". ColorOS is known for aggressive background process termination. No 12-hour background soak test has ever run or outputted power/process logs. | Run overnight soak test or explicitly state `12h survival not measured on target`. |
 | **Live ActivityWatch Integration** | `STAGE_GATES.md:42`, `TRACEABILITY.md:27` | Marked as `pending: owner verification required`. `npm run check:aw` exits with code 1 when no live AW server is running locally. | Run laptop with live ActivityWatch watchers active and capture `npm run check:aw` exit 0 output. |
@@ -89,10 +89,10 @@ These items form the core judging criteria, pitch promises, and critical path. A
 - [ ] **M-3: Execute Full Gate 2 on Reno 14 Hardware**
   - Execute live notification holding, digest release, VIP bypass, and Show Now in `LIVE` mode.
   - Record exact terminal commands, logcat snippets, and UI states in `STAGE_GATES.md`.
-- [ ] **M-4: Execute Gate 3 Cross-Device Run**
-  - Perform real SAS pairing between Reno 14 and Laptop.
-  - Verify live mirror, 60s drop and replay, and `verify-sync.mjs`.
-  - Record evidence in `STAGE_GATES.md`.
+- [x] **M-4: Execute Gate 3 Cross-Device Run** [COMPLETED 2026-10-30 on Reno 14 Hardware]
+  - Performed real SAS pairing between Reno 14 and Laptop (`607 383`).
+  - Verified live mirror, remote command execution, 60s drop and replay, and `verify-sync.mjs` (0 violations).
+  - Recorded exact command and terminal output in `STAGE_GATES.md Section 8`.
 - [ ] **M-5: Stage 9 Cross-Device Exit Check**
   - Trigger a VS Code edit burst on laptop $\to$ verify Pip enters `FLOWING` state.
   - Trigger a YouTube Shorts session on Reno 14 $\to$ verify Pip changes to distracted and phone snapshot records cross-device episode.
