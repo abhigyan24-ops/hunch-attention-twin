@@ -27,3 +27,23 @@ Date: 2026-10-29 (Asia/Calcutta). Read-only code audit on branch `contracts`, ba
 ## W3 sequence after owner marks
 
 Record explicit approve/reject/alternative for rows1–8 and additional CCRs. Limit changes to approved choices, bump versions per each contract's rules, update fixtures/checks and cross-language vector expectations, and keep regression rejection cases. Any approved core bump must merge first, then the owner coordinates F1 rebase (Codex does not rebase or alter F1). Phone schema constant/migration changes belong to its owner, despite earlier C0 allowance. No schema edits or migrations occur in W1/W2. W6 handoff refresh remains gated on F1 merge.
+
+## Owner resolution update — 2026-10-29
+
+Signed docs/OWNER_DECISIONS.md now records the owner's explicit chat approval of DD-1 through DD-14; DD-15 remains disabled. Historical pending marks above describe the initial audit, not the current decision authority. Apply this table when planning W3:
+
+| W1 row | Current owner answer |
+|---|---|
+| 1 videoState | APPROVED DD-1/DD-2: core once to1.1.0; playing/paused/none. |
+| 2 wire authority | APPROVED DD-7: sync outer/encrypted frames supersede old flat schema; no production relay rewrite before8L. |
+| 3 command shapes | APPROVED DD-3 exactly, including opaque heldId/all and phone-only kill-switch disable per contract. |
+| 4 cmd_ack | APPROVED DD-4. |
+| 5 declared | APPROVED DD-5 nullable active-session object. Whether an optional device-state is mandatory was not separately answered; do not introduce an extra requirement silently. |
+| 6 gaps | APPROVED DD-6 emitting-device roles and documented token list. No outage-timestamp property approved. |
+| 7 held UI/control | show_now shape APPROVED DD-3; prior held_list approval retained. Extra status-case/limit choices not explicitly answered by DDs. |
+| 8 phone persistence | APPROVED DD-8 phone-owner8P1 migration after approved M0, not a Codex phone implementation. Current main/F1 DB isv2 with a migration and10entities; the earlier audit'sv1 observation was true at its8eef3ee base. Canonical UUID/seq/deviceId/version are still missing from EventEntity. |
+| New adapterHealthy | APPROVED DD-9 optional boolean in sync state, sync1.1.0; no new laptopState enum. Need reviewed7A current-health producer; do not infer it from cumulative errors. |
+
+DD-11/12/13 also settle unlabelled communication as unclassified, known-list/user-label games only, VSCode's own stuck flag as evidence, and uncalibrated rule confidence. DD-14 gates phoneStage8 on owner evidence after F1 merge. No parallel delegation under DD-15.
+
+Remaining pairing/ACK/security CCRs in this report were not approved merely by accepting the DD list. The review must not translate broad defaults into new unreviewed protocol semantics.
