@@ -29,7 +29,7 @@ export function createRelayServer(options={}){
   wss.handleUpgrade(req,socket,head,ws=>{
    ws.on('error',()=>{});let room=rooms.get(id);if(!room){room={type:null,createdAt:now(),lastActivity:now(),clients:new Map(),offer:null,joined:false,revealed:false};rooms.set(id,room);}
    const reject=reason=>{stats.rejected++;log(id,device,'rejected',0,reason);ws.close(1008,reason);};
-   if(room.clients.has(device)||room.clients.size>=2){stats.roleCollisions++;reject('role_collision');return;}
+   if(room.clients.has(device)||room.clients.size>=2){stats.roleCollisions++;reject('role_collision');if(room.type==='rendezvous'){for(const peer of room.clients.values())if(peer.readyState===WebSocket.OPEN)peer.send(JSON.stringify({v:1,t:'pair_cancel',reason:'third_client'}));destroy(id,room,'third_client');}return;}
    room.clients.set(device,ws);const arrivals=[];
    ws.on('close',()=>{if(room.clients.get(device)===ws)room.clients.delete(device);});
    ws.on('message',(data,binary)=>{

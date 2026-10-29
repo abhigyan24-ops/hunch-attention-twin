@@ -74,3 +74,7 @@ Automated evidence: `npm run check:s7`, including test/ingest.test.mjs, passes s
 4. Exercise edits/saves and VS Code's explicit stuck/flowing state; no numerical stuck threshold is implemented. Browse feed/shorts/watch surfaces in mapped distracting categories. Do not collect or share raw title/URL/content. No focus percentage should appear; confidence remains rule-based, not calibrated.
 5. Removing an allowed browser extension ID should disconnect its socket. Five authentication failures in60seconds block NEW loopback attempts for5minutes, so a misconfigured client may also delay another local client's reconnect; established authenticated peers continue. Correct its token and wait for the block to expire.
 6. Repeat7B click-through, tray and animation checks above separately. A successful ingest attack test does not verify these desktop interactions, cloud pairing or the phone.
+
+## 8L verification entry points
+
+Use GATE3_8L.md for exact laptop-side Gate3 steps1–9. Run `npm run check:s8l` at repository root for production-code local tests and synthetic peer interoperability. `scripts/privacy-check.mjs` calls the shared scanner while printing counts only; `scripts/verify-sync-coverage.mjs` adds missing-event coverage to the shared checker. The new8L UI, real phone pairing, cloudTLS and device attack harness are not verified on target. Coarse state mapping is visibly gated pending CCR-8L-1 owner response; no unclassified/offline state is labelled focus. Event/command sync and authenticated ping/pong are independent of that mapping.

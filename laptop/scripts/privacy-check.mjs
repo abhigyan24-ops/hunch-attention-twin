@@ -1,0 +1,2 @@
+import {scanFileForPrivacy} from '../../tools/privacy-scan.mjs';
+const files=process.argv.slice(2);let count=0,failed=false;if(!files.length){console.error('privacy-check: FAIL (provide file paths)');process.exitCode=1;}else{for(const file of files)try{count+=(await scanFileForPrivacy(file)).length;}catch{failed=true;}console.log(`privacy-check: ${count===0&&!failed?'PASS':'FAIL'} (files=${files.length}; violations=${count}; readFailure=${failed})`);process.exitCode=count===0&&!failed?0:1;}

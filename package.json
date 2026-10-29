@@ -12,7 +12,8 @@
     "check:contracts": "node --test tools/test/contract-*.test.mjs",
     "build-vectors": "node tools/gen-vectors.mjs",
     "check:actuator": "node tools/check-actuator-contract.mjs",
-    "check:s7": "npm --prefix laptop run check:s7"
+    "check:s7": "npm --prefix laptop run check:s7",
+    "check:s8l": "node laptop/scripts/check-s8l.mjs"
   },
   "devDependencies": {
     "ajv": "^8.17.1",
