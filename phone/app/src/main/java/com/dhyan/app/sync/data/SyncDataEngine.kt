@@ -11,7 +11,6 @@ import com.dhyan.app.twin.model.ContextSnapshot
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.nio.charset.StandardCharsets
-import java.util.UUID
 
 fun interface InboundEventListener {
     fun onInboundEvent(type: String, ts: Long, payload: Map<String, Any?>)
@@ -49,22 +48,12 @@ class SyncDataEngine(
         val events = rows.mapNotNull { row ->
             val stored = row.extrasJson?.let { runCatching { JsonReader.parse(it) as? Map<*, *> }.getOrNull() }
             val storedEvent = stored?.get("event") as? Map<*, *>
-            if (storedEvent != null && storedEvent["device"] == "phone" && storedEvent["deviceId"] == localDeviceId && schemas.event(storedEvent)) {
+            if (storedEvent != null && storedEvent["device"] == "phone" && storedEvent["deviceId"] == localDeviceId &&
+                storedEvent["id"] == row.eventId && integer(storedEvent["seq"]) == row.seq && schemas.event(storedEvent)) {
                 storedEvent
             } else {
-                val envelope = mutableMapOf<String, Any?>(
-                    "schemaVersion" to (row.schemaVersion.takeIf { it.isNotBlank() } ?: "1.1.0"),
-                    "id" to (row.eventId?.takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString()),
-                    "deviceId" to localDeviceId,
-                    "device" to "phone",
-                    "seq" to row.seq,
-                    "source" to (row.surface.takeIf { it in listOf("notif", "usage", "screen", "a11y", "window", "idle", "vscode", "browser", "persona", "system") } ?: "system"),
-                    "type" to row.kind,
-                    "ts" to row.ts,
-                    "synthetic" to false,
-                    "payload" to (stored ?: emptyMap<String, Any?>())
-                )
-                envelope
+                // Historical mapping is not a wire-validation bypass. Keep these rows local.
+                null
             }
         }
         if (events.isEmpty()) return false
@@ -86,15 +75,15 @@ class SyncDataEngine(
             val deviceId = event["deviceId"] as? String
             val id = event["id"] as? String
             require(seq != null && seq >= 0 && seq > previous && id != null && UUID_PATTERN.matches(id) &&
-                (event["device"] == null || event["device"] == "laptop") && !deviceId.isNullOrBlank() &&
-                (incomingPeer == null || incomingPeer == deviceId) && (event["schemaVersion"] == null || event["schemaVersion"] == "1.1.0")) { "invalid_identity" }
+                event["device"] == "laptop" && !deviceId.isNullOrBlank() && deviceId != localDeviceId &&
+                (incomingPeer == null || incomingPeer == deviceId) && event["schemaVersion"] == "1.1.0") { "invalid_identity" }
             incomingPeer = deviceId
             previous = seq
         }
         val peer = requireNotNull(incomingPeer)
         val applied = mutableListOf<Pair<Map<*, *>, Long>>()
         val cursor = transaction {
-            val durableCursor = eventDao.getHighestSeq(peer) ?: 0L
+            val durableCursor = eventDao.getHighestSeq(peer) ?: -1L
             val stagedIds = mutableSetOf<String>()
             val entities = mutableListOf<EventEntity>()
             for (event in rawEvents) {
@@ -109,18 +98,17 @@ class SyncDataEngine(
                 val rawTs = integer(event["ts"]) ?: 0L
                 val adjusted = ClockOffset.adjustIncomingTs(rawTs)
                 val duplicate = !stagedIds.add(id) || eventDao.findByDeviceAndId(peer, id) != null
-                val type = (event["type"] as? String) ?: (event["kind"] as? String) ?: "unknown"
                 val reason = when {
-                    !schemas.event(event) && event["kind"] == null -> "schema_invalid"
+                    !schemas.event(event) -> "schema_invalid"
                     adjusted > timeProvider() + 300_000L -> "future_timestamp"
                     duplicate -> "duplicate"
                     else -> null
                 }
-                val payload = (event["payload"] as? Map<*, *>) ?: event.filterKeys { it !in setOf("id", "seq", "ts", "deviceId", "device", "schemaVersion", "kind", "type") }
+                val payload = event["payload"] as? Map<*, *> ?: emptyMap<Any?, Any?>()
                 val stored = if (reason == null) mapOf("event" to event, "tsAdj" to adjusted) else
                     mapOf("deviceId" to peer, "device" to "laptop", "seq" to seq, "id" to id, "reason" to reason)
                 entities.add(EventEntity(ts = if (reason == null) rawTs else 0L,
-                    kind = if (reason == null) type else "rejected",
+                    kind = if (reason == null) event["type"] as String else "rejected",
                     appCat = if (reason == null) payload["appCat"] as? String ?: "unknown" else "system",
                     surface = if (reason == null) payload["surface"] as? String ?: "unknown" else "unknown",
                     durationMin = 0.0, senderHash = null, notifCat = null, scrollCount = 0,
@@ -136,9 +124,8 @@ class SyncDataEngine(
         highestSettledSeq = cursor
         relayClient.sendEncrypted("ack", """{"upToSeq":$cursor}""")
         for ((event, adjusted) in applied) {
-            val type = (event["type"] as? String) ?: (event["kind"] as? String) ?: "unknown"
-            @Suppress("UNCHECKED_CAST") val payload = (event["payload"] as? Map<String, Any?>) ?: (event.filterKeys { it !in setOf("id", "seq", "ts", "deviceId", "device", "schemaVersion", "kind", "type") } as Map<String, Any?>)
-            if (runCatching { inboundEventListener?.onInboundEvent(type, adjusted, payload) }.isFailure) listenerFailures++
+            @Suppress("UNCHECKED_CAST") val payload = event["payload"] as Map<String, Any?>
+            if (runCatching { inboundEventListener?.onInboundEvent(event["type"] as String, adjusted, payload) }.isFailure) listenerFailures++
         }
         cursor
     }

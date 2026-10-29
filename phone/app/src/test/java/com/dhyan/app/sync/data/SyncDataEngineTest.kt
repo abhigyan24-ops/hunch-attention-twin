@@ -35,6 +35,39 @@ class SyncDataEngineTest {
     }
     @Before fun resetClock() { ClockOffset.reset() }
 
+    @Test fun missingEnvelopeIdentityNeverSettlesOrAcknowledges() = runTest {
+        for (field in listOf("id", "device", "deviceId", "schemaVersion", "seq")) {
+            val dao = MemoryDao(); val client = Client(); val engine = SyncDataEngine(dao, client)
+            assertTrue(field, runCatching { engine.processInboundBatch(1, listOf(CanonicalTestEvents.event(1) - field)) }.isFailure)
+            assertTrue(dao.rows.isEmpty()); assertTrue(client.sent.isEmpty())
+        }
+    }
+
+    @Test fun legacyKindCannotBypassPrivacyOrSchemaValidation() = runTest {
+        val dao = MemoryDao(); val client = Client(); var callbacks = 0
+        val engine = SyncDataEngine(dao, client, inboundEventListener = InboundEventListener { _, _, _ -> callbacks++ })
+        val bad = CanonicalTestEvents.event(1) + mapOf("kind" to "window_change", "payload" to mapOf("title" to "CANARY_SYNTHETIC"))
+        engine.processInboundBatch(1, listOf(bad))
+        assertEquals("tombstone", dao.rows.single().settledStatus)
+        assertFalse(dao.rows.single().extrasJson!!.contains("CANARY_SYNTHETIC"))
+        assertEquals(0, callbacks)
+    }
+
+    @Test fun legacyRowsNeverAcquireInventedExportIdentity() = runTest {
+        val dao = MemoryDao(); val client = Client(); val engine = SyncDataEngine(dao, client)
+        dao.insert(EventEntity(ts = 100_000, kind = "screen_on", appCat = "system", surface = "other", durationMin = 0.0,
+            senderHash = null, notifCat = null, scrollCount = 0, extrasJson = null, seq = 1, deviceId = "phone"))
+        assertFalse(engine.exportOutboundBatch(0)); assertFalse(engine.exportOutboundBatch(0))
+        assertTrue(client.sent.isEmpty()); assertEquals(null, dao.rows.single().eventId)
+    }
+
+    @Test fun sequenceZeroIsAcceptedWithoutConfusingItWithAnExistingCursor() = runTest {
+        val dao = MemoryDao(); val client = Client(); val engine = SyncDataEngine(dao, client)
+        engine.processInboundBatch(0, listOf(CanonicalTestEvents.event(0)))
+        assertEquals(1, dao.rows.size)
+        assertEquals(0L, engine.highestSettledSeq)
+    }
+
     @Test fun canonicalInstallationIdentityAndPartialSettlement() = runTest {
         val dao = MemoryDao(); val client = Client(); val delivered = mutableListOf<String>()
         val engine = SyncDataEngine(dao, client, timeProvider = { 100_000L },

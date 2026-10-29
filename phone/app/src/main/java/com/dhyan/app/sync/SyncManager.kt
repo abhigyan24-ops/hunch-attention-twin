@@ -20,6 +20,7 @@ import com.dhyan.app.sync.data.InboundEventListener
 import com.dhyan.app.sync.data.SyncDataEngine
 import com.dhyan.app.sync.data.PhoneEventStore
 import com.dhyan.app.sync.data.WireSchemas
+import com.dhyan.app.BuildConfig
 import com.dhyan.app.ingest.ClockOffset
 import androidx.room.withTransaction
 import kotlinx.coroutines.delay
@@ -110,8 +111,7 @@ class SyncManager(
 
     companion object {
         val DEFAULT_RELAY_URL: String = run {
-            val isUserBuild = runCatching { android.os.Build.TYPE == "user" }.getOrDefault(false)
-            if (isUserBuild) {
+            if (!BuildConfig.DEBUG) {
                 // In production user releases, cleartext ws:// is prohibited; require secure wss:// endpoint
                 ""
             } else {
@@ -217,10 +217,7 @@ class SyncManager(
 
     private suspend fun initializeSession(pk: ByteArray, sidHex: String, url: String) = initializationMutex.withLock {
         if (initializedSid == sidHex && relayClient != null) return@withLock
-        val isUserBuild = runCatching { android.os.Build.TYPE == "user" }.getOrDefault(false)
-        if (isUserBuild && url.startsWith("ws://", ignoreCase = true)) {
-            throw IllegalArgumentException("Cleartext WebSocket is prohibited in release builds. Use wss://")
-        }
+        require(RelayEndpoint.isAllowed(url, BuildConfig.DEBUG)) { "invalid_relay_endpoint" }
         relayClient?.disconnect()
         initializedSid = sidHex
         val deviceId = eventStore.deviceId()
@@ -382,6 +379,7 @@ class SyncManager(
     }
 
     fun setRelayUrl(url: String) {
+        require(RelayEndpoint.isAllowed(url, BuildConfig.DEBUG)) { "invalid_relay_endpoint" }
         _relayUrl.value = url
         scope.launch {
             settingsDao.set(SettingsEntity("sync_relay_url", url, System.currentTimeMillis()))
