@@ -14,7 +14,7 @@ export class FocusRunner {
  private callbacks=new Set<(state:FocusSnapshot)=>void>();
  constructor(private inputs:()=>Omit<FocusInputs,'nowMs'>,private now=Date.now,private onOffline:()=>void=()=>{}){this.since=now();}
  onState(callback:(state:FocusSnapshot)=>void){this.callbacks.add(callback);return ()=>this.callbacks.delete(callback);}
- tick(){const ts=this.now(),next=inferFocusState({...this.inputs(),nowMs:ts});if(next!==this.state){this.state=next;this.since=ts;if(next==='offline')this.onOffline();}const snapshot={laptopState:next,minutesInState:Math.max(0,ts-this.since)/60000,confidence:0,ts};for(const cb of this.callbacks)cb(snapshot);return snapshot;}
+ tick(){const ts=this.now(),next=inferFocusState({...this.inputs(),nowMs:ts});if(next!==this.state){this.state=next;this.since=ts;if(next==='offline')this.onOffline();}const snapshot={laptopState:next,minutesInState:Math.max(0,ts-this.since)/60000,confidence:0,ts};for(const cb of this.callbacks){try{cb({...snapshot});}catch{/* one subscriber cannot stop heartbeat */}}return snapshot;}
  start(){if(!this.timer){this.tick();this.timer=setInterval(()=>this.tick(),5000);}}
  stop(){if(this.timer)clearInterval(this.timer);this.timer=undefined;}
 }

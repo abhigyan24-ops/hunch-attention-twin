@@ -22,6 +22,7 @@ ipcMain.on('set-ignore-mouse',(event,ignore:unknown)=>{
  if(petWindow && event.sender===petWindow.webContents && event.senderFrame===petWindow.webContents.mainFrame && typeof ignore==='boolean') petWindow.setIgnoreMouseEvents(ignore,{forward:true});
 });
 app.whenReady().then(async()=>{try{core=await startLaptopCore(app.getPath('userData'),SCHEMA_VERSION,()=>powerMonitor.getSystemIdleTime());}catch{dialog.showErrorBox('Dhyan storage unavailable','Local storage needs recovery. Collection is paused.');}createWindow();app.on('activate',()=>{if(!petWindow)createWindow();});});
-app.on('before-quit',()=>{void core?.stop();});
+let shutdownStarted=false;
+let shutdownFinished=false;
+app.on('before-quit',event=>{if(!core||shutdownFinished)return;event.preventDefault();if(shutdownStarted)return;shutdownStarted=true;void core.stop().then(()=>{if(core?.store.health.paused)dialog.showErrorBox('Dhyan storage unavailable','Persistence is paused; some recent events remain only in memory.');}).catch(()=>{dialog.showErrorBox('Dhyan storage unavailable','Some recent events could not be flushed.');}).finally(()=>{shutdownFinished=true;app.quit();});});
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
-
