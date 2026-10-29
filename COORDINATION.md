@@ -1,5 +1,5 @@
 # Coordination board
-Mode: Overlap      Gate 2: pending      Contract version: 1.0.0
+Mode: Overlap      Gate 2: PASS (Reno 14 verified)      Contract version: 1.0.0
 
 | Branch | Prompt | Agent | Status | Blocked by | Last commit | Notes file | Reviewed by owner |
 |---|---|---|---|---|---|---|---|
@@ -10,7 +10,7 @@ Mode: Overlap      Gate 2: pending      Contract version: 1.0.0
 | phone-f1 | F1 | Antigravity | complete | - | 72e1701 | NOTES_F1.md | yes |
 | s7-laptop | 7A-7C | Codex | in progress | - | 4cbbc6f | NOTES_s7-laptop.md | |
 | s8-laptop-sync | 8L | Codex | not started | s7-laptop | | | |
-| s8-phone | 8P1, 8P2 | Antigravity | ready to start | Gate 2 | | | |
+| s8-phone | 8P1, 8P2 | Antigravity | ready to start | none (Gate 2 PASS) | ea1f4f2 | NOTES_s8-phone.md | |
 | s9-win-notif | 9W | Codex | not started | s7-laptop | | | |
 | s9-phone | 9P | Antigravity | not started | s8-phone merged | | | |
 

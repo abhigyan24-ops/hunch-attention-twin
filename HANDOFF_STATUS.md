@@ -1,7 +1,7 @@
-# Handoff Status — Stages 1–6 & F1 Complete, Ready for Gate 2 & Stage 8
+# Handoff Status — Stages 1–6, F1 & Gate 2 Complete, Ready for Stage 8 & Codex Laptop Track
 **Date:** 2026-10-29 (Asia/Calcutta)  
-**Main Branch State:** `d3f4e13`  
-**Phone-F1 Branch State:** `72e1701` (Clean, 253/253 unit tests PASS, APK build SUCCESS)  
+**Main Branch State:** `ea1f4f2` (Clean, Gate 2 verified on Reno 14, 253/253 unit tests PASS)  
+**Phone-F1 Branch State:** Merged to `main` (`7558bfc`)  
 **Laptop Branch State:** `s7-laptop` (`4cbbc6f`, 31 tests PASS)  
 **Contract Branch State:** `contracts` (`a59c208`, W1 reconciliation report, 74/74 node tests PASS)
 
@@ -78,9 +78,9 @@ All verification commands executed cleanly in this session:
 
 ## 4. Next Actions & Handoff Order
 
-1. **Merge `phone-f1` into `main`:**
+1. **Merge `phone-f1` into `main`:** [COMPLETED at `7558bfc`]
    - Fast-forward merge `phone-f1` (`72e1701`) into `main`.
-2. **Owner Gate 2 Execution (on Reno 14 target hardware):**
+2. **Owner Gate 2 Execution (on Reno 14 target hardware):** [COMPLETED at `ea1f4f2`]
    - Assemble `app-debug.apk` from `main`.
    - Execute the 8-step Gate 2 verification script (Section 5.2 of `DHYAN_RUNBOOK.md`).
    - Record results in `STAGE_GATES.md`.
