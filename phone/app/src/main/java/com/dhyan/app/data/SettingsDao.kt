@@ -12,4 +12,7 @@ interface SettingsDao {
 
     @Query("SELECT value FROM settings WHERE `key` = :key LIMIT 1")
     suspend fun get(key: String): String?
+
+    @Query("DELETE FROM settings WHERE `key` = :key")
+    suspend fun delete(key: String): Int
 }
