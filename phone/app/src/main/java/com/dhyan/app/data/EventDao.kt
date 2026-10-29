@@ -21,4 +21,15 @@ interface EventDao {
 
     @Query("DELETE FROM events WHERE ts < :beforeMs")
     suspend fun purgeOlderThan(beforeMs: Long): Int
+
+    // --- Sync Data Flow queries (Contract Section 5 & 10) ---
+
+    @Query("SELECT * FROM events WHERE device_id = :deviceId AND seq > :afterSeq ORDER BY seq ASC LIMIT :limit")
+    suspend fun getOutboundAfterSeq(deviceId: String, afterSeq: Long, limit: Int = 50): List<EventEntity>
+
+    @Query("SELECT MAX(seq) FROM events WHERE device_id = :deviceId")
+    suspend fun getHighestSeq(deviceId: String): Long?
+
+    @Query("SELECT * FROM events WHERE device_id = :deviceId AND event_id = :eventId LIMIT 1")
+    suspend fun findByDeviceAndId(deviceId: String, eventId: String): EventEntity?
 }

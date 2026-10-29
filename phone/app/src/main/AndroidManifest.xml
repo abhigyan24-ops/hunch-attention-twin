@@ -17,6 +17,7 @@
     <!-- Foreground service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <!-- Battery & background -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
@@ -65,11 +66,15 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
-        <!-- Foreground Service -->
+        <!-- Foreground Service (DD-10: specialUse + dataSync fallback for 12h survival) -->
         <service
             android:name=".ingest.DhyanForegroundService"
-            android:foregroundServiceType="dataSync"
-            android:exported="false" />
+            android:foregroundServiceType="specialUse|dataSync"
+            android:exported="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Local attention digital twin continuous sensor sampling and privacy-preserving inference" />
+        </service>
 
         <!-- Boot receiver -->
         <receiver

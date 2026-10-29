@@ -1,0 +1,61 @@
+{
+  "description": "Cross-language crypto test vectors for Dhyan Sync Protocol v1.0.0",
+  "generatedAt": "2026-10-25T21:45:00.000Z",
+  "constants": {
+    "pairingCode": "234567",
+    "rendezvousRoomId": "bc9077416724d1c2a350cfb028f817764b18b3db3cb50ae2e96192507836e998"
+  },
+  "laptopKeys": {
+    "privateScalarHex": "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20",
+    "publicKeyHex": "04515c3d6eb9e396b904d3feca7f54fdcd0cc1e997bf375dca515ad0a6c3b4035f4536be3a50f318fbf9a5475902a221502bef0d57e08c53b2cc0a56f17d9f9354",
+    "publicKeyBase64": "BFFcPW6545a5BNP+yn9U/c0MwemXvzddylFa0KbDtANfRTa+OlDzGPv5pUdZAqIhUCvvDVfgjFOyzApW8X2fk1Q=",
+    "nonceHex": "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf",
+    "nonceBase64": "oKGio6SlpqeoqaqrrK2urw==",
+    "commitHex": "2365f8905775586a6cd9fc2631a3464605349bbaa79f0e43e365417d8d5a9bf9",
+    "commitBase64": "I2X4kFd1WGps2fwmMaNGRgU0m7qnnw5D42VBfY1am/k="
+  },
+  "phoneKeys": {
+    "privateScalarHex": "2122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40",
+    "publicKeyHex": "041f140146bfb1b251f84f4ddbe0d4cdcfd77afd984a9520e35794021f8312bb9eec995a08b1fa7704df3dcc0b50a9665263fb7711f95f9f8a449c5096e47c892b",
+    "publicKeyBase64": "BB8UAUa/sbJR+E9N2+DUzc/Xev2YSpUg41eUAh+DErue7JlaCLH6dwTfPcwLUKlmUmP7dxH5X5+KRJxQluR8iSs=",
+    "nonceHex": "b0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+    "nonceBase64": "sLGys7S1tre4ubq7vL2+vw=="
+  },
+  "pairingAgreement": {
+    "sharedSecretHex": "4fe243908f378aa1c2a69538822e6ed908c3225d8692575507c649901245150a",
+    "transcriptHashHex": "483a740e28b333e6fcb67c70f89119b878036e8413f29419ff711ba74aca8de6",
+    "sasDigits": "790 350",
+    "confirmMacLaptopBase64": "qE0eoZxrEoC1AdfYKmDeC74ySBa+9WCEzRDFuASWhz4=",
+    "confirmMacPhoneBase64": "RohEEZo0hKAt3GGOFfF9At3kv7gkrd480KB1JUKYcQc=",
+    "permanentPairingKeyHex": "ee03a4bae4ec18bd5a3a82129b6388c0bf672ee9ed55a09c7402af9e4886e1c2",
+    "sessionRoomIdHex": "39aa0b1a9f2e40a92558e7796cd58b0faecd7907960093c8be45449f4443d99a"
+  },
+  "sessionHandshake": {
+    "laptopSessionNonceBase64": "wMHCw8TFxsfIycrLzM3Ozw==",
+    "phoneSessionNonceBase64": "0NHS09TV1tfY2drb3N3e3w==",
+    "lastSeqAckedLaptop": 100,
+    "lastSeqAckedPhone": 50,
+    "helloMacLaptopBase64": "JA/Rs6ehUcFmRClOyL5QSr462oxMs/3tcBmF257NG3k=",
+    "helloMacPhoneBase64": "YiJKPqubPz9jMK0ROsaU1ufWtCu8pW967Cv17YyTQDE=",
+    "keyL2PHex": "7e95252b9e7190e2a114f34ee2a7837f19cde041fb98810479af724f6283cc58",
+    "keyP2LHex": "b5d9034c579196d69c95520c414e9250f8b8a85073c01159b7fd618c3f2769c6"
+  },
+  "frameL2P": {
+    "t": "ping",
+    "d": "l2p",
+    "ctr": 1,
+    "nonceHex": "000000000000000000000001",
+    "aadAscii": "dhyan|1|ping|l2p|1",
+    "plaintextJson": "{\"mid\":\"a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d\",\"ts\":1729864000000,\"b\":{\"t0\":1729864000000}}",
+    "ciphertextWithTagBase64": "m05jb6TurOnKPeOBG1mNz0GSQhwKHxfgHMngYkmjByPnopA1+m1QIakepzmbORlKFvjOYrsGkg/ILL3F040OZqwO7EG+meP8tOK03xzLZqJNDdCprBBc5TwWHUoaJEZRL6TjwVLlTA3SHQ=="
+  },
+  "frameP2L": {
+    "t": "pong",
+    "d": "p2l",
+    "ctr": 1,
+    "nonceHex": "000000000000000000000001",
+    "aadAscii": "dhyan|1|pong|p2l|1",
+    "plaintextJson": "{\"mid\":\"b2c3d4e5-f6a1-4b5c-9d0e-1f2a3b4c5d6e\",\"ts\":1729864000020,\"b\":{\"t0\":1729864000000,\"t1\":1729864000010,\"t2\":1729864000020}}",
+    "ciphertextWithTagBase64": "Bp5b0bNQQ435z7uavqVLcj9zqzY9vIgYqPyG6YjbHJBTHAKeKs8uyZRfq6uiU8MMeYzTfd0kcxADNV5w9GtrXXuw1mvV8wFYXdtoSSRWZN/T6uC2M5OTJiDlVRknc+z4+syzALymRe0l+X4DQnHD2EG50bSh2f35PIMQwD+tZ7hO78YZ0cGKxkzbCtZ1ZUsJ"
+  }
+}

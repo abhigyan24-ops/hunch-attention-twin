@@ -1,0 +1,728 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 3,
+    "identityHash": "c60831d955922f39dc50d2c8876665a1",
+    "entities": [
+      {
+        "tableName": "events",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `ts` INTEGER NOT NULL, `kind` TEXT NOT NULL, `app_cat` TEXT NOT NULL, `surface` TEXT NOT NULL, `duration_min` REAL NOT NULL, `sender_hash` TEXT, `notif_cat` TEXT, `scroll_count` INTEGER NOT NULL, `extras_json` TEXT, `event_id` TEXT, `seq` INTEGER NOT NULL DEFAULT 0, `device_id` TEXT NOT NULL DEFAULT 'phone', `settled_status` TEXT NOT NULL DEFAULT 'valid', `schema_version` TEXT NOT NULL DEFAULT '1.1.0')",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ts",
+            "columnName": "ts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "appCat",
+            "columnName": "app_cat",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "surface",
+            "columnName": "surface",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationMin",
+            "columnName": "duration_min",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "senderHash",
+            "columnName": "sender_hash",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "notifCat",
+            "columnName": "notif_cat",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "scrollCount",
+            "columnName": "scroll_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "extrasJson",
+            "columnName": "extras_json",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "eventId",
+            "columnName": "event_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "seq",
+            "columnName": "seq",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "deviceId",
+            "columnName": "device_id",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'phone'"
+          },
+          {
+            "fieldPath": "settledStatus",
+            "columnName": "settled_status",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'valid'"
+          },
+          {
+            "fieldPath": "schemaVersion",
+            "columnName": "schema_version",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'1.1.0'"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_events_ts",
+            "unique": false,
+            "columnNames": [
+              "ts"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_events_ts` ON `${TABLE_NAME}` (`ts`)"
+          },
+          {
+            "name": "index_events_kind",
+            "unique": false,
+            "columnNames": [
+              "kind"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_events_kind` ON `${TABLE_NAME}` (`kind`)"
+          },
+          {
+            "name": "index_events_device_id_seq_event_id",
+            "unique": false,
+            "columnNames": [
+              "device_id",
+              "seq",
+              "event_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_events_device_id_seq_event_id` ON `${TABLE_NAME}` (`device_id`, `seq`, `event_id`)"
+          }
+        ]
+      },
+      {
+        "tableName": "params",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`key` TEXT NOT NULL, `kind` TEXT NOT NULL, `a` REAL NOT NULL, `b` REAL NOT NULL, `n` REAL NOT NULL, `mean` REAL NOT NULL, `m2` REAL NOT NULL, `updated_ms` INTEGER NOT NULL, PRIMARY KEY(`key`))",
+        "fields": [
+          {
+            "fieldPath": "key",
+            "columnName": "key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "a",
+            "columnName": "a",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "b",
+            "columnName": "b",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "n",
+            "columnName": "n",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mean",
+            "columnName": "mean",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "m2",
+            "columnName": "m2",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedMs",
+            "columnName": "updated_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "key"
+          ]
+        }
+      },
+      {
+        "tableName": "app_labels",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`pkg` TEXT NOT NULL, `category` TEXT NOT NULL, `label` TEXT NOT NULL, `updated_ms` INTEGER NOT NULL, PRIMARY KEY(`pkg`))",
+        "fields": [
+          {
+            "fieldPath": "pkg",
+            "columnName": "pkg",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "category",
+            "columnName": "category",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "label",
+            "columnName": "label",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedMs",
+            "columnName": "updated_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "pkg"
+          ]
+        }
+      },
+      {
+        "tableName": "held_notifs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`keyHash` TEXT NOT NULL, `mechanism` TEXT NOT NULL, `state` TEXT NOT NULL, `app_cat` TEXT NOT NULL, `notif_cat` TEXT NOT NULL, `sender_hash` TEXT, `posted_ts_ms` INTEGER NOT NULL, `held_since_ms` INTEGER NOT NULL, `hold_until_ms` INTEGER NOT NULL, `expires_at_ms` INTEGER NOT NULL, `ciphertext` TEXT, `iv` TEXT, `platform_id` INTEGER NOT NULL, `pkg_hash` TEXT NOT NULL, `decision_action` TEXT NOT NULL, `propensity` REAL NOT NULL, `user_override` INTEGER NOT NULL, PRIMARY KEY(`keyHash`))",
+        "fields": [
+          {
+            "fieldPath": "keyHash",
+            "columnName": "keyHash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mechanism",
+            "columnName": "mechanism",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "appCat",
+            "columnName": "app_cat",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notifCat",
+            "columnName": "notif_cat",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "senderHash",
+            "columnName": "sender_hash",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "postedTsMs",
+            "columnName": "posted_ts_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "heldSinceMs",
+            "columnName": "held_since_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "holdUntilMs",
+            "columnName": "hold_until_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "expiresAtMs",
+            "columnName": "expires_at_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ciphertext",
+            "columnName": "ciphertext",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "iv",
+            "columnName": "iv",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "platformId",
+            "columnName": "platform_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pkgHash",
+            "columnName": "pkg_hash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "decisionAction",
+            "columnName": "decision_action",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "propensity",
+            "columnName": "propensity",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userOverride",
+            "columnName": "user_override",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "keyHash"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_held_notifs_state_hold_until_ms",
+            "unique": false,
+            "columnNames": [
+              "state",
+              "hold_until_ms"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_held_notifs_state_hold_until_ms` ON `${TABLE_NAME}` (`state`, `hold_until_ms`)"
+          },
+          {
+            "name": "index_held_notifs_keyHash",
+            "unique": false,
+            "columnNames": [
+              "keyHash"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_held_notifs_keyHash` ON `${TABLE_NAME}` (`keyHash`)"
+          }
+        ]
+      },
+      {
+        "tableName": "decisions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `ts` INTEGER NOT NULL, `key_hash` TEXT NOT NULL, `posted_ts_ms` INTEGER NOT NULL, `action` TEXT NOT NULL, `reason_code` TEXT NOT NULL, `safety_reason` TEXT, `p_loss_show` REAL, `p_loss_suppress` REAL, `delta_l_mean` REAL, `delta_l_p10` REAL, `delta_l_p90` REAL, `evidence_strength` REAL, `propensity` REAL NOT NULL, `p_show` REAL NOT NULL, `exploration` INTEGER NOT NULL, `failed_open` INTEGER NOT NULL, `importance` REAL NOT NULL, `model_version` INTEGER NOT NULL, `policy_version` TEXT NOT NULL, `mode` TEXT NOT NULL, `actuation_status` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ts",
+            "columnName": "ts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "keyHash",
+            "columnName": "key_hash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "postedTsMs",
+            "columnName": "posted_ts_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "action",
+            "columnName": "action",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reasonCode",
+            "columnName": "reason_code",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "safetyReason",
+            "columnName": "safety_reason",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pLossShow",
+            "columnName": "p_loss_show",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "pLossSuppress",
+            "columnName": "p_loss_suppress",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "deltaLMean",
+            "columnName": "delta_l_mean",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "deltaLP10",
+            "columnName": "delta_l_p10",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "deltaLP90",
+            "columnName": "delta_l_p90",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "evidenceStrength",
+            "columnName": "evidence_strength",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "propensity",
+            "columnName": "propensity",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pShow",
+            "columnName": "p_show",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "exploration",
+            "columnName": "exploration",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "failedOpen",
+            "columnName": "failed_open",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "importance",
+            "columnName": "importance",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modelVersion",
+            "columnName": "model_version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "policyVersion",
+            "columnName": "policy_version",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mode",
+            "columnName": "mode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actuationStatus",
+            "columnName": "actuation_status",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_decisions_ts",
+            "unique": false,
+            "columnNames": [
+              "ts"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_decisions_ts` ON `${TABLE_NAME}` (`ts`)"
+          },
+          {
+            "name": "index_decisions_key_hash",
+            "unique": false,
+            "columnNames": [
+              "key_hash"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_decisions_key_hash` ON `${TABLE_NAME}` (`key_hash`)"
+          }
+        ]
+      },
+      {
+        "tableName": "feedback",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `ts` INTEGER NOT NULL, `decision_id` INTEGER NOT NULL, `type` TEXT NOT NULL, `comment` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ts",
+            "columnName": "ts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "decisionId",
+            "columnName": "decision_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "comment",
+            "columnName": "comment",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "vips",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`senderHash` TEXT NOT NULL, `added_ms` INTEGER NOT NULL, PRIMARY KEY(`senderHash`))",
+        "fields": [
+          {
+            "fieldPath": "senderHash",
+            "columnName": "senderHash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "addedMs",
+            "columnName": "added_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "senderHash"
+          ]
+        }
+      },
+      {
+        "tableName": "sync_cursors",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`deviceId` TEXT NOT NULL, `last_seq` INTEGER NOT NULL, `updated_ms` INTEGER NOT NULL, PRIMARY KEY(`deviceId`))",
+        "fields": [
+          {
+            "fieldPath": "deviceId",
+            "columnName": "deviceId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastSeq",
+            "columnName": "last_seq",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedMs",
+            "columnName": "updated_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "deviceId"
+          ]
+        }
+      },
+      {
+        "tableName": "settings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`key` TEXT NOT NULL, `value` TEXT NOT NULL, `updated_ms` INTEGER NOT NULL, PRIMARY KEY(`key`))",
+        "fields": [
+          {
+            "fieldPath": "key",
+            "columnName": "key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "value",
+            "columnName": "value",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedMs",
+            "columnName": "updated_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "key"
+          ]
+        }
+      },
+      {
+        "tableName": "cmd_log",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`cmd_id` TEXT NOT NULL, `source` TEXT NOT NULL, `action` TEXT NOT NULL, `status` TEXT NOT NULL, `reason` TEXT, `ts_ms` INTEGER NOT NULL, `executed_at_ms` INTEGER NOT NULL, PRIMARY KEY(`cmd_id`))",
+        "fields": [
+          {
+            "fieldPath": "cmdId",
+            "columnName": "cmd_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "source",
+            "columnName": "source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "action",
+            "columnName": "action",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reason",
+            "columnName": "reason",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "tsMs",
+            "columnName": "ts_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "executedAtMs",
+            "columnName": "executed_at_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "cmd_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_cmd_log_ts_ms",
+            "unique": false,
+            "columnNames": [
+              "ts_ms"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_cmd_log_ts_ms` ON `${TABLE_NAME}` (`ts_ms`)"
+          },
+          {
+            "name": "index_cmd_log_action",
+            "unique": false,
+            "columnNames": [
+              "action"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_cmd_log_action` ON `${TABLE_NAME}` (`action`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c60831d955922f39dc50d2c8876665a1')"
+    ]
+  }
+}
