@@ -8,6 +8,8 @@ node -e 'if (Number(process.versions.node.split(".")[0]) < 20) process.exit(1)'
 if grep -q '<ELASTIC-IP-with-dashes>' Caddyfile; then
   echo 'Replace the Caddy hostname before deployment.'; exit 1
 fi
+test -d ../contracts/sync/schemas || { echo "Keep the full repository layout."; exit 1; }
+npm --prefix .. ci --ignore-scripts
 npm ci --omit=dev
 npm test
 id dhyan >/dev/null 2>&1 || sudo useradd --system --no-create-home --shell /usr/sbin/nologin dhyan

@@ -1,0 +1,9 @@
+# Stage 8L — laptop sync
+
+Base d709e6e on s8-laptop-sync, dedicated worktree dhyan-s8l. Read AGENTS, HANDOFF, SPEC14/25.8/25.9, signed DDs, prompt8L and frozen sync1.1.0 including section16. Phone and Antigravity work are read-only; no Gradle/device commands. Scope relay/** and laptop/** plus the prompt's expressly authorized root check:s8l script key. No frozen schemas/contracts/tools/mock edits. Root script exception is limited to that one key.
+
+Milestones: relay protocol/attacks; TypeScript crypto and durable receiver/command stores; pairing/session/reconnect; app/UI integration and Gate3 local harness. Commit milestones, no deployment or push before review. No target success assumed. Dependencies reused through ignored local node_modules junctions to installed workspace packages; no dependency changes.
+
+Section16 retained immutable offer and durable settlement semantics override older ACK/hello wording. Relay validates strict outer schemas only, never decrypted bodies. Unknown rooms classify from pair_offer or a session type; no invented room-id prefix. Rendezvous first-offer expiry is fixed, session expiry idle-based. Only loopback proxy addresses may supply X-Forwarded-For. Logs contain room prefix/role/type/size/controlled reason only.
+
+M1 relay: replaced legacy flat frames with contract1.1 outer schemas, typed rooms, immutable retained offer/order checks, duplicate-role rejection, fixed/idle expiry, join limits and trusted proxy handling.9relaytests/pass9/fail0/duration_ms988.9204. Tests run mock peers in both roles through real ECDH pairing/session and100events; the temporary receiver ledger in this relay test is in-memory, not production durability evidence. Deployment remains full-repository based and no cloud command ran. Local CLI now speaks synthetic encrypted sessions; no legacy plaintext event forwarding.

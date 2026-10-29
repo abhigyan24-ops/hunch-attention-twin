@@ -1,41 +1,8 @@
-import { randomBytes } from 'node:crypto';
-import { WebSocket } from 'ws';
-
-const args = process.argv.slice(2);
-const base = args[0];
-const pair = args.includes('--pair');
-const option = name => args[args.indexOf(name) + 1];
-const room = pair ? randomBytes(32).toString('hex') : option('--room');
-const devices = pair ? ['phone','laptop'] : [option('--device')];
-const sockets = [];
-let timer;
-try {
-  if (!base || !/^wss?:$/.test(new URL(base).protocol) || !/^[a-fA-F0-9]{64}$/.test(room ?? '') || devices.some(d => !['phone','laptop'].includes(d))) throw new Error();
-  await Promise.race([
-    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error()), 7000); }),
-    (async () => {
-      const received = new Map();
-      await Promise.all(devices.map(device => new Promise((resolve, reject) => {
-        const url = new URL(base); url.pathname = '/ws'; url.searchParams.set('room',room); url.searchParams.set('device',device);
-        const ws = new WebSocket(url); sockets.push(ws); received.set(device, new Set());
-        ws.on('message', bytes => {
-          try { const frame=JSON.parse(bytes.toString()); received.get(device).add(frame.type); }
-          catch { reject(new Error()); }
-        });
-        ws.once('open',resolve); ws.on('error',reject); ws.on('close',() => reject(new Error()));
-      })));
-      for (let i=0;i<devices.length;i++) {
-        const device=devices[i], ws=sockets.find(s => new URL(s.url).searchParams.get('device') === device);
-        for (const frame of [{type:'hello',device,version:'1.0.0',lastSeqAcked:0},{type:'ping',t0:0,t1:0,t2:0,t3:0},{type:'pong',t0:0,t1:0,t2:0,t3:0},{type:'state',focusState:'working',[device==='phone'?'phoneState':'laptopState']:device==='phone'?'screen_off':'flowing',confidence:0.5,declared:null,heldCount:0}]) ws.send(JSON.stringify(frame));
-      }
-      await new Promise((resolve, reject) => {
-        const poll=setInterval(() => {
-          if (sockets.some(s=>s.readyState!==WebSocket.OPEN)) { clearInterval(poll);reject(new Error()); }
-          else if ([...received.values()].every(types => ['hello','ping','pong','state'].every(type => types.has(type)))) { clearInterval(poll); resolve(); }
-        },10); poll.unref();
-      });
-    })()
-  ]);
-  console.log(pair ? 'PAIR PASS: hello, ping, pong, state forwarded in both directions.' : 'PEER PASS: hello, ping, pong, state received from paired peer.');
-} catch { console.error('Relay client failed or timed out.'); process.exitCode=1; }
-finally { clearTimeout(timer);for(const ws of sockets)ws.terminate(); }
+import {WebSocket} from 'ws';import {once} from 'node:events';import {randomBytes,randomUUID} from 'node:crypto';import {computeHelloMac,deriveSessionKeys,encryptFramePayload,decryptFramePayload} from '../contracts/sync/ref/crypto.mjs';
+const [url,...args]=process.argv.slice(2);if(!url||!args.includes('--pair')){console.error('Usage: node test-client.mjs <ws-url> --pair (local synthetic two-role encrypted-session smoke)');process.exit(1);}
+const pk=randomBytes(32),room=randomBytes(32).toString('hex'),snL=randomBytes(16),snP=randomBytes(16),keys=deriveSessionKeys(pk,snL,snP),sockets=[];
+const timeout=setTimeout(()=>{console.error('Pair smoke: FAIL timeout');for(const ws of sockets)ws.terminate();process.exitCode=1;},5000);
+try{const roles=['laptop','phone'],seen=[new Set(),new Set()],counters=[0,0];for(const role of roles){const endpoint=new URL(url);endpoint.searchParams.set('room',room);endpoint.searchParams.set('device',role);const ws=new WebSocket(endpoint);sockets.push(ws);await once(ws,'open');}
+ await new Promise((resolve,reject)=>{let started=false;const send=(i,t,b)=>{const d=i===0?'l2p':'p2l',key=i===0?keys.k_l2p:keys.k_p2l,ctr=++counters[i];sockets[i].send(JSON.stringify({v:1,t,d,ctr,c:encryptFramePayload(key,t,d,ctr,JSON.stringify({mid:randomUUID(),ts:Date.now(),b}))}));};sockets.forEach((ws,i)=>{ws.on('error',()=>reject(Error('connection_failed')));ws.on('message',data=>{try{const f=JSON.parse(data);if(f.t==='hello'){const expected=computeHelloMac(pk,roles[1-i],f.sn,0);if(f.mac!==expected.toString('base64'))throw Error();seen[i].add('hello');if(!started&&seen.every(s=>s.has('hello'))){started=true;for(let j=0;j<2;j++){send(j,'ping',{t0:Date.now()});send(j,'state',{ts:Date.now(),focusState:'working',confidence:0,declared:null,heldCount:0});}}}else{const key=i===0?keys.k_p2l:keys.k_l2p;const plain=JSON.parse(decryptFramePayload(key,f.t,f.d,f.ctr,f.c));seen[i].add(f.t);if(f.t==='ping')send(i,'pong',{t0:plain.b.t0,t1:Date.now(),t2:Date.now()});if(seen.every(s=>['hello','ping','pong','state'].every(t=>s.has(t))))resolve();}}catch{reject(Error('invalid_frame'));}});});for(let i=0;i<2;i++){const sn=(i===0?snL:snP).toString('base64');sockets[i].send(JSON.stringify({v:1,t:'hello',device:roles[i],sn,proto:[1],lastSeqAcked:0,mac:computeHelloMac(pk,roles[i],sn,0).toString('base64')}));}});
+ console.log('Pair smoke: PASS hello/ping/pong/state in both directions (synthetic session, no device pairing claimed)');
+}catch{console.error('Pair smoke: FAIL');process.exitCode=1;}finally{clearTimeout(timeout);for(const ws of sockets)ws.close();pk.fill(0);}

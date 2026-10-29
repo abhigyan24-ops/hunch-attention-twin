@@ -1,83 +1,16 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { once } from 'node:events';
-import { WebSocket } from 'ws';
-import { createRelayServer } from '../server.js';
-
-const room = 'a'.repeat(64);
-const ping = {type:'ping',t0:0,t1:0,t2:0,t3:0};
-async function setup(t, options = {}) {
-  const relay=createRelayServer({port:0,logger:()=>{},...options});const address=await relay.ready;
-  t.after(()=>relay.close());
-  const base=`ws://127.0.0.1:${address.port}`;
-  async function connect(device='phone',id=room,path='/ws') {
-    const ws=new WebSocket(`${base}${path}?room=${id}&device=${device}`);ws.on('error',()=>{});
-    await once(ws,'open');return ws;
-  }
-  return {relay,base,connect};
-}
-const message = ws => once(ws,'message').then(([data])=>JSON.parse(data.toString()));
-const closed = ws => once(ws,'close').then(([code])=>code);
-test('GET /healthz returns 200 ok',async t=>{
-  const {base}=await setup(t);const response=await fetch(base.replace('ws:','http:')+'/healthz');assert.equal(response.status,200);assert.equal(await response.text(),'ok');
-});
-test('invalid room, device and path close 4001',async t=>{
-  const {connect}=await setup(t);
-  for(const [device,id,path] of [['phone','bad','/ws'],['watch',room,'/ws'],['phone',room,'/wrong']])assert.equal(await closed(await connect(device,id,path)),4001);
-});
-test('pair forwards bidirectionally without echo or cross-room leakage',async t=>{
-  const {connect}=await setup(t);const phone=await connect(),laptop=await connect('laptop'),other=await connect('phone','b'.repeat(64));
-  let echoed=0,leaked=0;phone.on('message',()=>echoed++);other.on('message',()=>leaked++);
-  let received=message(laptop);phone.send(JSON.stringify(ping));assert.deepEqual(await received,ping);
-  assert.equal(echoed,0);received=message(phone);laptop.send(JSON.stringify({...ping,type:'pong'}));assert.equal((await received).type,'pong');
-  await new Promise(resolve=>setTimeout(resolve,30));assert.equal(echoed,1);assert.equal(leaked,0);
-});
-test('same-role replacement closes old socket 4002; old close cannot remove new role',async t=>{
-  const {connect}=await setup(t);const old=await connect(),laptop=await connect('laptop');const oldClosed=closed(old);const replacement=await connect();assert.equal(await oldClosed,4002);
-  const received=message(replacement);laptop.send(JSON.stringify(ping));assert.deepEqual(await received,ping);
-});
-test('invalid JSON, array, null, binary, malformed UTF-8 close 4003',async t=>{
-  const {connect}=await setup(t);
-  for(const [value,binary]of [['{',false],['[]',false],['null',false],[JSON.stringify(ping),true],[Buffer.from([0xc3,0x28]),false]]){
-    const ws=await connect();const end=closed(ws);ws.send(value,{binary});assert.equal(await end,4003);
-  }
-});
-test('unknown type, extra content, bad schema and reserved ciphertext close 4004',async t=>{
-  const {connect}=await setup(t);
-  for(const frame of [{type:'unknown'}, {...ping,text:'SENSITIVE_SENTINEL'}, {type:'ack',upToSeq:-1},{type:'encrypted',ciphertext:'unapproved'}]){
-    const ws=await connect();const end=closed(ws);ws.send(JSON.stringify(frame));assert.equal(await end,4004);
-  }
-});
-test('oversized frame closes 1009',async t=>{
-  const {connect}=await setup(t,{MAX_FRAME_BYTES:128});const ws=await connect();const end=closed(ws);ws.send('x'.repeat(129));assert.equal(await end,1009);
-});
-test('deep invalid JSON structure is rejected without overflowing privacy traversal',async t=>{
-  const {connect,base}=await setup(t);const ws=await connect();const end=closed(ws);
-  ws.send('{"type":"ping","nested":'+'['.repeat(5000)+'0'+']'.repeat(5000)+'}');
-  assert.equal(await end,4004);
-  assert.equal((await fetch(base.replace('ws:','http:')+'/healthz')).status,200);
-});
-test('sliding one-second rate limit closes 4008 and resets after window',async t=>{
-  let now=1000;const {connect}=await setup(t,{nowFn:()=>now,RATE_LIMIT_PER_SEC:2});const ws=await connect();
-  ws.send(JSON.stringify(ping));ws.send(JSON.stringify(ping));await new Promise(r=>setTimeout(r,20));now=2000;
-  ws.send(JSON.stringify(ping));await new Promise(r=>setTimeout(r,20));assert.equal(ws.readyState,WebSocket.OPEN);
-  const end=closed(ws);ws.send(JSON.stringify(ping));ws.send(JSON.stringify(ping));assert.equal(await end,4008);
-});
-test('fake clock expires idle rooms and active valid frames refresh TTL',async t=>{
-  let now=0;const {relay,connect}=await setup(t,{nowFn:()=>now,IDLE_TTL_MS:100});const p=await connect(),l=await connect('laptop');
-  now=90;const forwarded=message(l);p.send(JSON.stringify(ping));await forwarded;
-  now=100;relay.expireIdleRooms();assert.equal(p.readyState,WebSocket.OPEN);
-  const ends=[closed(p),closed(l)];now=190;relay.expireIdleRooms();assert.deepEqual(await Promise.all(ends),[4000,4000]);
-  const fresh=await connect();assert.equal(fresh.readyState,WebSocket.OPEN);
-});
-test('logs contain only short room, role, allowed type and byteLength; rejected input never leaks',async t=>{
-  const logs=[];const {connect}=await setup(t,{logger:entry=>logs.push(entry)});const p=await connect(),l=await connect('laptop');
-  const received=message(l);p.send(JSON.stringify(ping));await received;
-  const end=closed(p);p.send(JSON.stringify({...ping,nested:{text:'SENSITIVE_SENTINEL'}}));assert.equal(await end,4004);
-  assert.equal(logs.length,1);assert.deepEqual(Object.keys(logs[0]).sort(),['byteLength','device','room','type']);assert.equal(logs[0].room,room.slice(0,8));
-  assert.ok(!JSON.stringify(logs).includes('SENSITIVE_SENTINEL'));assert.ok(!JSON.stringify(logs).includes(room));
-});
-test('commands respect expiry and optional peer authorization hook',async t=>{
-  const {connect}=await setup(t,{nowFn:()=>1000,authorizeCommand:()=>false});
-  for(const expiresAt of [999,2000]){const ws=await connect();const end=closed(ws);ws.send(JSON.stringify({type:'command',commandId:'00000000-0000-4000-8000-000000000001',issuedAt:0,expiresAt,cmd:'kill_switch',args:{}}));assert.equal(await end,4004);}
-});
+import test from 'node:test';import assert from 'node:assert/strict';import {once} from 'node:events';import {randomBytes,randomUUID} from 'node:crypto';import {WebSocket} from 'ws';import {createRelayServer,clientIp} from '../server.js';import {MockPeer} from '../../tools/mock-peer/index.mjs';
+const room='a'.repeat(64),offer={v:1,t:'pair_offer',device:'laptop',commit:Buffer.alloc(32).toString('base64')};
+const encrypted=(ctr=1)=>({v:1,t:'ping',d:'l2p',ctr,c:Buffer.alloc(16).toString('base64')});
+async function setup(t,options={}){const relay=createRelayServer({port:0,logger:()=>{},...options});await relay.ready;t.after(()=>relay.close());return {...relay,url:`ws://127.0.0.1:${relay.address().port}/ws`};}
+async function connect(s,role='laptop',id=room){const ws=new WebSocket(`${s.url}?room=${id}&device=${role}`);ws.on('error',()=>{});await once(ws,'open');return ws;}
+const send=(ws,value)=>ws.send(JSON.stringify(value));
+async function until(fn){for(let i=0;i<100;i++){if(fn())return;await new Promise(r=>setTimeout(r,5));}assert.fail('timeout');}
+test('healthz and invalid endpoint/query',async t=>{const s=await setup(t);assert.equal(await(await fetch(s.url.replace('ws:','http:').replace('/ws','/healthz'))).text(),'ok');const code=await new Promise(resolve=>{const ws=new WebSocket(s.url+'?room=bad&device=phone');ws.on('error',()=>{});ws.on('unexpected-response',(_,r)=>{r.resume();resolve(r.statusCode);ws.terminate();});});assert.equal(code,400);});
+test('opaque encrypted frames forward both ways without echo or payload logging',async t=>{const logs=[],s=await setup(t,{logger:e=>logs.push(e)}),a=await connect(s),b=await connect(s,'phone');let echo=false;a.on('message',()=>echo=true);const incoming=once(b,'message');send(a,encrypted());assert.deepEqual(JSON.parse((await incoming)[0]),encrypted());assert.equal(echo,false);const reverse=once(a,'message');send(b,{...encrypted(),d:'p2l'});await reverse;assert.deepEqual(Object.keys(logs[0]).sort(),['byteLength','device','room','type']);assert.equal(logs[0].room,'aaaaaaaa');});
+test('duplicate role/third client rejected without replacing the existing socket',async t=>{const s=await setup(t),a=await connect(s);await connect(s,'phone');const duplicate=await connect(s);assert.equal((await once(duplicate,'close'))[0],1008);assert.equal(a.readyState,WebSocket.OPEN);assert.equal(s.stats.roleCollisions,1);});
+test('immutable offer retained for late phone; pairing and session rooms cannot mix',async t=>{const s=await setup(t),a=await connect(s);send(a,offer);await until(()=>s.rooms.get(room)?.offer);const b=new WebSocket(s.url+`?room=${room}&device=phone`);const retained=once(b,'message');await once(b,'open');assert.deepEqual(JSON.parse((await retained)[0]),offer);const closed=once(a,'close');send(a,offer);assert.equal((await closed)[0],1008);const bClosed=once(b,'close');send(b,encrypted());assert.equal((await bClosed)[0],1008);});
+test('binary, invalid JSON, unknown types, legacy frames and plaintext payloads fail closed',async t=>{for(const input of [Buffer.from('binary'),'{',{v:1,t:'unknown'},{type:'ping'},{...encrypted(),payload:{text:'CANARY_RELAY'}}]){const s=await setup(t),a=await connect(s),closed=once(a,'close');a.send(typeof input==='string'||Buffer.isBuffer(input)?input:JSON.stringify(input));assert.equal((await closed)[0],1008);}});
+test('oversize frame closes1009 and sliding-window rate limit closes1008',async t=>{let s=await setup(t),a=await connect(s),closed=once(a,'close');a.send('x'.repeat(65537));assert.equal((await closed)[0],1009);s=await setup(t,{rateLimitPerSec:2});a=await connect(s);closed=once(a,'close');for(let i=1;i<=3;i++)send(a,encrypted(i));assert.equal((await closed)[0],1008);});
+test('fixed rendezvous expiry and idle session expiry use fake clock; cached offer erased',async t=>{let now=1000;const s=await setup(t,{nowFn:()=>now,rendezvousTtlMs:100,idleTtlMs:200}),a=await connect(s);send(a,offer);await until(()=>s.rooms.get(room)?.offer);now=1099;s.expireIdleRooms();assert.equal(s.rooms.size,1);now=1100;const closed=once(a,'close');s.expireIdleRooms();assert.equal((await closed)[0],1008);assert.equal(s.rooms.size,0);const b=await connect(s);send(b,encrypted());await until(()=>s.rooms.get(room)?.type==='session');now=1299;s.expireIdleRooms();assert.equal(s.rooms.size,1);now=1300;s.expireIdleRooms();assert.equal(s.rooms.size,0);});
+test('ten rendezvous joins per IP; forwarded IP trusted only from loopback proxy',async t=>{const s=await setup(t),a=await connect(s);send(a,offer);await until(()=>s.rooms.get(room)?.offer);for(let i=0;i<9;i++){const ws=await connect(s);assert.equal((await once(ws,'close'))[0],1008);}const status=await new Promise(resolve=>{const ws=new WebSocket(s.url+`?room=${room}&device=phone`);ws.on('error',()=>{});ws.on('unexpected-response',(_,r)=>{r.resume();resolve(r.statusCode);ws.terminate();});});assert.equal(status,429);assert.equal(clientIp({socket:{remoteAddress:'203.0.113.7'},headers:{'x-forwarded-for':'1.2.3.4'}}),'203.0.113.7');assert.equal(clientIp({socket:{remoteAddress:'127.0.0.1'},headers:{'x-forwarded-for':'1.2.3.4'}}),'1.2.3.4');});
+test('real relay pairs mock peers in both roles, establishes encrypted session and forwards100events',async t=>{const logs=[],s=await setup(t,{logger:e=>logs.push(e)});const received=[];const laptop=new MockPeer({role:'laptop',relayUrl:s.url}),phone=new MockPeer({role:'phone',relayUrl:s.url,eventLedger:{upToSeq:0,settle:async body=>{received.push(...body.events);return {applied:body.events,upToSeq:body.events.at(-1).seq};}}});t.after(()=>{laptop.close();phone.close();});const first=laptop.pair({code:'234567'});await until(()=>[...s.rooms.values()].some(r=>r.offer));const [l,p]=await Promise.all([first,phone.pair({code:'234567'})]);assert.equal(l.sid,p.sid);assert.deepEqual(l.PK,p.PK);laptop.close();phone.close();await Promise.all([laptop.connectSession(),phone.connectSession()]);for(let i=0;i<2;i++)laptop.sendFrame('events',{fromSeq:i*50+1,events:Array.from({length:50},(_,j)=>({schemaVersion:'1.1.0',device:'laptop',deviceId:'public-test',id:randomUUID(),seq:i*50+j+1,source:'vscode',type:'edit_burst',ts:1,synthetic:true,payload:{editsPerMin:1,saves:0,errors:0,warnings:0}}))});await until(()=>received.length===100);assert.doesNotMatch(JSON.stringify(logs),/CANARY|payload|pairingKey|commit|ciphertext/);});
