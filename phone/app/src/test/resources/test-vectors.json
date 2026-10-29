@@ -1,5 +1,6 @@
 {
-  "description": "Cross-language crypto test vectors for Dhyan Sync Protocol v1.0.0",
+  "description": "PUBLIC TEST ONLY: Cross-language crypto test vectors for Dhyan Sync Protocol v1.1.0",
+  "contractVersion": "1.1.0",
   "generatedAt": "2026-10-25T21:45:00.000Z",
   "constants": {
     "pairingCode": "234567",
