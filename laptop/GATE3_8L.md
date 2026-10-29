@@ -2,10 +2,9 @@
 
 Branch s8-laptop-sync; dedicated worktree C:\Users\abhig\OneDrive\Desktop\dhyan-s8l. Do not change the phone worktree. Do not run Gradle/adb from this track. Gate3 requires owner-reviewed8L and8P branches merged, both apps built from main, a verified deployed WSS relay and phone permissions. None of those device/cloud prerequisites is asserted here.
 
-## Current blocker
+## Approved state mapping
 
-CCR-8L-1: laptopState has no approved mapping to the mandatory coarse wire focusState for stuck/idle_open/offline. The owner was asked to approve the limited mapping (flowing->working, browsing/gaming->distracted, away->break) and suppression of unmapped states. Until answered, the main app leaves stateMappingApproved=false and visibly says state mapping awaits owner review. Events, authenticated ping/pong, held-item mirror and commands remain implemented and tested; state heartbeat integration is gated, not claimed complete. No placeholder working/focus value is emitted for unknown activity.
-
+CCR-8L-1 was resolved by the owner on2026-10-29. The app emits flowing->working, browsing/gaming->distracted and away->break. Stuck, idle_open and offline snapshots are suppressed, as are silent/stale/future observations. Both change-triggered updates and the5second heartbeat use this policy. Encrypted events, ping/pong, held-item mirror and commands continue independently. No unknown activity is labelled focus. The panel explains the partial mapping; no stateMapping approval remains pending.
 No full ContextSnapshot is fabricated from sparse laptop inputs. The earlier missing persisted-focus-snapshot source remains open, so today's observed total may still be no-data. Generic focus scores stay rule-based, not calibrated.
 
 ## Automated local commands
@@ -21,7 +20,7 @@ check:s8l runs relay tests, laptop typecheck/build/tests, root guards, contract 
 
 ## Gate 3: laptop-side steps1–9
 
-Run these only after the owner has reviewed and merged the branches and resolved CCR-8L-1. For local-only rehearsal you may use the worktree and `node relay/server.js`; this does not verify deployed TLS. Keep your existing phone app/session under Antigravity's control.
+Run these only after the owner has reviewed and merged the branches with the approved CCR-8L-1 mapping. For local-only rehearsal you may use the worktree and `node relay/server.js`; this does not verify deployed TLS. Keep your existing phone app/session under Antigravity's control.
 
 1. In the laptop terminal, record the test window and start the app:
    ```powershell
@@ -33,7 +32,7 @@ Run these only after the owner has reviewed and merged the branches and resolved
 2. File -> Exit, rerun `npm --prefix laptop run dev` in that same terminal. Expect encrypted credential recovery and automatic reconnect without a new pairing. Keep `$Gate3Started` for step7.
 3. Choose coding/120minutes/strict and click Declare session on phone. Declare locally is explicitly separate. Check the actual phone session and cmd_ack; laptop sent status alone does not prove application.
 4. Owner triggers a held notification through the existing phone flow. Panel should show only counts/categories/opaque heldId actions, no content. Click Show now; verify actual release on phone. A stale/missing held list disables item controls. Stop holding on phone sends only kill_switch.on=true; no laptop control re-enables holding.
-5. Compare both screens for several minutes, recording categorized states/timestamps only. Gate remains pending until state mapping is approved and tested. Do not treat uncalibrated confidence as a probability.
+5. Compare both screens for several minutes, recording categorized states/timestamps only. The owner-approved mapping is tested locally; real-device agreement remains pending. Do not treat uncalibrated confidence as a probability.
 6. Owner puts the phone into airplane mode for60seconds while laptop activity continues, then restores it. Observe stale/unsynced states, gap timestamps, reconnect and canonical backfill. No commands are queued or replayed; an interrupted command outcome may be unknown.
 7. Quit normally so writes flush, then use the laptop events.jsonl path and the canonical phone export path supplied by Antigravity/owner:
    ```powershell
