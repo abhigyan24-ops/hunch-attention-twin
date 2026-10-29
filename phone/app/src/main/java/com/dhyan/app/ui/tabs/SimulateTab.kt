@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,6 +44,7 @@ import com.dhyan.app.ui.components.VerdictCard
 import com.dhyan.app.ui.model.AttentionState
 import com.dhyan.app.ui.model.DhyanStateHolder
 import com.dhyan.app.ui.model.PersonaCatalog as UiPersonaCatalog
+import com.dhyan.app.ui.model.PersonaProfile
 import com.dhyan.app.ui.theme.BorderSubtle
 import com.dhyan.app.ui.theme.DhyanPrimary
 import com.dhyan.app.ui.theme.SurfaceCard
@@ -51,6 +54,7 @@ import com.dhyan.app.ui.theme.TextSecondary
 import com.dhyan.app.ui.theme.VoidBlack
 import com.dhyan.app.ui.viewmodel.SimulateUiState
 import com.dhyan.app.ui.viewmodel.SimulateViewModel
+import java.util.Locale
 import kotlin.math.roundToInt
 
 @Composable
@@ -92,6 +96,45 @@ fun SimulateTab(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Synthetic Persona Banner (Spec 25.13, Amendment 8)
+        if (uiState.isTrained) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF332005))
+                    .border(1.dp, Color(0xFFD29922), RoundedCornerShape(12.dp))
+                    .padding(12.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xFFD29922))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "SYNTHETIC PERSONA",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = 0.5.sp
+                            ),
+                            color = Color.Black
+                        )
+                    }
+                    Text(
+                        text = "In-memory replay simulation only. Zero Room writes.",
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                        color = Color(0xFFF1E05A)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
         // Persona Selection & Fast-Forward Box
         PersonaSelectionCard(
             uiState = uiState,
@@ -99,9 +142,112 @@ fun SimulateTab(
             onToggleTrained = { viewModel.setTrained(it) }
         )
 
+        // Progress bar for persona background replay
+        if (uiState.isReplaying) {
+            Spacer(modifier = Modifier.height(10.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(SurfaceCard)
+                    .border(1.dp, BorderSubtle, RoundedCornerShape(10.dp))
+                    .padding(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Replaying 14-day history for ${uiState.selectedPersona.name.split(" ")[0]}...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = "${(uiState.replayProgress * 100).toInt()}%",
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                        color = DhyanPrimary
+                    )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(Color(0xFF21262D))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(uiState.replayProgress.coerceIn(0.01f, 1f))
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(DhyanPrimary)
+                    )
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Active Context Card
+        // Provenance & Evidence Card (Spec 25.13)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(SurfaceCard)
+                .border(1.dp, BorderSubtle, RoundedCornerShape(16.dp))
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "PROVENANCE & VALIDATION (SPEC 25.13)",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.0.sp
+                    ),
+                    color = TextSecondary
+                )
+                if (uiState.isFailOpen) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xFF3B2300))
+                            .border(1.dp, Color(0xFFD29922), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "FAIL-OPEN ACTIVE",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = Color(0xFFD29922)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = uiState.provenance,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = TextPrimary
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "nEff: ${String.format(Locale.US, "%.1f", uiState.nEff)}  ·  Evidence Strength: ${String.format(Locale.US, "%.2f", uiState.evidenceStrength)}  ·  Model v${uiState.modelVersion}  ·  RNG Seed: 42L",
+                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                color = TextMuted
+            )
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // 1. Active Context Card
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -139,8 +285,12 @@ fun SimulateTab(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Attention State Chips
-            Text(text = "Attention State", style = MaterialTheme.typography.bodySmall, color = TextMuted)
+            // Attention State Chips (Amendment 3: Proven honest label)
+            Text(
+                text = "Attention State (context only — no effect on the twin or verdict)",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextMuted
+            )
             Spacer(modifier = Modifier.height(6.dp))
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -162,23 +312,73 @@ fun SimulateTab(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Sliders: Session Elapsed
+            // Fatigue Control (Amendment 1: Hours worked today -> FatigueIndex)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
-                    text = "Session Depth: ${uiState.sessionElapsedMin} min",
-                    style = MaterialTheme.typography.bodySmall,
+                    text = "Hours worked today: ${String.format(Locale.US, "%.1f", uiState.hoursWorked)} h",
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                     color = TextPrimary
                 )
                 Text(
-                    text = "Hour: ${uiState.currentHour}:00",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextMuted
+                    text = "f = ${String.format(Locale.US, "%.2f", uiState.fatigueIndex)} → ${uiState.fatigueBand.uppercase()}",
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                    color = DhyanPrimary
+                )
+            }
+            Text(
+                text = "[switchRateZ=0, stallRatio=0 fixed neutral]",
+                style = MaterialTheme.typography.labelSmall,
+                color = TextMuted
+            )
+            Slider(
+                value = uiState.hoursWorked.toFloat(),
+                onValueChange = { viewModel.setHoursWorked(it.toDouble()) },
+                valueRange = 0f..10f,
+                colors = SliderDefaults.colors(
+                    thumbColor = DhyanPrimary,
+                    activeTrackColor = DhyanPrimary
+                )
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Minutes in current state
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(
+                    text = "Minutes in current state: ${uiState.minutesInState} min",
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                    color = TextPrimary
                 )
             }
             Slider(
-                value = uiState.sessionElapsedMin.toFloat(),
-                onValueChange = { viewModel.setSessionElapsedMin(it.roundToInt()) },
+                value = uiState.minutesInState.toFloat(),
+                onValueChange = { viewModel.setMinutesInState(it.roundToInt()) },
                 valueRange = 5f..120f,
+                colors = SliderDefaults.colors(
+                    thumbColor = DhyanPrimary,
+                    activeTrackColor = DhyanPrimary
+                )
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Time of day (Amendment 2: All 5 HourBands mapped)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(
+                    text = "Time of day: ${uiState.currentHour}:00",
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                    color = TextPrimary
+                )
+                Text(
+                    text = "Band: ${uiState.hourBand.uppercase()}",
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                    color = DhyanPrimary
+                )
+            }
+            Slider(
+                value = uiState.currentHour.toFloat(),
+                onValueChange = { viewModel.setCurrentHour(it.roundToInt()) },
+                valueRange = 0f..23f,
                 colors = SliderDefaults.colors(
                     thumbColor = DhyanPrimary,
                     activeTrackColor = DhyanPrimary
@@ -188,7 +388,7 @@ fun SimulateTab(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Notification Configuration Card
+        // 2. Incoming Notification Card (Amendment 7: core-spec taxonomy mapped)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -208,22 +408,28 @@ fun SimulateTab(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            Text(text = "App Category", style = MaterialTheme.typography.bodySmall, color = TextMuted)
+            Text(
+                text = "App & Notification Category (Core Taxonomy)",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextMuted
+            )
             Spacer(modifier = Modifier.height(6.dp))
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // Verified taxonomy resolving directly to PriorTable branches
                 listOf(
-                    Pair("Social", "social"),
-                    Pair("Work / Chat", "work"),
-                    Pair("Messaging", "messaging"),
-                    Pair("Promo / News", "promo")
-                ).forEach { (label, cat) ->
+                    Triple("Social", "social", "social_notif"),
+                    Triple("Known Contact", "communication", "msg"),
+                    Triple("Promo / Deals", "shopping", "promo"),
+                    Triple("Work Docs", "docs", "alert")
+                ).forEach { (label, appCat, notifCat) ->
+                    val isSelected = uiState.simCategory == appCat && uiState.simNotifCat == notifCat
                     ContextChip(
                         label = label,
-                        isSelected = uiState.simCategory == cat,
-                        onClick = { viewModel.setCategory(cat) }
+                        isSelected = isSelected,
+                        onClick = { viewModel.setCategory(appCat, notifCat) }
                     )
                 }
             }
@@ -265,7 +471,7 @@ fun SimulateTab(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Verdict Card
+        // Verdict Card (Amendment 3: Explainer from DecisionPipeline)
         VerdictCard(
             verdict = uiState.simulationResult.verdict,
             explanation = uiState.simulationResult.explanation
@@ -273,7 +479,7 @@ fun SimulateTab(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Twin Lab (Beta Pickup Curve)
+        // Twin Lab (Beta Pickup Curve & Posterior - Amendment 5)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -291,7 +497,7 @@ fun SimulateTab(
             ) {
                 Column {
                     Text(
-                        text = "TWIN LAB · BAYESIAN PICKUP POSTERIOR",
+                        text = "TWIN LAB · BAYESIAN POSTERIOR",
                         style = MaterialTheme.typography.labelMedium.copy(
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 1.0.sp
@@ -299,7 +505,7 @@ fun SimulateTab(
                         color = DhyanPrimary
                     )
                     Text(
-                        text = if (uiState.isTwinLabExpanded) "Tap to collapse distribution" else "Tap to inspect Beta(α, β) belief curve",
+                        text = if (uiState.isTwinLabExpanded) "Tap to collapse distribution" else "Tap to inspect resolved ModelSnapshot beliefs",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextMuted
                     )
@@ -318,7 +524,11 @@ fun SimulateTab(
                     beta = uiState.simulationResult.betaBeta,
                     lognormMu = uiState.simulationResult.lognormMu,
                     lognormSigma = uiState.simulationResult.lognormSigma,
-                    updateCount = uiState.simulationResult.updateCount
+                    updateCount = uiState.simulationResult.updateCount,
+                    nEff = uiState.nEff,
+                    modelVersion = uiState.modelVersion,
+                    priorAlpha = uiState.priorAlpha,
+                    priorBeta = uiState.priorBeta
                 )
             }
         }
@@ -330,7 +540,7 @@ fun SimulateTab(
 @Composable
 private fun PersonaSelectionCard(
     uiState: SimulateUiState,
-    onSelectPersona: (com.dhyan.app.ui.model.PersonaProfile) -> Unit,
+    onSelectPersona: (PersonaProfile) -> Unit,
     onToggleTrained: (Boolean) -> Unit
 ) {
     Column(
@@ -356,7 +566,7 @@ private fun PersonaSelectionCard(
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = if (uiState.isTrained) "14-Day Trained" else "Cold Priors",
+                    text = if (uiState.isTrained) "14-Day Replay" else "Cold Priors",
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                     color = if (uiState.isTrained) DhyanPrimary else TextMuted
                 )

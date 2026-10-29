@@ -6,8 +6,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import kotlin.math.exp
-import kotlin.math.ln
 import kotlin.math.roundToInt
 
 class DhyanStateHolder {
@@ -42,10 +40,6 @@ class DhyanStateHolder {
     var isSimulatingFastForward by mutableStateOf(false)
     var fastForwardProgress by mutableFloatStateOf(0f)
     var fastForwardDaysSimulated by mutableIntStateOf(0)
-
-    // Dynamic Simulation Result
-    var currentSimulation by mutableStateOf(computeSimulation())
-        private set
 
     // Digest Queue
     val digestQueue = mutableStateListOf(
@@ -141,88 +135,6 @@ class DhyanStateHolder {
                 simCategory = "entertainment"
             }
         }
-        recalculate()
-    }
-
-    fun recalculate() {
-        currentSimulation = computeSimulation()
-    }
-
-    private fun computeSimulation(): SimulationResult {
-        // Honest paired estimation based on current persona & context
-        val baseP = selectedPersona.pPickupDefault
-        val urgencyBump = (simUrgency - 1) * 0.08
-        val fatigueBump = fatigueLevel * 0.18
-        val overlapBump = if (isOverlapActive) 0.12 else 0.0
-        val vipDiscount = if (simIsVip) 0.85 else 0.0
-
-        val pShow = ((baseP + urgencyBump + fatigueBump + overlapBump)
-            .coerceIn(0.15, 0.95) * (if (simIsVip) 0.2 else 1.0))
-            .coerceIn(0.05, 0.95)
-
-        val pSuppress = (0.07 + fatigueBump * 0.4).coerceIn(0.04, 0.25)
-
-        val dwellMin = when (simCategory) {
-            "social" -> 18.0 + (fatigueLevel * 12.0)
-            "entertainment" -> 22.0 + (fatigueLevel * 15.0)
-            "work" -> 6.0
-            else -> 8.0
-        }
-        val resumeMin = when (selectedPersona.id) {
-            "rahul" -> 8.0 + (fatigueLevel * 4.0)
-            "anika" -> 3.5
-            else -> 6.0
-        }
-
-        val expectedLostShow = (pShow * (dwellMin + resumeMin) * cautionMultiplier)
-            .coerceAtLeast(1.0)
-        val ciLow = (expectedLostShow * 0.35).coerceAtLeast(1.0)
-        val ciHigh = (expectedLostShow * 1.70).coerceAtLeast(ciLow + 2.0)
-
-        val expectedLostSuppress = (pSuppress * resumeMin).coerceAtLeast(0.5)
-
-        val verdict = when {
-            isKillSwitchActive -> ActionVerdict.ALLOW
-            simIsVip || simUrgency >= 4 -> ActionVerdict.ALLOW
-            expectedLostShow > 18.0 -> ActionVerdict.DIGEST
-            sessionElapsedMin > 40 && expectedLostShow > 10.0 -> ActionVerdict.DELAY
-            simCategory == "promo" -> ActionVerdict.SILENT
-            else -> ActionVerdict.DIGEST
-        }
-
-        val explanation = when {
-            isKillSwitchActive -> "Emergency Kill Switch active: all notifications passed through."
-            simIsVip -> "Allowed immediately: VIP contact overrides focus suppression."
-            simUrgency >= 4 -> "Allowed immediately: High urgency score ($simUrgency/5) outweighs focus cost."
-            verdict == ActionVerdict.DIGEST -> {
-                val ratio = (pShow * 10).roundToInt().coerceIn(1, 9)
-                "Likes from $simApp pull you away $ratio of 10 times while ${simTask.lowercase()}; ${sessionElapsedMin}m into session, you take ${resumeMin.roundToInt()}m to resume."
-            }
-            verdict == ActionVerdict.DELAY -> {
-                "Snoozed 15 min: current ${simTask.lowercase()} sprint has ${50 - sessionElapsedMin}m remaining until break."
-            }
-            else -> "Suppressed silently: low-priority notification during active focus."
-        }
-
-        val updates = if (isSimulatingFastForward) 280 else 42
-        val alpha = if (isSimulatingFastForward) 68.0 else 38.0
-        val beta = if (isSimulatingFastForward) 41.0 else 23.0
-
-        return SimulationResult(
-            pDistractionShow = pShow,
-            pDistractionSuppress = pSuppress,
-            expectedLostShowMin = expectedLostShow,
-            ciLowShowMin = ciLow,
-            ciHighShowMin = ciHigh,
-            expectedLostSuppressMin = expectedLostSuppress,
-            verdict = verdict,
-            explanation = explanation,
-            betaAlpha = alpha,
-            betaBeta = beta,
-            lognormMu = ln(dwellMin).coerceIn(1.5, 3.5),
-            lognormSigma = 0.65,
-            updateCount = updates
-        )
     }
 
     fun dismissDigest(item: DigestItem) {

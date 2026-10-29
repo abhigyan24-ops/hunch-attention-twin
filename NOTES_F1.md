@@ -217,9 +217,160 @@ In `SimulateTab.kt`, `LiveDigestTab.kt`, and `InsightsTab.kt`:
 
 ## Milestone M0 Summary & Next Actions
 
-Milestone M0 is complete. No product code has been modified on `phone-f1`.
-We await owner review and approval to proceed with:
-- **M1:** Remove all hand-written multipliers from `SimulateViewModel.kt` and wire real inputs according to Section 3.
-- **M2:** Implement explicit provenance labeling (`[Simulated by Twin]`, `[Cold Prior]`, `[Stage 4 Rahul Model]`, `N=500 draws, seed=42L`) per spec 25.13.
-- **M3:** Upgrade `TwinColdStoreSensitivityTest` into a permanent regression test verifying mathematical inequality contracts.
-- **M4:** Update `dhyan-pitch.md` to remove unsourced claims and cite verifiable test commands.
+Milestone M0 is complete and approved with 11 owner amendments.
+Milestones M1–M4 have been executed:
+- **M1:** Completely rewritten `SimulateViewModel.kt` without any hand-coded multipliers. Wires real `TwinEngine`, `FatigueIndex`, `HourBand`, `DecisionPipeline`, and in-memory Stage 4 replay-trained persona store caching.
+- **M2:** Updated `SimulateTab.kt` with explicit provenance tags (Spec 25.13), synthetic persona banner, background replay progress bar, honest focus state label, fatigue/hours worked slider, circadian hour slider, and taxonomy-aligned notification buttons.
+- **M3:** Created and executed `DecisionPipelineFocusSensitivityTest.kt` and `SimulateTabRegressionTest.kt` proving core taxonomy alignment, NeverHold known categories, and in-memory Room isolation.
+- **M4:** Updated `dhyan-pitch.md` (and created `docs/dhyan-pitch.md`) with honest latency reporting, formal academic citation for Gloria Mark et al. (2008), real TwinEngine model output, illustrative projection annotations, and estimated target annotations.
+
+---
+
+## 8. Completion of Milestones M1–M4 & Real Command Outputs (Amendments 10 & 11)
+
+### A. Stage 8 Plan: `LiveContextHolder` & `SnapshotSource` Binding (Amendment 10)
+Per owner instruction, `LiveContextHolder.setDelegate` was **not** implemented in prompt F1.
+**Stage 8 Architecture Record:**
+- In Stage 8 (fusion & multi-device sync), `LiveContextHolder` will be adapted to support a delegated `SnapshotSource` binding:
+  ```kotlin
+  object LiveContextHolder : SnapshotSource {
+      private var delegate: SnapshotSource? = null
+      fun setDelegate(fusedSource: SnapshotSource) {
+          delegate = fusedSource
+      }
+      override val snapshot: StateFlow<ContextSnapshot?>
+          get() = delegate?.snapshot ?: localSnapshot
+      override fun currentSnapshot(): ContextSnapshot?
+          get() = delegate?.currentSnapshot() ?: localCurrentSnapshot()
+  }
+  ```
+- This ensures that when the laptop/relay cross-device context arrives in Stage 8, the fusion pipeline can inject workstation presence without breaking any existing phone collectors or ViewModel observers.
+
+### B. Sensitivity Test Real Command Output (Amendment 11)
+
+**Command:**
+`cmd /c "cd /d C:\Users\abhig\OneDrive\Desktop\IIITN\phone && gradlew.bat testDebugUnitTest --tests com.dhyan.app.ui.viewmodel.TwinColdStoreSensitivityTest"`
+
+**Output:**
+```
+> Task :app:testDebugUnitTest
+
+=== COLD STORE SENSITIVITY AUDIT ===
+Baseline (social/post, fatigue=low, hour=afternoon, task=coding): deltaL = 5.8244 min
+  appCat=social, notifCat=post:       deltaL = 5.8244 min
+  appCat=communication, notifCat=msg: deltaL = 7.7541 min
+  notifCat=promo:                     deltaL = 1.7805 min
+  appCat=tools (unknown):             deltaL = 6.2243 min
+  fatigueBand=low:                    deltaL = 5.8244 min
+  fatigueBand=med:                    deltaL = 6.3071 min
+  fatigueBand=high:                   deltaL = 7.2911 min
+  isVip=false:                        deltaL = 5.8244 min
+  isVip=true:                         deltaL = 5.8244 min
+  urgencyScore=0.1 (low):             deltaL = 5.8244 min
+  urgencyScore=0.5 (med):             deltaL = 5.8244 min
+  urgencyScore=0.9 (high):            deltaL = 5.8244 min
+  repeatCount5m=0 (R0):               deltaL = 5.8244 min
+  repeatCount5m=2 (R2):               deltaL = 5.8244 min
+  repeatCount5m=5 (R3):               deltaL = 5.8244 min
+  taskType=CODING:                    deltaL = 5.8244 min
+  taskType=STUDYING:                  deltaL = 5.2132 min
+  taskType=BROWSING:                  deltaL = 5.5188 min
+  hourBand=morning:                   deltaL = 5.8244 min
+  hourBand=afternoon:                 deltaL = 5.8244 min
+  hourBand=evening:                   deltaL = 5.8244 min
+  focusState=DEEP_FOCUS:              deltaL = 5.8244 min
+  focusState=WORKING:                 deltaL = 5.8244 min
+  focusState=DISTRACTED:              deltaL = 5.8244 min
+=====================================
+
+BUILD SUCCESSFUL in 1m 18s
+```
+
+**Decision Pipeline Focus Sensitivity Command:**
+`cmd /c "cd /d C:\Users\abhig\OneDrive\Desktop\IIITN\phone && gradlew.bat testDebugUnitTest --tests com.dhyan.app.ui.viewmodel.DecisionPipelineFocusSensitivityTest"`
+
+**Output:**
+```
+> Task :app:testDebugUnitTest
+
+=== DECISION PIPELINE FOCUS SENSITIVITY TEST ===
+FocusState.DEEP_FOCUS: action=DIGEST, reason=cost_selected
+FocusState.WORKING: action=DIGEST, reason=cost_selected
+FocusState.DRIFTING: action=DIGEST, reason=cost_selected
+FocusState.DISTRACTED: action=DIGEST, reason=cost_selected
+FocusState.RECOVERING: action=DIGEST, reason=cost_selected
+FocusState.BREAK: action=DIGEST, reason=cost_selected
+All focus states produced identical verdict: DIGEST
+Label verified: "Attention State (context only — no effect on the twin or verdict)"
+================================================
+
+BUILD SUCCESSFUL in 1m 20s
+```
+
+### C. Full Unit Test Suite Real Command Output (Amendment 11)
+
+**Command:**
+`cmd /c "cd /d C:\Users\abhig\OneDrive\Desktop\IIITN\phone && gradlew.bat testDebugUnitTest"`
+
+**Output:**
+```
+Starting a Gradle Daemon, 3 busy and 1 incompatible and 8 stopped Daemons could not be reused, use --status for details
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:processDebugNavigationResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:generateDebugRFile UP-TO-DATE
+> Task :app:kspDebugKotlin UP-TO-DATE
+> Task :app:compileDebugKotlin UP-TO-DATE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :app:compileDebugJavaWithJavac NO-SOURCE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:compileDebugNavigationResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :app:bundleDebugClassesToRuntimeJar UP-TO-DATE
+> Task :app:bundleDebugClassesToCompileJar UP-TO-DATE
+> Task :app:kspDebugUnitTestKotlin SKIPPED
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:compileDebugUnitTestKotlin UP-TO-DATE
+> Task :app:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:processDebugJavaRes UP-TO-DATE
+> Task :app:processDebugUnitTestJavaRes UP-TO-DATE
+> Task :app:testDebugUnitTest
+
+BUILD SUCCESSFUL in 1m 14s
+25 actionable tasks: 1 executed, 24 up-to-date
+
+Test Summary Report (phone/app/build/reports/tests/testDebugUnitTest/index.html):
+- Total Tests: 253
+- Failures: 0
+- Skipped: 0
+- Duration: 20.137s
+- Success Rate: 100%
+```
+
+### D. Full Assemble Debug Real Command Output
+
+**Command:**
+`cmd /c "cd /d C:\Users\abhig\OneDrive\Desktop\IIITN\phone && gradlew.bat assembleDebug"`
+
+**Output:**
+```
+> Task :app:dexBuilderDebug
+> Task :app:mergeProjectDexDebug
+> Task :app:packageDebug
+> Task :app:createDebugApkListingFileRedirect UP-TO-DATE
+> Task :app:assembleDebug
+
+BUILD SUCCESSFUL in 1m 30s
+37 actionable tasks: 3 executed, 34 up-to-date
+```

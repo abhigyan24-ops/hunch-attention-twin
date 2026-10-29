@@ -37,6 +37,8 @@ import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.pow
 
+import java.util.Locale
+
 @Composable
 fun BayesianCurveCard(
     alpha: Double,
@@ -44,6 +46,10 @@ fun BayesianCurveCard(
     lognormMu: Double,
     lognormSigma: Double,
     updateCount: Int,
+    nEff: Double = 0.0,
+    modelVersion: Long = 0L,
+    priorAlpha: Double = 1.0,
+    priorBeta: Double = 1.0,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -68,7 +74,7 @@ fun BayesianCurveCard(
                     color = TextSecondary
                 )
                 Text(
-                    text = "Posterior distribution tightening after N=$updateCount episodes",
+                    text = "Resolved ModelSnapshot parameters (prior vs posterior)",
                     style = MaterialTheme.typography.bodySmall,
                     color = TextMuted
                 )
@@ -80,7 +86,54 @@ fun BayesianCurveCard(
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Text(
-                    text = "O(1) Conjugate",
+                    text = "v$modelVersion · nEff=${String.format(Locale.US, "%.1f", nEff)}",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = DhyanPrimary
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Prior vs Posterior summary
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFF161B22))
+                .padding(10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(
+                    text = "POPULATION PRIOR",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = TextMuted
+                )
+                Text(
+                    text = "Beta(\u03B1=${String.format(Locale.US, "%.1f", priorAlpha)}, \u03B2=${String.format(Locale.US, "%.1f", priorBeta)})",
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                    color = TextSecondary
+                )
+                Text(
+                    text = "E[p] = ${String.format(Locale.US, "%.2f", priorAlpha / (priorAlpha + priorBeta))}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextMuted
+                )
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "RESOLVED POSTERIOR",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = DhyanPrimary
+                )
+                Text(
+                    text = "Beta(\u03B1=${String.format(Locale.US, "%.1f", alpha)}, \u03B2=${String.format(Locale.US, "%.1f", beta)})",
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                    color = TextPrimary
+                )
+                Text(
+                    text = "E[p] = ${String.format(Locale.US, "%.2f", alpha / (alpha + beta))}",
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                     color = DhyanPrimary
                 )
@@ -91,13 +144,13 @@ fun BayesianCurveCard(
 
         // Beta distribution curve (P_pickup posterior)
         Text(
-            text = "Pickup Probability: Beta(\u03B1=${alpha.toInt()}, \u03B2=${beta.toInt()})",
+            text = "Pickup Probability Belief: Beta(\u03B1=${String.format(Locale.US, "%.1f", alpha)}, \u03B2=${String.format(Locale.US, "%.1f", beta)})",
             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
             color = TextPrimary
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "Expected p_pickup: ${String.format("%.2f", alpha / (alpha + beta))} (tightening around true persona propensity)",
+            text = "Expected p_pickup: ${String.format(Locale.US, "%.2f", alpha / (alpha + beta))} (pure TwinEngine conjugate posterior)",
             style = MaterialTheme.typography.bodySmall,
             color = TextMuted
         )
@@ -126,13 +179,13 @@ fun BayesianCurveCard(
         // LogNormal dwell distribution curve
         val medianDwell = exp(lognormMu)
         Text(
-            text = "Dwell Duration: LogNormal(\u03BC=${String.format("%.2f", lognormMu)}, \u03C3=${String.format("%.2f", lognormSigma)})",
+            text = "Dwell Duration: LogNormal(\u03BC=${String.format(Locale.US, "%.2f", lognormMu)}, \u03C3=${String.format(Locale.US, "%.2f", lognormSigma)})",
             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
             color = TextPrimary
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "Median dwell if lured: ${String.format("%.1f", medianDwell)} min",
+            text = "Median dwell if lured: ${String.format(Locale.US, "%.1f", medianDwell)} min",
             style = MaterialTheme.typography.bodySmall,
             color = TextMuted
         )
