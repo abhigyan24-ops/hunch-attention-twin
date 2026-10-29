@@ -692,12 +692,14 @@ fun CrossDeviceSyncSection(
         val isPairingActive = syncStatus is SyncUiStatus.Joining ||
                 syncStatus is SyncUiStatus.WaitingOffer ||
                 syncStatus is SyncUiStatus.SasVerification ||
+                syncStatus is SyncUiStatus.Connecting
+
+        val isPairedOrConnected = hasStoredCredentials ||
                 syncStatus is SyncUiStatus.Paired ||
-                syncStatus is SyncUiStatus.Connecting ||
                 syncStatus is SyncUiStatus.Connected ||
                 syncStatus is SyncUiStatus.Unsynced
 
-        if (!hasStoredCredentials && !isPairingActive) {
+        if (!isPairedOrConnected && !isPairingActive) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
                     value = inputRelayUrl,
@@ -740,7 +742,7 @@ fun CrossDeviceSyncSection(
                     Text("Pair with Laptop", color = Color.Black, fontWeight = FontWeight.Bold)
                 }
             }
-        } else if (hasStoredCredentials) {
+        } else if (isPairedOrConnected) {
             // Already Paired Controls
             Row(
                 modifier = Modifier.fillMaxWidth(),

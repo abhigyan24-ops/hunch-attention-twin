@@ -110,21 +110,13 @@ class SyncManager(
 
     companion object {
         val DEFAULT_RELAY_URL: String = run {
-            val isUserBuild = runCatching { android.os.Build.TYPE == "user" }.getOrDefault(false)
-            if (isUserBuild) {
-                // In production user releases, cleartext ws:// is prohibited; require secure wss:// endpoint
-                ""
+            val fp = runCatching { android.os.Build.FINGERPRINT }.getOrNull()
+            val hw = runCatching { android.os.Build.HARDWARE }.getOrNull()
+            if (fp != null && (fp.contains("generic") || hw?.contains("goldfish") == true || hw?.contains("ranchu") == true)) {
+                "ws://10.0.2.2:8080/ws"
             } else {
-                val fp = runCatching { android.os.Build.FINGERPRINT }.getOrNull()
-                val hw = runCatching { android.os.Build.HARDWARE }.getOrNull()
-                if (fp != null && (fp.contains("generic") || hw?.contains("goldfish") == true || hw?.contains("ranchu") == true)) {
-                    "ws://10.0.2.2:8080/ws"
-                } else if (fp != null) {
-                    // Target hardware in debug mode: adb reverse over USB (127.0.0.1:8080), no LAN IP committed
-                    "ws://127.0.0.1:8080/ws"
-                } else {
-                    "ws://10.0.2.2:8080/ws"
-                }
+                // Target hardware in debug mode: loopback via adb reverse over USB (127.0.0.1:8080), no LAN IP committed
+                "ws://127.0.0.1:8080/ws"
             }
         }
     }
@@ -217,9 +209,9 @@ class SyncManager(
 
     private suspend fun initializeSession(pk: ByteArray, sidHex: String, url: String) = initializationMutex.withLock {
         if (initializedSid == sidHex && relayClient != null) return@withLock
-        val isUserBuild = runCatching { android.os.Build.TYPE == "user" }.getOrDefault(false)
-        if (isUserBuild && url.startsWith("ws://", ignoreCase = true)) {
-            throw IllegalArgumentException("Cleartext WebSocket is prohibited in release builds. Use wss://")
+        val isLoopback = url.startsWith("ws://127.0.0.1") || url.startsWith("ws://localhost") || url.startsWith("ws://10.0.2.2")
+        if (url.startsWith("ws://", ignoreCase = true) && !isLoopback) {
+            throw IllegalArgumentException("Cleartext WebSocket is prohibited for non-loopback endpoints. Use wss://")
         }
         relayClient?.disconnect()
         initializedSid = sidHex

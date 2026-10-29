@@ -63,6 +63,7 @@ open class RelayClient(
 
     private val tagFailures = mutableListOf<Long>()
     private val helloFailures = mutableListOf<Long>()
+    private val seenPeerNonces = mutableSetOf<String>()
 
     var onMessageReceived: ((type: String, bodyJson: String, mid: String, ts: Long) -> Unit)? = null
     var onPongReceived: ((t0: Long, t1: Long, t2: Long, rxTime: Long) -> Unit)? = null
@@ -71,6 +72,7 @@ open class RelayClient(
         override fun onOpen() {
             tagFailures.clear()
             helloFailures.clear()
+            seenPeerNonces.clear()
             _state.value = SessionState.Handshaking
             sendLocalHello()
         }
@@ -205,12 +207,16 @@ open class RelayClient(
     }
 
     private fun handlePeerHello(map: Map<*, *>) {
-        // A connection has exactly one nonce pair. Never restart counters under its keys.
-        if (_state.value !is SessionState.Handshaking) return
+        if (_state.value is SessionState.Disconnected || _state.value is SessionState.Failed) return
         val fromDevice = map["device"] as? String ?: return
         if (fromDevice != peerDevice) return
 
         val snBase64 = map["sn"] as? String ?: return
+        if (snBase64 in seenPeerNonces) {
+            reject("hello_replay")
+            return
+        }
+        seenPeerNonces.add(snBase64)
         val lastSeq = (map["lastSeqAcked"] as? Number)?.toLong() ?: 0L
         val macBase64 = map["mac"] as? String ?: return
 
@@ -247,7 +253,11 @@ open class RelayClient(
         // Handshake complete: derive session keys
         val peerSn = Base64.getDecoder().decode(snBase64)
         if (peerSn.size != 16) return
-        val localSn = localSnBytes ?: secureRandomBytes(16).also { localSnBytes = it }
+        val localSn = if (_state.value is SessionState.Connected) {
+            secureRandomBytes(16).also { localSnBytes = it }
+        } else {
+            localSnBytes ?: secureRandomBytes(16).also { localSnBytes = it }
+        }
         // The first hello may have been sent before the peer joined. Answer once,
         // retaining this connection's original nonce; the state guard above prevents loops.
         sendLocalHello(localSn)

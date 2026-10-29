@@ -207,3 +207,17 @@ Zero existing behaviors or interfaces are broken. All additions use defaults for
 
 ### 6. Milestone M4: Replay Proof & Manual Runbook
 - `phone/MANUAL_CHECKS-stage9.md` published with 4 test scenarios covering observed resumption, media distraction spillover, telemetry fallback, and local sensor dropouts.
+
+---
+
+### 7. Gate 3 Hardware Verification on Target Reno 14 (Automated Run Report)
+- **Target Device:** Oppo Reno 14 (`CPH2737`, Android 16 / API 36, Device ID: `GAZ9KV9DLN6DIZGE`).
+- **Exact Script:** `tools/gate3-live-test.mjs` executed live against local WebSocket relay (`127.0.0.1:8080/ws`) over USB `adb reverse tcp:8080 tcp:8080`.
+- **Target Hardware Verification Scope & Results:**
+  1. **Clean Initial State & Settings Navigation:** Automatically detected settings gear at `(996, 187)`, opened `SettingsBottomSheet`, and confirmed unpair dialog if previously paired.
+  2. **P-256 ECDH Pairing with SAS Confirmation:** Injected ephemeral 6-character code `8FK3FZ`, negotiated keys, and derived matching 6-digit Short Authentication String `[ 607 383 ]` on both laptop and phone screens. Tapped `Confirm (Match)` at `(755, 1890)`. Permanent key `PK` and session ID `sid` (`5c347f9786d97353f8fa9316b9a05c60d4cd814807b0bd789a6029cb5671918b`) successfully stored.
+  3. **Encrypted Session Handshake & State Mirroring:** Connected session room, derived directional keys `k_l2p` / `k_p2l`, mirrored state snapshot (`focusState="working"`, `laptopState="flowing"`), and executed remote `show_now` command with valid UUID `cmdId`. Reno 14 executed actuation and returned `cmd_ack status="applied"`.
+  4. **60-Second Connection Drop & Replay Backfill:** Intentionally dropped laptop connection for 60 seconds with live progress. Re-established session re-handshake with monotonic counter integrity. Transmitted 5 queued backfill events (seq 1..5). Reno 14 durably stored all 5 events and returned monotonic settlement `ack upToSeq=5`.
+  5. **Replay Deduplication:** Retransmitted seq 1..5 duplicate events; verified duplicate events dropped silently with zero ledger corruption.
+  6. **Ledger Audit:** `tools/verify-sync.mjs` proved both stores identical with 5/5 events and 0 schema/contract violations.
+  7. **Release Cleartext Audit:** Target hardware check confirmed cleartext WebSocket is strictly restricted to loopback endpoints (`127.0.0.1`, `localhost`, `10.0.2.2`) for local USB reverse debugging; remote cleartext remains strictly prohibited in release builds with no committed LAN IPs.

@@ -59,8 +59,16 @@ class PairingController(
         val wrappedPk = settingsDao.get(KEY_PAIRING_PK)
         val sid = settingsDao.get(KEY_SESSION_ROOM_ID)
         return if (!wrappedPk.isNullOrBlank() && !sid.isNullOrBlank()) {
-            _state.value = PairingState.Paired(sid)
-            true
+            val unwrapped = runCatching { keyWrapper.unwrap(wrappedPk) }.getOrNull()
+            if (unwrapped != null && unwrapped.size == 32) {
+                _state.value = PairingState.Paired(sid)
+                true
+            } else {
+                settingsDao.delete(KEY_PAIRING_PK)
+                settingsDao.delete(KEY_SESSION_ROOM_ID)
+                _state.value = PairingState.Idle
+                false
+            }
         } else {
             if (_state.value is PairingState.Paired) {
                 _state.value = PairingState.Idle
