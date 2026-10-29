@@ -12,7 +12,7 @@ import java.util.Calendar
 import java.util.TimeZone
 
 /**
- * Adapts event streams (Stage 4A synthetic replay GenEvents, JSONL logs, or Stage 2 collector events)
+ * Adapts event streams (Stage 4A synthetic replay GenEvents, JSONL logs, Stage 2 collector events, or Stage 8/9 cross-device sync)
  * into stateful calls to [EpisodeBuilder].
  *
  * Tracks the current [ContextSnapshot] in real-time based on system and device state transitions.
@@ -62,8 +62,8 @@ class EventStreamAdapter(
     /**
      * Ingests a single event from any stream.
      *
-     * @param type The event type (e.g., "notif_posted", "app_foreground", "screen_off", "window_change").
-     * @param ts Event epoch timestamp in milliseconds.
+     * @param type The event type (e.g., "notif_posted", "app_foreground", "screen_off", "window_change", "tab_category", "edit_burst").
+     * @param ts Event epoch timestamp in milliseconds (with tsAdj applied if from a peer device).
      * @param payload Map of event payload attributes.
      * @param explicitSnapshot Optional pre-computed snapshot.
      */
@@ -73,14 +73,15 @@ class EventStreamAdapter(
         payload: Map<String, Any?> = emptyMap(),
         explicitSnapshot: ContextSnapshot? = null
     ) {
-        val snapshot = explicitSnapshot ?: buildSnapshot(ts)
+        val effectiveTs = (payload["tsAdj"] as? Number)?.toLong() ?: ts
+        val snapshot = explicitSnapshot ?: buildSnapshot(effectiveTs)
 
         // Always check timeout on every advancing event timestamp
-        episodeBuilder.checkTimeout(ts)
+        episodeBuilder.checkTimeout(effectiveTs)
 
         when (type) {
             "notif_posted" -> {
-                val key = payload["key"] as? String ?: "notif_$ts"
+                val key = payload["key"] as? String ?: "notif_$effectiveTs"
                 val appCat = payload["appCat"] as? String ?: "social"
                 val notifCat = payload["notifCat"] as? String
                 val senderHash = (payload["senderId"] ?: payload["senderHash"]) as? String
@@ -95,7 +96,7 @@ class EventStreamAdapter(
                     senderHash = senderHash,
                     isVip = isVip,
                     urgencyScore = urgencyScore,
-                    ts = ts,
+                    ts = effectiveTs,
                     snapshot = snapshot,
                     repeatCount5m = repeatCount5m
                 )
@@ -107,17 +108,17 @@ class EventStreamAdapter(
                 episodeBuilder.onAppForeground(
                     appCat = appCat,
                     surface = surface,
-                    ts = ts,
+                    ts = effectiveTs,
                     snapshot = snapshot
                 )
             }
             "app_background" -> {
                 val durationMs = (payload["durationMs"] as? Number)?.toLong() ?: 0L
-                episodeBuilder.onAppBackground(durationMs, ts)
+                episodeBuilder.onAppBackground(durationMs, effectiveTs)
             }
             "screen_off" -> {
                 currentPhoneState = PhoneState.SCREEN_OFF
-                episodeBuilder.onScreenOff(ts)
+                episodeBuilder.onScreenOff(effectiveTs)
             }
             "screen_on" -> {
                 if (currentPhoneState == PhoneState.SCREEN_OFF) {
@@ -150,19 +151,46 @@ class EventStreamAdapter(
                         currentLaptopState = LaptopState.BROWSING
                     }
                 }
-                episodeBuilder.onLaptopWindowChange(appCat, ts)
+                episodeBuilder.onLaptopWindowChange(appCat, effectiveTs)
+            }
+            "tab_category" -> {
+                val domainCat = payload["domainCat"] as? String ?: "coding"
+                val isWork = domainCat in setOf("coding", "docs", "learning")
+                if (!isWork) {
+                    currentLaptopState = LaptopState.BROWSING
+                    episodeBuilder.onLaptopWindowChange(domainCat, effectiveTs)
+                } else {
+                    currentLaptopState = LaptopState.FLOWING
+                    if (domainCat == "coding") {
+                        currentTaskType = TaskType.CODING
+                    } else if (domainCat == "learning") {
+                        currentTaskType = TaskType.STUDYING
+                    }
+                }
+            }
+            "edit_burst" -> {
+                val editsPerMin = (payload["editsPerMin"] as? Number)?.toDouble() ?: 0.0
+                if (editsPerMin > 0.0) {
+                    currentLaptopState = LaptopState.FLOWING
+                    currentTaskType = TaskType.CODING
+                    currentFocusState = FocusState.DEEP_FOCUS
+                    episodeBuilder.onLaptopEditBurst(editsPerMin, effectiveTs)
+                }
             }
             "resume_first_edit" -> {
                 val delayMs = (payload["delayMs"] as? Number)?.toLong() ?: 0L
-                episodeBuilder.onResumeFirstEdit(delayMs, ts)
+                episodeBuilder.onResumeFirstEdit(delayMs, effectiveTs)
                 currentFocusState = FocusState.WORKING
-                focusStartTimeMs = ts
+                focusStartTimeMs = effectiveTs
             }
             "idle_start" -> {
                 currentLaptopState = LaptopState.IDLE_OPEN
             }
             "idle_end" -> {
                 currentLaptopState = LaptopState.FLOWING
+            }
+            "gap" -> {
+                episodeBuilder.onServiceGap(effectiveTs)
             }
         }
     }

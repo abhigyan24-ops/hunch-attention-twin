@@ -13,6 +13,13 @@ import java.nio.charset.StandardCharsets
 import java.util.UUID
 
 /**
+ * Listener interface for valid inbound events settled from the peer device (Milestone M1).
+ */
+fun interface InboundEventListener {
+    fun onInboundEvent(type: String, ts: Long, payload: Map<String, Any?>)
+}
+
+/**
  * Data flow engine for outbound event streaming, transactional inbound event
  * settlement with tombstones, and cross-device state synchronization (Milestone M5).
  * References: Contract sections 6, 7.1, 7.2, 10, and 16.
@@ -22,7 +29,8 @@ class SyncDataEngine(
     private val relayClient: RelayClient,
     private val localDeviceId: String = "phone",
     private val peerDeviceId: String = "laptop",
-    private val timeProvider: () -> Long = System::currentTimeMillis
+    private val timeProvider: () -> Long = System::currentTimeMillis,
+    var inboundEventListener: InboundEventListener? = null
 ) {
     private val settlementMutex = Mutex()
     var highestSettledSeq: Long = 0L
@@ -164,6 +172,26 @@ class SyncDataEngine(
         // Commit all records atomically to database before issuing cumulative ACK
         eventDao.insertAll(entitiesToPersist)
 
+        // Notify listener of all settled valid events (with tsAdj already applied)
+        for (entity in entitiesToPersist) {
+            if (entity.settledStatus == "valid") {
+                val payloadMap = try {
+                    if (!entity.extrasJson.isNullOrBlank()) {
+                        @Suppress("UNCHECKED_CAST")
+                        JsonReader.parse(entity.extrasJson) as? Map<String, Any?> ?: emptyMap()
+                    } else emptyMap()
+                } catch (_: Exception) {
+                    emptyMap()
+                }
+                val enrichedPayload = payloadMap.toMutableMap()
+                if (entity.appCat.isNotBlank()) enrichedPayload["appCat"] = entity.appCat
+                if (entity.surface.isNotBlank()) enrichedPayload["surface"] = entity.surface
+                if (entity.durationMin > 0.0) enrichedPayload["durationMin"] = entity.durationMin
+
+                inboundEventListener?.onInboundEvent(entity.kind, entity.ts, enrichedPayload)
+            }
+        }
+
         val batchHighestSeq = (rawEvents.last()["seq"] as Number).toLong()
         if (batchHighestSeq > highestSettledSeq) {
             highestSettledSeq = batchHighestSeq
@@ -196,6 +224,7 @@ class SyncDataEngine(
             schemaVersion = "1.1.0"
         )
         eventDao.insert(gapEntity)
+        inboundEventListener?.onInboundEvent("gap", now, mapOf("reason" to reason))
     }
 
     /**

@@ -9,6 +9,7 @@ import com.dhyan.app.twin.params.InMemoryParamStore
  *
  * Updates the in-memory parameter distributions (Beta for pickup, LogNormal for dwell and resume,
  * Dirichlet for destination choices, Gamma for baseline self hazard) in O(1) time.
+ * Excludes censored episodes from ordinary updates per spec 25.4.
  *
  * @param store The in-memory parameter store to update.
  */
@@ -49,8 +50,8 @@ class EpisodeCloser(
                                 store.observeDwell(appCat, surface, outcome.dwellMin, closedTs)
                             }
 
-                            // 4. Observe resume delay
-                            if (outcome.resumeDelayMin > 0.0) {
+                            // 4. Observe resume delay (only if truly observed, not estimated from prior - spec 7.2, 25.13)
+                            if (outcome.resumeDelayMin > 0.0 && !outcome.isResumeEstimated) {
                                 store.observeResume(episode.snapshot.taskType.wire, outcome.resumeDelayMin, closedTs)
                             }
 
@@ -64,8 +65,11 @@ class EpisodeCloser(
                         }
                     }
                     EpisodeLabel.SUPERSEDED, EpisodeLabel.NONE -> {
-                        // Ignored or superseded before pickup: record non-pickup failure
+                        // Window expired or superseded without pickup: record non-pickup failure (spec 7.1)
                         store.observePickup(bucket, picked = false, nowMs = closedTs)
+                    }
+                    EpisodeLabel.CENSORED -> {
+                        // Spec 25.4 rule 2: Censored outcomes (service gaps, telemetry loss, crash) stay excluded from ordinary updates
                     }
                     EpisodeLabel.SELF_INITIATED -> {
                         // Cannot have a Notification trigger with SELF_INITIATED label
@@ -87,8 +91,8 @@ class EpisodeCloser(
                         store.observeDwell(appCat, surface, outcome.dwellMin, closedTs)
                     }
 
-                    // 3. Observe resume delay
-                    if (outcome.resumeDelayMin > 0.0) {
+                    // 3. Observe resume delay (only if truly observed)
+                    if (outcome.resumeDelayMin > 0.0 && !outcome.isResumeEstimated) {
                         store.observeResume(episode.snapshot.taskType.wire, outcome.resumeDelayMin, closedTs)
                     }
 

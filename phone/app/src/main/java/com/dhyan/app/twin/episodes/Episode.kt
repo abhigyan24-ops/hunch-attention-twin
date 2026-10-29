@@ -41,6 +41,8 @@ enum class EpisodeLabel {
     SELF_INITIATED,
     /** A subsequent notification arrived before pickup; this episode closed as unpicked. */
     SUPERSEDED,
+    /** Service gap, telemetry loss, or truncated window (spec 25.4). */
+    CENSORED,
     /** Outcome window expired with no pickup or activity. */
     NONE
 }
@@ -62,7 +64,11 @@ data class EpisodeOutcome(
     /** Delay in minutes from return to work to first edit/activity on laptop. */
     val resumeDelayMin: Double = 0.0,
     /** True if laptop left the work category during the episode. */
-    val laptopLeftWork: Boolean = false
+    val laptopLeftWork: Boolean = false,
+    /** True if resume delay was imputed/estimated from prior due to missing laptop telemetry (spec 7.2, 25.13). */
+    val isResumeEstimated: Boolean = false,
+    /** True if episode outcome was censored by telemetry gap or truncation (spec 25.4). */
+    val isCensored: Boolean = false
 )
 
 /**

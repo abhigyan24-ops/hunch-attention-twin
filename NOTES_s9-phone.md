@@ -95,3 +95,50 @@ Zero existing behaviors or interfaces are broken. All additions use defaults for
 4. **`phone/app/src/main/java/com/dhyan/app/twin/episodes/EpisodeCloser.kt`:**
    - In `onEpisodeClosed`: exclude `SUPERSEDED` and `CENSORED` outcomes from `store.observePickup(bucket, picked = false)` per Spec 25.4.
    - Only observe `resumeDelayMin` into learned lognormal store if `!outcome.isResumeEstimated` to prevent prior estimates from contaminating learned distributions.
+
+
+---
+
+## Milestone M1 & M2 Execution Report
+
+### Inbound Ingest Wiring (M1)
+- `SyncDataEngine.kt`:
+  - Added `InboundEventListener` functional interface.
+  - When valid inbound batches arrive, all privacy-checked, deduplicated events have `tsAdj = ClockOffset.adjustIncomingTs(rawTs)` applied.
+  - Valid events are dispatched to `inboundEventListener?.onInboundEvent(entity.kind, entity.ts, enrichedPayload)`.
+  - Rejection tombstones (`schema_invalid`, `future_timestamp`, `duplicate`) are committed to SQLite for ACK settlement but strictly never dispatched to the listener.
+  - Gaps emit `gap` events to listener.
+- `SyncManager.kt`:
+  - Added `attachEventStreamAdapter(adapter)` and `detachEventStreamAdapter()`.
+  - On session initialization, wires `InboundEventListener` directly into `adapter.processEvent(type, ts, payload)`.
+
+### Cross-Device Outcome Measurement (M2 per Spec 7.2 & 25.4)
+- Phone dwell: Accumulated across `app_foreground` / `app_background`.
+- Laptop work diversion: Both `window_change` and `tab_category` away from work categories (`coding`, `productivity`, `learning`, `docs`) flag `laptopLeftWork = true`.
+- Laptop resume:
+  - Direct: `resume_first_edit` provides `resumeDelayMin`.
+  - Proxy fallback: First non-idle input via `edit_burst` (`editsPerMin > 0`) or return to a work window in `AttentionState.RESUMING`.
+- Missing / Stale laptop fallback:
+  - If outcome window expires without laptop resume, dwell is retained, `resumeDelayMin` is drawn from prior default (3.5 min), and outcome is flagged `isResumeEstimated = true`.
+  - `EpisodeCloser` verifies `!outcome.isResumeEstimated` before updating learned resume lognormal distributions, preventing prior pollution.
+- Single owner & censoring:
+  - At most one unresolved `notif_triggered` episode.
+  - Telemetry gaps (`gap`) close episode with `label = CENSORED`, `isCensored = true`, completely excluded from failure updates.
+  - Superseded episodes close at newer notification timestamp.
+
+### Test Verification
+- `CrossDeviceEpisodeTest.kt`: 10 covering tests added:
+  1. `crossDeviceEpisode_phoneDwellAndLaptopResume`: PASS
+  2. `crossDeviceEpisode_tabCategoryDiversion`: PASS
+  3. `crossDeviceEpisode_proxyResumeViaEditBurst`: PASS
+  4. `crossDeviceEpisode_proxyResumeViaWorkWindowChange`: PASS
+  5. `missingOrStaleLaptop_dwellOnlyWithEstimatedResume`: PASS
+  6. `episodeCloser_doesNotContaminateLearnedResumeWhenEstimated`: PASS
+  7. `telemetryGap_marksEpisodeCensoredAndExcludesFromIgnores`: PASS
+  8. `supersededEpisode_closesAtNewNotificationTimestamp`: PASS
+  9. `clockSkew_appliedViaTsAdj`: PASS
+  10. `deduplication_filtersOutDuplicateEvents`: PASS
+- Full Android JVM Unit Tests: **314 / 314 PASS** (`BUILD SUCCESSFUL in 2m 42s`).
+- Purity Suite: `npm run check:twin` -> **451 twin files PASS**.
+- Contract Suite: `npm run check:contracts` -> **59 / 59 PASS**.
+- Root Test Suite: `npm test` -> **117 / 117 PASS**.

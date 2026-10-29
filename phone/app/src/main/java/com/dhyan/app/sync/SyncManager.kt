@@ -16,6 +16,7 @@ import com.dhyan.app.fusion.ContextFuser
 import com.dhyan.app.personas.json.JsonReader
 import com.dhyan.app.sync.command.SyncCommandDispatcher
 import com.dhyan.app.sync.crypto.KeystoreKeyWrapper
+import com.dhyan.app.sync.data.InboundEventListener
 import com.dhyan.app.sync.data.SyncDataEngine
 import com.dhyan.app.sync.pairing.OkHttpRendezvousTransport
 import com.dhyan.app.sync.pairing.PairingController
@@ -25,6 +26,7 @@ import com.dhyan.app.sync.session.OkHttpSessionTransport
 import com.dhyan.app.sync.session.RelayClient
 import com.dhyan.app.sync.session.SessionState
 import com.dhyan.app.sync.session.SessionTransport
+import com.dhyan.app.twin.episodes.EventStreamAdapter
 import com.dhyan.app.twin.model.DeclaredSession
 import com.dhyan.app.twin.model.LaptopState
 import com.dhyan.app.twin.model.TaskType
@@ -71,6 +73,19 @@ class SyncManager(
     private var relayClient: RelayClient? = null
     private var dataEngine: SyncDataEngine? = null
     private var commandDispatcher: SyncCommandDispatcher? = null
+    private var eventStreamAdapter: EventStreamAdapter? = null
+
+    fun attachEventStreamAdapter(adapter: EventStreamAdapter) {
+        this.eventStreamAdapter = adapter
+        dataEngine?.inboundEventListener = InboundEventListener { type, ts, payload ->
+            adapter.processEvent(type, ts, payload)
+        }
+    }
+
+    fun detachEventStreamAdapter() {
+        this.eventStreamAdapter = null
+        dataEngine?.inboundEventListener = null
+    }
 
     companion object {
         val DEFAULT_RELAY_URL: String = run {
@@ -184,7 +199,10 @@ class SyncManager(
 
         val engine = SyncDataEngine(
             eventDao = eventDao,
-            relayClient = client
+            relayClient = client,
+            inboundEventListener = InboundEventListener { type, ts, payload ->
+                eventStreamAdapter?.processEvent(type, ts, payload)
+            }
         )
         dataEngine = engine
 
