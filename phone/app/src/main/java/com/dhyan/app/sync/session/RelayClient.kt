@@ -2,6 +2,7 @@ package com.dhyan.app.sync.session
 
 import com.dhyan.app.personas.json.JsonReader
 import com.dhyan.app.sync.crypto.SyncCrypto
+import com.dhyan.app.sync.data.WireSchemas
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -15,7 +16,6 @@ import java.security.SecureRandom
 import java.util.Base64
 import java.util.UUID
 import kotlin.math.min
-import kotlin.math.pow
 
 /**
  * Full Session Client for Dhyan Sync Protocol (Milestone M4).
@@ -54,6 +54,12 @@ open class RelayClient(
     private var reconnectAttempt: Int = 0
     private var reconnectJob: Job? = null
     private var isIntentionalDisconnect: Boolean = false
+    private var generation = 0L
+    private val rejections = mutableMapOf<String, Long>()
+    @Synchronized fun rejectionCounts(): Map<String, Long> = rejections.toMap()
+    private fun reject(reason: String) { rejections[reason] = (rejections[reason] ?: 0L) + 1 }
+    var lastPeerFrameMs: Long = timeProvider()
+        private set
 
     private val tagFailures = mutableListOf<Long>()
     private val helloFailures = mutableListOf<Long>()
@@ -89,18 +95,29 @@ open class RelayClient(
     /**
      * Initiates connection to the session room.
      */
-    fun connect() {
+    @Synchronized fun connect() {
         isIntentionalDisconnect = false
         reconnectJob?.cancel()
+        generation++
+        val current = generation
+        sessionKeys = null
+        localSnBytes = null
+        lastPeerFrameMs = timeProvider()
         _state.value = SessionState.Connecting
-        transport.connect(relayUrl, sidHex, device, transportListener)
+        transport.connect(relayUrl, sidHex, device, object : SessionTransportListener {
+            override fun onOpen() = synchronized(this@RelayClient) { if (generation == current) transportListener.onOpen() }
+            override fun onMessage(text: String) = synchronized(this@RelayClient) { if (generation == current) transportListener.onMessage(text) }
+            override fun onFailure(t: Throwable) = synchronized(this@RelayClient) { if (generation == current) transportListener.onFailure(t) }
+            override fun onClosed(code: Int, reason: String) = synchronized(this@RelayClient) { if (generation == current) transportListener.onClosed(code, reason) }
+        })
     }
 
     /**
      * Gracefully disconnects and cancels any scheduled reconnects.
      */
-    fun disconnect() {
+    @Synchronized fun disconnect() {
         isIntentionalDisconnect = true
+        generation++
         reconnectJob?.cancel()
         transport.close(1000, "Normal closure")
         _state.value = SessionState.Disconnected
@@ -111,6 +128,7 @@ open class RelayClient(
      * Sends an encrypted frame with the specified message type and JSON body.
      * Returns true if queued to transport, false if not connected or error.
      */
+    @Synchronized
     open fun sendEncrypted(type: String, bodyJson: String): Boolean {
         val keys = sessionKeys ?: return false
         if (_state.value !is SessionState.Connected) return false
@@ -163,7 +181,9 @@ open class RelayClient(
         transport.send(helloJson)
     }
 
+    @Synchronized
     private fun handleRawIncoming(text: String) {
+        if (text.toByteArray(StandardCharsets.UTF_8).size > 65536) { reject("too_large"); return }
         val parsed = try {
             JsonReader.parse(text) as? Map<*, *>
         } catch (_: Exception) {
@@ -175,14 +195,18 @@ open class RelayClient(
         val t = parsed["t"] as? String ?: return
 
         if (t == "hello") {
+            if (!WireSchemas.current.valid("hello.schema.json", parsed)) { reject("schema_invalid"); return }
             handlePeerHello(parsed)
             return
         }
 
+        if (!WireSchemas.current.valid("encrypted_frame.schema.json", parsed)) { reject("schema_invalid"); return }
         handleEncryptedFrame(t, parsed)
     }
 
     private fun handlePeerHello(map: Map<*, *>) {
+        // A connection has exactly one nonce pair. Never restart counters under its keys.
+        if (_state.value !is SessionState.Handshaking) return
         val fromDevice = map["device"] as? String ?: return
         if (fromDevice != peerDevice) return
 
@@ -200,6 +224,7 @@ open class RelayClient(
 
         val now = timeProvider()
         if (!MessageDigest.isEqual(expectedMac, actualMac)) {
+            reject("hello_mac")
             helloFailures.add(now)
             pruneFailures(helloFailures, now)
             if (helloFailures.size >= 3) {
@@ -221,7 +246,10 @@ open class RelayClient(
 
         // Handshake complete: derive session keys
         val peerSn = Base64.getDecoder().decode(snBase64)
+        if (peerSn.size != 16) return
         val localSn = localSnBytes ?: secureRandomBytes(16).also { localSnBytes = it }
+        // The first hello may have been sent before the peer joined. Answer once,
+        // retaining this connection's original nonce; the state guard above prevents loops.
         sendLocalHello(localSn)
 
         // Contract Section 5.3: salt = snL || snP
@@ -231,6 +259,7 @@ open class RelayClient(
         inboundCtr = 0L
         reconnectAttempt = 0
         _state.value = SessionState.Connected(peerLastSeqAcked = lastSeq)
+        lastPeerFrameMs = timeProvider()
     }
 
     private fun handleEncryptedFrame(t: String, map: Map<*, *>) {
@@ -238,15 +267,16 @@ open class RelayClient(
         if (_state.value !is SessionState.Connected) return
 
         val d = map["d"] as? String ?: return
-        if (d != "l2p") return // Only accept frames directed to phone
+        if (d != "l2p") { reject("unauthorized"); return }
 
         val ctr = (map["ctr"] as? Number)?.toLong() ?: return
-        if (ctr <= inboundCtr) return // Replay or reorder rejection
+        if (ctr <= inboundCtr) { reject("replay"); return }
 
         val c = map["c"] as? String ?: return
         val decryptedBytes = try {
             SyncCrypto.decryptFramePayload(keys.kL2P, t, "l2p", ctr, c)
         } catch (_: Exception) {
+            reject("tag_failure")
             val now = timeProvider()
             tagFailures.add(now)
             pruneFailures(tagFailures, now)
@@ -259,6 +289,7 @@ open class RelayClient(
 
         // Section 16 byte limit on total decrypted frame
         if (decryptedBytes.size > 32_768) {
+            reject("too_large")
             return
         }
 
@@ -271,6 +302,13 @@ open class RelayClient(
         } catch (_: Exception) {
             return
         } ?: return
+
+        if (!WireSchemas.current.valid("frame_envelope.schema.json", parsedPayload) ||
+            !WireSchemas.current.valid("$t.schema.json", parsedPayload["b"])) {
+            reject("schema_invalid"); return
+        }
+        if (t in setOf("held_list", "pet_event")) { reject("unauthorized"); return }
+        lastPeerFrameMs = timeProvider()
 
         val mid = parsedPayload["mid"] as? String ?: return
         val ts = (parsedPayload["ts"] as? Number)?.toLong() ?: return
@@ -301,7 +339,7 @@ open class RelayClient(
 
     private fun scheduleReconnect() {
         reconnectAttempt++
-        val base = min(1000L * (1.5.pow(reconnectAttempt - 1)).toLong(), 30_000L)
+        val base = min(1000L * (1L shl min(reconnectAttempt - 1, 5)), 30_000L)
         // Jitter between 0.8x and 1.2x
         val jitter = 0.8 + 0.4 * (secureRandomBytes(1)[0].toInt() and 0xFF) / 255.0
         val delayMs = (base * jitter).toLong()

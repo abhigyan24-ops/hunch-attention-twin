@@ -6,6 +6,13 @@ import org.junit.Test
 import java.nio.charset.StandardCharsets
 
 class KeystoreKeyWrapperTest {
+    @Test
+    fun productionKeystoreFailureNeverUsesTestKey() {
+        val wrapper = KeystoreKeyWrapper()
+        val failure = runCatching { wrapper.wrap(ByteArray(32)) }.exceptionOrNull()
+        org.junit.Assert.assertTrue(failure is IllegalStateException)
+        org.junit.Assert.assertEquals("secure_storage_unavailable", failure?.message)
+    }
 
     @Test
     fun wrapAndUnwrapRoundtrip() {

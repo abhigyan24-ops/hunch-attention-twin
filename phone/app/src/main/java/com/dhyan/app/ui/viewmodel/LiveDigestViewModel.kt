@@ -59,7 +59,8 @@ data class LiveDigestUiState(
     val decisionFeed: List<LiveDecisionItemUi> = emptyList(),
     val historyStrip: List<LiveHeldItemUi> = emptyList(),
     val isFakeProvider: Boolean = true,
-    val provenance: String = "observed"
+    val provenance: String = "observed",
+    val laptopAvailability: String = "No laptop data"
 )
 
 class LiveDigestViewModel(
@@ -96,7 +97,10 @@ class LiveDigestViewModel(
             decisionFeed = recentDecisions.map { it.toUi(now) },
             historyStrip = history.map { it.toUi(now) },
             isFakeProvider = isFakeProvider,
-            provenance = prov
+            provenance = prov,
+            laptopAvailability = runCatching {
+                com.dhyan.app.DhyanApplication.syncManager.contextFuser.laptopAvailability()
+            }.getOrDefault("No laptop data")
         )
     }.stateIn(
         scope = scope,

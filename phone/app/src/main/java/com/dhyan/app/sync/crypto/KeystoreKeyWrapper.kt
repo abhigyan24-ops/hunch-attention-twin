@@ -23,11 +23,12 @@ class KeystoreKeyWrapper(
     private var testFallbackKey: SecretKey? = null
 
     init {
-        if (isTestFallback || !isAndroidKeyStoreAvailable()) {
-            val rawKey = ByteArray(32) { (it + 17).toByte() }
+        if (isTestFallback) {
+            // Explicit JVM-only injection; never selected by a production error.
+            val rawKey = ByteArray(32).also { secureRandom.nextBytes(it) }
             testFallbackKey = SecretKeySpec(rawKey, "AES")
         } else {
-            ensureKeystoreKey()
+            // Initialize lazily so a Keystore error can be shown by the pairing UI.
         }
     }
 
@@ -65,13 +66,13 @@ class KeystoreKeyWrapper(
                 kg.generateKey()
             }
         } catch (_: Exception) {
-            val rawKey = ByteArray(32) { (it + 17).toByte() }
-            testFallbackKey = SecretKeySpec(rawKey, "AES")
+            throw IllegalStateException("secure_storage_unavailable")
         }
     }
 
     private fun getSecretKey(): SecretKey {
         return testFallbackKey ?: run {
+            ensureKeystoreKey()
             val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
             ks.getKey(keyAlias, null) as SecretKey
         }

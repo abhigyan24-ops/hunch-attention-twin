@@ -69,7 +69,7 @@
         <!-- Foreground Service (DD-10: specialUse + dataSync fallback for 12h survival) -->
         <service
             android:name=".ingest.DhyanForegroundService"
-            android:foregroundServiceType="specialUse|dataSync"
+            android:foregroundServiceType="specialUse"
             android:exported="false">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"

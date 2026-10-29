@@ -31,6 +31,10 @@ class SecondScreenDetector(
         isLaptopStale: Boolean,
         nowMs: Long = timeProvider()
     ): Boolean {
+        if (isLaptopStale || laptopState == LaptopState.OFFLINE) {
+            reset()
+            return false
+        }
         val eligibleLaptop = !isLaptopStale && laptopState in laptopEligibleStates
         val phoneActive = phoneState != PhoneState.SCREEN_OFF
 

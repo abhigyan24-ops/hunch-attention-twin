@@ -183,6 +183,9 @@ class SyncCryptoVectorsTest {
         val ctrL = num("ctr", fL)
         val cL = str("ciphertextWithTagBase64", fL)
         val plainL = str("plaintextJson", fL)
+        assertEquals(str("nonceHex", fL), SyncCrypto.buildNonce(ctrL).toHex())
+        assertEquals(str("aadAscii", fL), String(SyncCrypto.buildAad(tL, dL, ctrL), StandardCharsets.US_ASCII))
+        assertEquals(cL, SyncCrypto.encryptFramePayload(kL2P, tL, dL, ctrL, plainL.toByteArray(StandardCharsets.UTF_8)))
 
         val decryptedL = SyncCrypto.decryptFramePayload(kL2P, tL, dL, ctrL, cL)
         assertEquals(plainL, String(decryptedL, StandardCharsets.UTF_8))
@@ -194,6 +197,9 @@ class SyncCryptoVectorsTest {
         val ctrP = num("ctr", fP)
         val cP = str("ciphertextWithTagBase64", fP)
         val plainP = str("plaintextJson", fP)
+        assertEquals(str("nonceHex", fP), SyncCrypto.buildNonce(ctrP).toHex())
+        assertEquals(str("aadAscii", fP), String(SyncCrypto.buildAad(tP, dP, ctrP), StandardCharsets.US_ASCII))
+        assertEquals(cP, SyncCrypto.encryptFramePayload(kP2L, tP, dP, ctrP, plainP.toByteArray(StandardCharsets.UTF_8)))
 
         val decryptedP = SyncCrypto.decryptFramePayload(kP2L, tP, dP, ctrP, cP)
         assertEquals(plainP, String(decryptedP, StandardCharsets.UTF_8))

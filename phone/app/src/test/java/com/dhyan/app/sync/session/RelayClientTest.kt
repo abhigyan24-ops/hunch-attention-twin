@@ -17,6 +17,23 @@ import java.nio.charset.StandardCharsets
 import java.util.Base64
 
 class RelayClientTest {
+    @Test
+    fun duplicateHelloCannotResetCountersOrReuseNonce() {
+        val client = RelayClient(pk, sidHex, "ws://127.0.0.1:8080/ws", mockTransport, testScope,
+            secureRandomBytes = fixedRandomBytes)
+        client.connect()
+        mockTransport.triggerOpen()
+        val nonce = Base64.getEncoder().encodeToString(ByteArray(16) { 5 })
+        val mac = Base64.getEncoder().encodeToString(SyncCrypto.computeHelloMac(pk, "laptop", nonce, 0))
+        val hello = """{"v":1,"t":"hello","device":"laptop","sn":"$nonce","proto":[1],"lastSeqAcked":0,"mac":"$mac"}"""
+        mockTransport.triggerMessage(hello)
+        assertTrue(client.sendPing(1))
+        mockTransport.triggerMessage(hello)
+        assertEquals(1L, client.outboundCtr)
+        assertTrue(client.sendPing(2))
+        assertEquals(2L, client.outboundCtr)
+        assertEquals(2, mockTransport.sentMessages.count { (JsonReader.parse(it) as Map<*, *>)["t"] == "hello" })
+    }
 
     private class MockSessionTransport : SessionTransport {
         var listener: SessionTransportListener? = null
@@ -167,8 +184,8 @@ class RelayClientTest {
             receivedBody = body
         }
 
-        val testBody = """{"sample":"data"}"""
-        val mid = "test-mid-1234"
+        val testBody = """{"ts":1000,"focusState":"working","laptopState":"flowing","confidence":0,"declared":null,"heldCount":0}"""
+        val mid = "00000000-0000-4000-8000-000000000001"
         val ts = 1729864000000L
         val peerPlaintext = """{"mid":"$mid","ts":$ts,"b":$testBody}"""
         val c = SyncCrypto.encryptFramePayload(
@@ -184,7 +201,7 @@ class RelayClientTest {
         assertEquals("state", receivedType)
         assertNotNull(receivedBody)
         val parsedBody = JsonReader.parse(receivedBody!!) as Map<*, *>
-        assertEquals("data", parsedBody["sample"])
+        assertEquals("flowing", parsedBody["laptopState"])
     }
 
     @Test
@@ -216,7 +233,7 @@ class RelayClientTest {
         var messageCount = 0
         client.onMessageReceived = { _, _, _, _ -> messageCount++ }
 
-        val plain = """{"mid":"m1","ts":1000,"b":{}}"""
+        val plain = """{"mid":"00000000-0000-4000-8000-000000000001","ts":1000,"b":{"t0":1000}}"""
         val c1 = SyncCrypto.encryptFramePayload(peerSessionKeys.kL2P, "ping", "l2p", 1L, plain.toByteArray(StandardCharsets.UTF_8))
 
         // Valid frame ctr=1
@@ -300,7 +317,7 @@ class RelayClientTest {
         val peerSessionKeys = SyncCrypto.deriveSessionKeys(pk, laptopSn, phoneSn)
 
         // Peer sends ping {t0: 9999}
-        val pingPlain = """{"mid":"m-ping","ts":1000,"b":{"t0":9999}}"""
+        val pingPlain = """{"mid":"00000000-0000-4000-8000-000000000001","ts":1000,"b":{"t0":9999}}"""
         val c = SyncCrypto.encryptFramePayload(peerSessionKeys.kL2P, "ping", "l2p", 1L, pingPlain.toByteArray(StandardCharsets.UTF_8))
 
         val initialSentCount = mockTransport.sentMessages.size

@@ -99,6 +99,8 @@ class PairingControllerTest {
 
         // 1. Phone starts pairing
         controller.startPairing("234567", "ws://127.0.0.1:47820")
+        assertFalse(mockTransport.sentMessages.any { it.contains("pair_join") })
+        mockTransport.receive("{\"v\":1,\"t\":\"pair_offer\",\"device\":\"laptop\",\"commit\":\"$commitBase64\"}")
         assertTrue(mockTransport.sentMessages.any { it.contains("pair_join") })
 
         // Extract phone pk and nonce from pair_join
@@ -192,5 +194,58 @@ class PairingControllerTest {
 
         assertTrue(controller.state.value is PairingState.Cancelled)
         assertTrue(mockTransport.sentMessages.any { it.contains("pair_cancel") })
+    }
+
+    private fun peerConfirmation(): String {
+        val laptop = SyncCrypto.generateP256KeyPair()
+        val pkL = SyncCrypto.encodePublicKeyUncompressed(laptop.public as ECPublicKey)
+        val nL = ByteArray(16) { 7 }
+        fun b64(bytes: ByteArray) = Base64.getEncoder().encodeToString(bytes)
+        controller.startPairing("234567", "ws://127.0.0.1:47820")
+        mockTransport.receive("""{"v":1,"t":"pair_offer","device":"laptop","commit":"${b64(SyncCrypto.computePairCommit(pkL, nL))}"}""")
+        val join = com.dhyan.app.personas.json.JsonReader.parse(mockTransport.sentMessages.last()) as Map<*, *>
+        val pkP = Base64.getDecoder().decode(join["pk"] as String)
+        val nP = Base64.getDecoder().decode(join["n"] as String)
+        mockTransport.receive("""{"v":1,"t":"pair_reveal","device":"laptop","pk":"${b64(pkL)}","n":"${b64(nL)}"}""")
+        val secret = SyncCrypto.computeECDH(laptop.private as ECPrivateKey, SyncCrypto.decodePublicKeyUncompressed(pkP))
+        val transcript = SyncCrypto.computeTranscriptHash(pkL, pkP, nL, nP)
+        return """{"v":1,"t":"pair_confirm","device":"laptop","mac":"${b64(SyncCrypto.computePairConfirmMac(secret, transcript, "laptop"))}"}"""
+    }
+
+    @Test
+    fun peerConfirmationBeforeLocalConsentCannotPersist() = testScope.runTest {
+        val confirm = peerConfirmation()
+        mockTransport.receive(confirm)
+        testScheduler.runCurrent()
+        assertTrue(settingsStore.isEmpty())
+        assertTrue(controller.state.value is PairingState.AwaitingUserConfirmation)
+        controller.confirmSas(true)
+        testScheduler.runCurrent()
+        assertTrue(controller.state.value is PairingState.Paired)
+        assertEquals(2, settingsStore.size)
+    }
+
+    @Test
+    fun rejectionInvalidatesAlreadyAuthenticatedPeerConfirmation() = testScope.runTest {
+        val confirm = peerConfirmation()
+        mockTransport.receive(confirm)
+        controller.confirmSas(false)
+        mockTransport.receive(confirm)
+        testScheduler.runCurrent()
+        assertTrue(settingsStore.isEmpty())
+        assertTrue(controller.state.value is PairingState.Cancelled)
+    }
+
+    @Test
+    fun timeoutDiscardsAttemptAndStaleCallbacks() = testScope.runTest {
+        val confirm = peerConfirmation()
+        val oldCallback = mockTransport.onMessageCallback!!
+        testScheduler.advanceTimeBy(300_001L)
+        testScheduler.runCurrent()
+        assertTrue(controller.state.value is PairingState.Failed)
+        oldCallback(confirm)
+        controller.confirmSas(true)
+        testScheduler.runCurrent()
+        assertTrue(settingsStore.isEmpty())
     }
 }

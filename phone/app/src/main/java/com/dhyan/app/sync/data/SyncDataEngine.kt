@@ -2,259 +2,161 @@ package com.dhyan.app.sync.data
 
 import com.dhyan.app.data.EventDao
 import com.dhyan.app.data.EventEntity
+import com.dhyan.app.data.SettingsDao
+import com.dhyan.app.data.SettingsEntity
 import com.dhyan.app.ingest.ClockOffset
 import com.dhyan.app.personas.json.JsonReader
 import com.dhyan.app.sync.session.RelayClient
 import com.dhyan.app.twin.model.ContextSnapshot
-import com.dhyan.app.twin.model.DeclaredSession
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.nio.charset.StandardCharsets
 import java.util.UUID
 
-/**
- * Listener interface for valid inbound events settled from the peer device (Milestone M1).
- */
 fun interface InboundEventListener {
     fun onInboundEvent(type: String, ts: Long, payload: Map<String, Any?>)
 }
 
-/**
- * Data flow engine for outbound event streaming, transactional inbound event
- * settlement with tombstones, and cross-device state synchronization (Milestone M5).
- * References: Contract sections 6, 7.1, 7.2, 10, and 16.
- */
+/** Production supplies one Room transaction covering checks, rows and peer binding. */
 class SyncDataEngine(
     private val eventDao: EventDao,
     private val relayClient: RelayClient,
     private val localDeviceId: String = "phone",
-    private val peerDeviceId: String = "laptop",
+    private val peerDeviceId: String? = null,
     private val timeProvider: () -> Long = System::currentTimeMillis,
-    var inboundEventListener: InboundEventListener? = null
+    var inboundEventListener: InboundEventListener? = null,
+    private val settingsDao: SettingsDao? = null,
+    private val transaction: suspend (suspend () -> Long) -> Long = { it() },
+    private val schemas: WireSchemas = WireSchemas.current
 ) {
-    private val settlementMutex = Mutex()
-    var highestSettledSeq: Long = 0L
+    private val mutex = Mutex()
+    private var boundPeer = peerDeviceId
+    var highestSettledSeq = 0L
+        private set
+    var listenerFailures = 0L
+        private set
+    var lastExportedSeq = 0L
         private set
 
-    /**
-     * Exports outbound phone events after [afterSeq] in batches of up to 50 events and 32 KB.
-     * Returns true if events were sent, false if nothing to export.
-     */
+    suspend fun restore() {
+        boundPeer = boundPeer ?: settingsDao?.get("sync_peer_device_id")
+        highestSettledSeq = boundPeer?.let { eventDao.getHighestSeq(it) } ?: 0L
+    }
+
     suspend fun exportOutboundBatch(afterSeq: Long, maxEvents: Int = 50): Boolean {
-        val candidates = eventDao.getOutboundAfterSeq(localDeviceId, afterSeq, maxEvents)
-        if (candidates.isEmpty()) return false
-
-        val eventObjects = mutableListOf<Map<String, Any?>>()
-        for (item in candidates) {
-            val payloadMap = try {
-                if (!item.extrasJson.isNullOrBlank()) {
-                    JsonReader.parse(item.extrasJson) as? Map<*, *>
-                } else null
-            } catch (_: Exception) {
-                null
-            }
-
-            val envelope = mutableMapOf<String, Any?>(
-                "id" to (item.eventId ?: UUID.randomUUID().toString()),
-                "ts" to item.ts,
-                "device" to localDeviceId,
-                "deviceId" to localDeviceId,
-                "schemaVersion" to item.schemaVersion,
-                "seq" to item.seq,
-                "kind" to item.kind,
-                "appCat" to item.appCat,
-                "surface" to item.surface,
-                "durationMin" to item.durationMin
-            )
-            if (payloadMap != null) {
-                envelope["payload"] = payloadMap
-            }
-            eventObjects.add(envelope)
-        }
-
-        val fromSeq = candidates.first().seq
-        val batchMap = mapOf(
-            "fromSeq" to fromSeq,
-            "events" to eventObjects
-        )
-        val batchJson = RelayClient.serializeJson(batchMap)
-
-        // Ensure payload does not exceed 32 KB framing limit
-        if (batchJson.toByteArray(StandardCharsets.UTF_8).size > 32_000 && candidates.size > 1) {
-            // Recurse with smaller batch size
-            return exportOutboundBatch(afterSeq, maxEvents / 2)
-        }
-
-        return relayClient.sendEncrypted("events", batchJson)
-    }
-
-    /**
-     * Transactionally processes and settles an incoming event batch per Contract Section 16.
-     * Throws IllegalArgumentException on invalid batch header or incompatible version.
-     * Returns the highest settled sequence number ACKed.
-     */
-    suspend fun processInboundBatch(fromSeq: Long, rawEvents: List<Map<*, *>>): Long = settlementMutex.withLock {
-        if (rawEvents.isEmpty()) return highestSettledSeq
-
-        // Batch header verification
-        var lastSeqSeen = fromSeq - 1
-        for (event in rawEvents) {
-            val id = event["id"] as? String
-            val seq = (event["seq"] as? Number)?.toLong()
-            val senderDevice = event["deviceId"] as? String ?: event["device"] as? String
-            val schemaVer = event["schemaVersion"] as? String ?: "1.0.0"
-
-            if (id.isNullOrBlank() || seq == null || senderDevice != peerDeviceId || !schemaVer.startsWith("1.")) {
-                throw IllegalArgumentException("Invalid batch identity or incompatible schemaVersion")
-            }
-            if (seq <= lastSeqSeen) {
-                throw IllegalArgumentException("Events in batch must be strictly monotonic")
-            }
-            lastSeqSeen = seq
-        }
-
-        val entitiesToPersist = mutableListOf<EventEntity>()
-        val nowMs = timeProvider()
-
-        for (event in rawEvents) {
-            val id = event["id"] as String
-            val seq = (event["seq"] as Number).toLong()
-            val rawTs = (event["ts"] as? Number)?.toLong() ?: nowMs
-            val tsAdj = ClockOffset.adjustIncomingTs(rawTs)
-            val kind = event["kind"] as? String ?: "laptop_state"
-            val appCat = event["appCat"] as? String ?: "unclassified"
-            val surface = event["surface"] as? String ?: "main"
-            val durationMin = (event["durationMin"] as? Number)?.toDouble() ?: 0.0
-
-            // 1. PrivacyGuard inspection
-            if (!PrivacyGuard.isClean(event)) {
-                entitiesToPersist.add(createTombstone(id, seq, tsAdj, "schema_invalid"))
-                continue
-            }
-
-            // 2. Future timestamp check (> 5 minutes in future)
-            if (tsAdj > nowMs + 300_000L) {
-                entitiesToPersist.add(createTombstone(id, seq, tsAdj, "future_timestamp"))
-                continue
-            }
-
-            // 3. Deduplication check
-            val existing = eventDao.findByDeviceAndId(peerDeviceId, id)
-            if (existing != null) {
-                entitiesToPersist.add(createTombstone(id, seq, tsAdj, "duplicate"))
-                continue
-            }
-
-            // Valid event
-            val payload = event["payload"]
-            val extrasJson = if (payload != null) RelayClient.serializeJson(payload) else null
-
-            entitiesToPersist.add(
-                EventEntity(
-                    ts = tsAdj,
-                    kind = kind,
-                    appCat = appCat,
-                    surface = surface,
-                    durationMin = durationMin,
-                    senderHash = null,
-                    notifCat = null,
-                    scrollCount = 0,
-                    extrasJson = extrasJson,
-                    eventId = id,
-                    seq = seq,
-                    deviceId = peerDeviceId,
-                    settledStatus = "valid",
-                    schemaVersion = "1.1.0"
+        val rows = eventDao.getOutboundAfterSeq(localDeviceId, afterSeq, maxEvents.coerceIn(1, 50))
+        if (rows.isEmpty()) return false
+        val events = rows.mapNotNull { row ->
+            val stored = row.extrasJson?.let { runCatching { JsonReader.parse(it) as? Map<*, *> }.getOrNull() }
+            val storedEvent = stored?.get("event") as? Map<*, *>
+            if (storedEvent != null && storedEvent["device"] == "phone" && storedEvent["deviceId"] == localDeviceId && schemas.event(storedEvent)) {
+                storedEvent
+            } else {
+                val envelope = mutableMapOf<String, Any?>(
+                    "schemaVersion" to (row.schemaVersion.takeIf { it.isNotBlank() } ?: "1.1.0"),
+                    "id" to (row.eventId?.takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString()),
+                    "deviceId" to localDeviceId,
+                    "device" to "phone",
+                    "seq" to row.seq,
+                    "source" to (row.surface.takeIf { it in listOf("notif", "usage", "screen", "a11y", "window", "idle", "vscode", "browser", "persona", "system") } ?: "system"),
+                    "type" to row.kind,
+                    "ts" to row.ts,
+                    "synthetic" to false,
+                    "payload" to (stored ?: emptyMap<String, Any?>())
                 )
-            )
-        }
-
-        // Commit all records atomically to database before issuing cumulative ACK
-        eventDao.insertAll(entitiesToPersist)
-
-        // Notify listener of all settled valid events (with tsAdj already applied)
-        for (entity in entitiesToPersist) {
-            if (entity.settledStatus == "valid") {
-                val payloadMap = try {
-                    if (!entity.extrasJson.isNullOrBlank()) {
-                        @Suppress("UNCHECKED_CAST")
-                        JsonReader.parse(entity.extrasJson) as? Map<String, Any?> ?: emptyMap()
-                    } else emptyMap()
-                } catch (_: Exception) {
-                    emptyMap()
-                }
-                val enrichedPayload = payloadMap.toMutableMap()
-                if (entity.appCat.isNotBlank()) enrichedPayload["appCat"] = entity.appCat
-                if (entity.surface.isNotBlank()) enrichedPayload["surface"] = entity.surface
-                if (entity.durationMin > 0.0) enrichedPayload["durationMin"] = entity.durationMin
-
-                inboundEventListener?.onInboundEvent(entity.kind, entity.ts, enrichedPayload)
+                envelope
             }
         }
+        if (events.isEmpty()) return false
+        val json = RelayClient.serializeJson(mapOf("fromSeq" to events.first()["seq"], "events" to events))
+        if (json.toByteArray(StandardCharsets.UTF_8).size > 32_000) return if (maxEvents > 1) exportOutboundBatch(afterSeq, maxEvents / 2) else false
+        val sent = relayClient.sendEncrypted("events", json)
+        if (sent) lastExportedSeq = integer(events.last()["seq"])!!
+        return sent
+    }
 
-        val batchHighestSeq = (rawEvents.last()["seq"] as Number).toLong()
-        if (batchHighestSeq > highestSettledSeq) {
-            highestSettledSeq = batchHighestSeq
+    suspend fun processInboundBatch(fromSeq: Long, rawEvents: List<Map<*, *>>): Long = mutex.withLock {
+        require(fromSeq >= 0 && rawEvents.size <= 50) { "invalid_identity" }
+        if (rawEvents.isEmpty()) return@withLock highestSettledSeq
+        require(integer(rawEvents.first()["seq"]) == fromSeq) { "invalid_identity" }
+        var previous = -1L
+        var incomingPeer = boundPeer ?: settingsDao?.get("sync_peer_device_id")
+        for (event in rawEvents) {
+            val seq = integer(event["seq"])
+            val deviceId = event["deviceId"] as? String
+            val id = event["id"] as? String
+            require(seq != null && seq >= 0 && seq > previous && id != null && UUID_PATTERN.matches(id) &&
+                (event["device"] == null || event["device"] == "laptop") && !deviceId.isNullOrBlank() &&
+                (incomingPeer == null || incomingPeer == deviceId) && (event["schemaVersion"] == null || event["schemaVersion"] == "1.1.0")) { "invalid_identity" }
+            incomingPeer = deviceId
+            previous = seq
         }
-
-        // Transmit durable cumulative ACK
-        relayClient.sendEncrypted("ack", """{"upToSeq":$highestSettledSeq}""")
-        return highestSettledSeq
+        val peer = requireNotNull(incomingPeer)
+        val applied = mutableListOf<Pair<Map<*, *>, Long>>()
+        val cursor = transaction {
+            val durableCursor = eventDao.getHighestSeq(peer) ?: 0L
+            val stagedIds = mutableSetOf<String>()
+            val entities = mutableListOf<EventEntity>()
+            for (event in rawEvents) {
+                val seq = integer(event["seq"])!!
+                val id = event["id"] as String
+                val existing = eventDao.getOutboundAfterSeq(peer, seq - 1, 1).firstOrNull()?.takeIf { it.seq == seq }
+                if (existing != null) {
+                    require(existing.eventId == id) { "conflicting_identity" }
+                    continue
+                }
+                require(seq > durableCursor) { "unsettled_hole" }
+                val rawTs = integer(event["ts"]) ?: 0L
+                val adjusted = ClockOffset.adjustIncomingTs(rawTs)
+                val duplicate = !stagedIds.add(id) || eventDao.findByDeviceAndId(peer, id) != null
+                val type = (event["type"] as? String) ?: (event["kind"] as? String) ?: "unknown"
+                val reason = when {
+                    !schemas.event(event) && event["kind"] == null -> "schema_invalid"
+                    adjusted > timeProvider() + 300_000L -> "future_timestamp"
+                    duplicate -> "duplicate"
+                    else -> null
+                }
+                val payload = (event["payload"] as? Map<*, *>) ?: event.filterKeys { it !in setOf("id", "seq", "ts", "deviceId", "device", "schemaVersion", "kind", "type") }
+                val stored = if (reason == null) mapOf("event" to event, "tsAdj" to adjusted) else
+                    mapOf("deviceId" to peer, "device" to "laptop", "seq" to seq, "id" to id, "reason" to reason)
+                entities.add(EventEntity(ts = if (reason == null) rawTs else 0L,
+                    kind = if (reason == null) type else "rejected",
+                    appCat = if (reason == null) payload["appCat"] as? String ?: "unknown" else "system",
+                    surface = if (reason == null) payload["surface"] as? String ?: "unknown" else "unknown",
+                    durationMin = 0.0, senderHash = null, notifCat = null, scrollCount = 0,
+                    extrasJson = RelayClient.serializeJson(stored), eventId = id, seq = seq,
+                    deviceId = peer, settledStatus = if (reason == null) "valid" else "tombstone", schemaVersion = "1.1.0"))
+                if (reason == null) applied.add(event to adjusted)
+            }
+            eventDao.insertAll(entities)
+            settingsDao?.set(SettingsEntity("sync_peer_device_id", peer, timeProvider()))
+            maxOf(durableCursor, previous)
+        }
+        boundPeer = peer
+        highestSettledSeq = cursor
+        relayClient.sendEncrypted("ack", """{"upToSeq":$cursor}""")
+        for ((event, adjusted) in applied) {
+            val type = (event["type"] as? String) ?: (event["kind"] as? String) ?: "unknown"
+            @Suppress("UNCHECKED_CAST") val payload = (event["payload"] as? Map<String, Any?>) ?: (event.filterKeys { it !in setOf("id", "seq", "ts", "deviceId", "device", "schemaVersion", "kind", "type") } as Map<String, Any?>)
+            if (runCatching { inboundEventListener?.onInboundEvent(type, adjusted, payload) }.isFailure) listenerFailures++
+        }
+        cursor
     }
 
-    /**
-     * Emits a local gap event when peer is silent or connection breaks.
-     */
-    suspend fun emitGapEvent(reason: String) {
-        val now = timeProvider()
-        val gapEntity = EventEntity(
-            ts = now,
-            kind = "laptop_state",
-            appCat = "system",
-            surface = "gap",
-            durationMin = 0.0,
-            senderHash = null,
-            notifCat = null,
-            scrollCount = 0,
-            extrasJson = """{"reason":"$reason"}""",
-            eventId = UUID.randomUUID().toString(),
-            seq = (eventDao.getHighestSeq(localDeviceId) ?: 0L) + 1L,
-            deviceId = localDeviceId,
-            settledStatus = "valid",
-            schemaVersion = "1.1.0"
-        )
-        eventDao.insert(gapEntity)
-        inboundEventListener?.onInboundEvent("gap", now, mapOf("reason" to reason))
-    }
-
-    /**
-     * Sends periodic or state-change context snapshot to laptop peer.
-     */
     fun sendStateSnapshot(snapshot: ContextSnapshot, heldCount: Int): Boolean {
-        val declaredJson = snapshot.declaredSession?.let { declared ->
-            """{"task":"${declared.task.wire}","plannedMin":${declared.plannedMin},"strict":${declared.strict},"startedTs":${declared.startedTs}}"""
-        } ?: "null"
-
-        val stateJson = """{"ts":${snapshot.ts},"focusState":"${snapshot.focusState.name.lowercase()}","phoneState":"${snapshot.phoneState.name.lowercase()}","confidence":"uncalibrated","declared":$declaredJson,"heldCount":$heldCount,"minutesInState":${snapshot.minutesInState}}"""
-        return relayClient.sendEncrypted("state", stateJson)
+        val declared = snapshot.declaredSession?.let {
+            mapOf("task" to it.task.wire, "plannedMin" to it.plannedMin, "strict" to it.strict, "startedTs" to it.startedTs)
+        }
+        val body = mapOf("ts" to snapshot.ts, "focusState" to snapshot.focusState.wire,
+            "phoneState" to snapshot.phoneState.wire, "confidence" to snapshot.confidence,
+            "declared" to declared, "heldCount" to heldCount, "minutesInState" to snapshot.minutesInState)
+        return schemas.valid("state.schema.json", body) && relayClient.sendEncrypted("state", RelayClient.serializeJson(body))
     }
 
-    private fun createTombstone(id: String, seq: Long, ts: Long, reason: String): EventEntity {
-        return EventEntity(
-            ts = ts,
-            kind = "rejected",
-            appCat = "system",
-            surface = "tombstone",
-            durationMin = 0.0,
-            senderHash = null,
-            notifCat = null,
-            scrollCount = 0,
-            extrasJson = """{"reason":"$reason"}""",
-            eventId = id,
-            seq = seq,
-            deviceId = peerDeviceId,
-            settledStatus = "tombstone",
-            schemaVersion = "1.1.0"
-        )
+    companion object {
+        private val UUID_PATTERN = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+        fun integer(value: Any?): Long? = (value as? Number)?.toDouble()?.let {
+            if (it.isFinite() && it % 1.0 == 0.0 && kotlin.math.abs(it) <= 9_007_199_254_740_991.0) it.toLong() else null
+        }
     }
 }

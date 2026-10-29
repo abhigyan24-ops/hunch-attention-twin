@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 object LiveContextHolder : SnapshotSource {
     private val localSnapshot = MutableStateFlow<ContextSnapshot?>(null)
     private var fusedSource: SnapshotSource? = null
+    private var localSink: ((ContextSnapshot) -> Unit)? = null
 
     override val snapshot: StateFlow<ContextSnapshot?>
         get() = fusedSource?.snapshot ?: localSnapshot.asStateFlow()
@@ -21,20 +22,25 @@ object LiveContextHolder : SnapshotSource {
     override fun currentSnapshot(): ContextSnapshot? =
         fusedSource?.currentSnapshot() ?: localSnapshot.value
 
-    fun attachFusedSource(source: SnapshotSource) {
+    fun attachFusedSource(source: SnapshotSource, onLocalSnapshot: ((ContextSnapshot) -> Unit)? = null) {
         fusedSource = source
+        localSink = onLocalSnapshot
+        localSnapshot.value?.let { localSink?.invoke(it) }
     }
 
     fun detachFusedSource() {
         fusedSource = null
+        localSink = null
     }
 
     fun update(newSnapshot: ContextSnapshot?) {
         localSnapshot.value = newSnapshot
+        newSnapshot?.let { localSink?.invoke(it) }
     }
 
     fun reset() {
         localSnapshot.value = null
         fusedSource = null
+        localSink = null
     }
 }
