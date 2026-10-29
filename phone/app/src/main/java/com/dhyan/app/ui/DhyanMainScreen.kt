@@ -1,271 +1,119 @@
 package com.dhyan.app.ui
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.dhyan.app.SchemaVersion
 import com.dhyan.app.ui.model.DhyanStateHolder
 import com.dhyan.app.ui.settings.SettingsBottomSheet
-import com.dhyan.app.ui.tabs.InsightsTab
-import com.dhyan.app.ui.tabs.LiveDigestTab
-import com.dhyan.app.ui.tabs.SimulateTab
-import com.dhyan.app.ui.theme.BorderSubtle
-import com.dhyan.app.ui.theme.DhyanPrimary
-import com.dhyan.app.ui.theme.StateDistracted
-import com.dhyan.app.ui.theme.SurfaceCard
-import com.dhyan.app.ui.theme.SurfaceElevated
-import com.dhyan.app.ui.theme.TextMuted
-import com.dhyan.app.ui.theme.TextPrimary
-import com.dhyan.app.ui.theme.TextSecondary
-import com.dhyan.app.ui.theme.VoidBlack
+import com.dhyan.app.ui.tabs.*
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DhyanMainScreen(
-    stateHolder: DhyanStateHolder = remember { DhyanStateHolder() }
-) {
-    var selectedTab by remember { mutableIntStateOf(0) }
-    var isSettingsOpen by remember { mutableStateOf(false) }
-
+fun DhyanMainScreen(stateHolder: DhyanStateHolder? = null) {
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    var settingsOpen by rememberSaveable { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val owner = context as androidx.lifecycle.ViewModelStoreOwner
+    val provider = remember(owner) {
+        val db = com.dhyan.app.data.DhyanDatabase.getInstance(context)
+        androidx.lifecycle.ViewModelProvider(owner, object : androidx.lifecycle.ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                val model: androidx.lifecycle.ViewModel = when (modelClass) {
+                    com.dhyan.app.ui.viewmodel.SimulateViewModel::class.java ->
+                        com.dhyan.app.ui.viewmodel.SimulateViewModel()
+                    com.dhyan.app.ui.viewmodel.LiveDigestViewModel::class.java ->
+                        com.dhyan.app.ui.viewmodel.LiveDigestViewModel(
+                            db.heldNotifDao(), db.decisionDao(), db.feedbackDao(),
+                            com.dhyan.app.actuator.KillSwitchController(
+                                com.dhyan.app.actuator.RoomHeldStore(db.heldNotifDao()),
+                                com.dhyan.app.actuator.release.WorkManagerReleaseJobScheduler(context)
+                            ), isFakeProvider = false
+                        )
+                    com.dhyan.app.ui.viewmodel.InsightsViewModel::class.java ->
+                        com.dhyan.app.ui.viewmodel.InsightsViewModel(db.decisionDao(), db.heldNotifDao())
+                    com.dhyan.app.ui.viewmodel.SettingsViewModel::class.java ->
+                        com.dhyan.app.ui.viewmodel.SettingsViewModel(
+                            vipDao = db.vipDao(), settingsDao = db.settingsDao(),
+                            digestPoster = com.dhyan.app.actuator.digest.AndroidDigestPoster(context),
+                            syncManager = runCatching { com.dhyan.app.DhyanApplication.syncManager }.getOrNull()
+                        )
+                    else -> error("Unsupported Dhyan UI ViewModel")
+                }
+                return model as T
+            }
+        })
+    }
+    val simulate = remember(provider) { provider[com.dhyan.app.ui.viewmodel.SimulateViewModel::class.java] }
+    val live = remember(provider) { provider[com.dhyan.app.ui.viewmodel.LiveDigestViewModel::class.java] }
+    val insights = remember(provider) { provider[com.dhyan.app.ui.viewmodel.InsightsViewModel::class.java] }
+    val settings = remember(provider) { provider[com.dhyan.app.ui.viewmodel.SettingsViewModel::class.java] }
+    val labels = listOf("Simulate", "Live", "Insights")
     Scaffold(
-        containerColor = VoidBlack,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopBar(
-                stateHolder = stateHolder,
-                onOpenSettings = { isSettingsOpen = true }
+            TopAppBar(
+                title = { Column {
+                    Text("Dhyan", style = MaterialTheme.typography.titleLarge)
+                    Text("A little space to focus", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } },
+                actions = {
+                    TextButton(onClick = { settingsOpen = true }) { Text("Settings") }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
         bottomBar = {
-            BottomNav(
-                selectedTab = selectedTab,
-                onSelectTab = { selectedTab = it },
-                digestCount = stateHolder.digestQueue.size
-            )
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
+                labels.forEachIndexed { index, label ->
+                    NavigationBarItem(
+                        selected = selectedTab == index,
+                        onClick = { selectedTab = index },
+                        icon = { DestinationMark(index) },
+                        label = { Text(label) }
+                    )
+                }
+            }
         }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
+    ) { insets ->
+        Box(Modifier.fillMaxSize().padding(insets)) {
             when (selectedTab) {
-                0 -> SimulateTab(stateHolder = stateHolder)
-                1 -> LiveDigestTab(stateHolder = stateHolder)
-                2 -> InsightsTab(stateHolder = stateHolder)
+                0 -> SimulateTab(viewModel = simulate)
+                1 -> LiveDigestTab(viewModel = live)
+                else -> InsightsTab(viewModel = insights)
             }
         }
     }
-
-    if (isSettingsOpen) {
-        SettingsBottomSheet(
-            stateHolder = stateHolder,
-            onDismiss = { isSettingsOpen = false }
-        )
-    }
+    if (settingsOpen) SettingsBottomSheet(viewModel = settings, onDismiss = { settingsOpen = false })
 }
 
 @Composable
-private fun TopBar(
-    stateHolder: DhyanStateHolder,
-    onOpenSettings: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(VoidBlack)
-            .statusBarsPadding()
-            .border(width = 0.5.dp, color = BorderSubtle)
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // Lotus / Attention Dot Emblem
-                Box(
-                    modifier = Modifier
-                        .size(10.dp)
-                        .clip(CircleShape)
-                        .background(if (stateHolder.isKillSwitchActive) StateDistracted else DhyanPrimary)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "DHYAN",
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.5.sp
-                            ),
-                            color = TextPrimary
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "ध्यान",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = TextMuted
-                        )
-                    }
-                    Text(
-                        text = "v${SchemaVersion.VERSION} · Attention Digital Twin",
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
-                        color = TextSecondary
-                    )
-                }
+private fun DestinationMark(index: Int) {
+    val color = LocalContentColor.current
+    Canvas(Modifier.size(24.dp)) {
+        val stroke = 2.dp.toPx()
+        when (index) {
+            0 -> {
+                drawCircle(color, radius = size.minDimension * 0.38f, style = Stroke(stroke))
+                drawCircle(color, radius = size.minDimension * 0.12f)
             }
-
-            // Persona & Settings Pill
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(100.dp))
-                    .background(SurfaceCard)
-                    .border(1.dp, BorderSubtle, RoundedCornerShape(100.dp))
-                    .clickable(onClick = onOpenSettings)
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stateHolder.selectedPersona.name.split(" ").first(),
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = TextPrimary
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "\u2699",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = DhyanPrimary
-                )
+            1 -> {
+                drawRoundRect(color, cornerRadius = androidx.compose.ui.geometry.CornerRadius(5.dp.toPx()),
+                    style = Stroke(stroke))
+                drawLine(color, androidx.compose.ui.geometry.Offset(size.width * .25f, size.height * .5f),
+                    androidx.compose.ui.geometry.Offset(size.width * .75f, size.height * .5f), stroke)
+            }
+            else -> repeat(3) { bar ->
+                val x = (bar + 1) * size.width / 4
+                drawLine(color, androidx.compose.ui.geometry.Offset(x, size.height * .85f),
+                    androidx.compose.ui.geometry.Offset(x, size.height * (.65f - bar * .22f)), stroke)
             }
         }
-    }
-}
-
-@Composable
-private fun BottomNav(
-    selectedTab: Int,
-    onSelectTab: (Int) -> Unit,
-    digestCount: Int
-) {
-    NavigationBar(
-        containerColor = SurfaceElevated,
-        tonalElevation = 0.dp,
-        modifier = Modifier.border(width = 0.5.dp, color = BorderSubtle)
-    ) {
-        // Tab 0: Simulate
-        NavigationBarItem(
-            selected = selectedTab == 0,
-            onClick = { onSelectTab(0) },
-            icon = {
-                Text(
-                    text = "\u25CE", // Target / Simulate symbol
-                    fontSize = 18.sp,
-                    color = if (selectedTab == 0) DhyanPrimary else TextMuted
-                )
-            },
-            label = {
-                Text(
-                    text = "Simulate",
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold)
-                )
-            },
-            colors = NavigationBarItemDefaults.colors(
-                indicatorColor = DhyanPrimary.copy(alpha = 0.15f),
-                selectedTextColor = DhyanPrimary,
-                unselectedTextColor = TextMuted
-            )
-        )
-
-        // Tab 1: Live & Digest
-        NavigationBarItem(
-            selected = selectedTab == 1,
-            onClick = { onSelectTab(1) },
-            icon = {
-                Box {
-                    Text(
-                        text = "\u25C9", // Focus Ring symbol
-                        fontSize = 18.sp,
-                        color = if (selectedTab == 1) DhyanPrimary else TextMuted
-                    )
-                    if (digestCount > 0) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(DhyanPrimary)
-                        )
-                    }
-                }
-            },
-            label = {
-                Text(
-                    text = if (digestCount > 0) "Live ($digestCount)" else "Live",
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold)
-                )
-            },
-            colors = NavigationBarItemDefaults.colors(
-                indicatorColor = DhyanPrimary.copy(alpha = 0.15f),
-                selectedTextColor = DhyanPrimary,
-                unselectedTextColor = TextMuted
-            )
-        )
-
-        // Tab 2: Insights
-        NavigationBarItem(
-            selected = selectedTab == 2,
-            onClick = { onSelectTab(2) },
-            icon = {
-                Text(
-                    text = "\u25E4", // Chart / Insights symbol
-                    fontSize = 18.sp,
-                    color = if (selectedTab == 2) DhyanPrimary else TextMuted
-                )
-            },
-            label = {
-                Text(
-                    text = "Insights",
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold)
-                )
-            },
-            colors = NavigationBarItemDefaults.colors(
-                indicatorColor = DhyanPrimary.copy(alpha = 0.15f),
-                selectedTextColor = DhyanPrimary,
-                unselectedTextColor = TextMuted
-            )
-        )
     }
 }
