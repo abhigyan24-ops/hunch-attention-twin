@@ -18,8 +18,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         VipEntity::class,
         SyncCursorEntity::class,
         SettingsEntity::class,
+        CmdLogEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 abstract class DhyanDatabase : RoomDatabase() {
@@ -32,6 +33,7 @@ abstract class DhyanDatabase : RoomDatabase() {
     abstract fun vipDao(): VipDao
     abstract fun syncCursorDao(): SyncCursorDao
     abstract fun settingsDao(): SettingsDao
+    abstract fun cmdLogDao(): CmdLogDao
 
     companion object {
         @Volatile private var INSTANCE: DhyanDatabase? = null
@@ -69,9 +71,6 @@ abstract class DhyanDatabase : RoomDatabase() {
                     )
                 """.trimIndent())
 
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_held_notifs_state_hold_until_ms` ON `held_notifs` (`state`, `hold_until_ms`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_held_notifs_keyHash` ON `held_notifs` (`keyHash`)")
-
                 // --- decisions: drop and recreate ---
                 db.execSQL("DROP TABLE IF EXISTS `decisions`")
                 db.execSQL("""
@@ -79,14 +78,11 @@ abstract class DhyanDatabase : RoomDatabase() {
                         `id`               INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                         `ts`               INTEGER NOT NULL,
                         `key_hash`         TEXT NOT NULL,
-                        `posted_ts_ms`     INTEGER NOT NULL,
                         `action`           TEXT NOT NULL,
-                        `reason_code`      TEXT NOT NULL,
-                        `safety_reason`    TEXT,
-                        `p_loss_show`      REAL,
-                        `p_loss_suppress`  REAL,
-                        `delta_l_mean`     REAL,
-                        `delta_l_p10`      REAL,
+                        `reason`           TEXT NOT NULL,
+                        `explanation`      TEXT NOT NULL,
+                        `cost_diff`        REAL,
+                        `delta_l_hat`      REAL,
                         `delta_l_p90`      REAL,
                         `evidence_strength` REAL,
                         `propensity`       REAL NOT NULL,
@@ -105,6 +101,38 @@ abstract class DhyanDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Migration 2 → 3: Non-destructive addition of cmd_log table and canonical
+         * sync envelope identity columns to events table (Stage 8P1, Schema 1.1.0).
+         */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. Create cmd_log table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `cmd_log` (
+                        `cmd_id`         TEXT NOT NULL,
+                        `source`         TEXT NOT NULL,
+                        `action`         TEXT NOT NULL,
+                        `status`         TEXT NOT NULL,
+                        `reason`         TEXT,
+                        `ts_ms`          INTEGER NOT NULL,
+                        `executed_at_ms` INTEGER NOT NULL,
+                        PRIMARY KEY(`cmd_id`)
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_cmd_log_ts_ms` ON `cmd_log` (`ts_ms`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_cmd_log_action` ON `cmd_log` (`action`)")
+
+                // 2. Add envelope columns to events table non-destructively
+                db.execSQL("ALTER TABLE `events` ADD COLUMN `event_id` TEXT")
+                db.execSQL("ALTER TABLE `events` ADD COLUMN `seq` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `events` ADD COLUMN `device_id` TEXT NOT NULL DEFAULT 'phone'")
+                db.execSQL("ALTER TABLE `events` ADD COLUMN `settled_status` TEXT NOT NULL DEFAULT 'valid'")
+                db.execSQL("ALTER TABLE `events` ADD COLUMN `schema_version` TEXT NOT NULL DEFAULT '1.1.0'")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_events_device_id_seq_event_id` ON `events` (`device_id`, `seq`, `event_id`)")
+            }
+        }
+
         fun getInstance(context: Context): DhyanDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -112,7 +140,7 @@ abstract class DhyanDatabase : RoomDatabase() {
                     DhyanDatabase::class.java,
                     "dhyan.db"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                     .also { INSTANCE = it }
             }

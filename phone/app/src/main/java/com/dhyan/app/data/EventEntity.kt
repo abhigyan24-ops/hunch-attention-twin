@@ -8,11 +8,15 @@ import androidx.room.PrimaryKey
 /**
  * Persisted event record — categories and counts only, never raw content.
  *
- * Maps to the core event schema (spec section 6).
+ * Maps to the core event schema (spec section 6, contract section 10 & 16).
  */
 @Entity(
     tableName = "events",
-    indices = [Index(value = ["ts"]), Index(value = ["kind"])]
+    indices = [
+        Index(value = ["ts"]),
+        Index(value = ["kind"]),
+        Index(value = ["device_id", "seq", "event_id"])
+    ]
 )
 data class EventEntity(
     @PrimaryKey(autoGenerate = true)
@@ -34,5 +38,12 @@ data class EventEntity(
     /** Scroll count (for scroll_burst events only, 0 otherwise) */
     @ColumnInfo(name = "scroll_count") val scrollCount: Int,
     /** JSON blob for extra fields that don't warrant columns. Kept minimal — no text content. */
-    @ColumnInfo(name = "extras_json") val extrasJson: String?
+    @ColumnInfo(name = "extras_json") val extrasJson: String?,
+
+    // Stage 8 canonical sync envelope columns (Schema 1.1.0)
+    @ColumnInfo(name = "event_id") val eventId: String? = null,
+    @ColumnInfo(name = "seq", defaultValue = "0") val seq: Long = 0,
+    @ColumnInfo(name = "device_id", defaultValue = "'phone'") val deviceId: String = "phone",
+    @ColumnInfo(name = "settled_status", defaultValue = "'valid'") val settledStatus: String = "valid",
+    @ColumnInfo(name = "schema_version", defaultValue = "'1.1.0'") val schemaVersion: String = "1.1.0"
 )

@@ -27,9 +27,21 @@ android {
   getByName("debug") {
    java.srcDirs("src/debug/java")
   }
+  getByName("test") {
+   resources.srcDirs("src/test/resources")
+  }
  }
 }
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
+
+val copySyncTestVectors = tasks.register<Copy>("copySyncTestVectors") {
+ from("${project.rootDir}/../contracts/sync/test-vectors.json")
+ into(file("src/test/resources"))
+}
+tasks.matching { it.name.contains("UnitTest", ignoreCase = true) }.configureEach {
+ dependsOn(copySyncTestVectors)
+}
+
 dependencies {
  implementation(platform(libs.compose.bom))
  implementation(libs.compose.ui)
