@@ -13,10 +13,10 @@
   - `PhoneControl`: `com.dhyan.app.actuator.PhoneControl` (exists, public facade)
   - `HeldItemsView`: `com.dhyan.app.actuator.HeldItemsView` (exists, read-only snapshot provider)
   - `SnapshotSource`: `com.dhyan.app.ui.model.SnapshotSource` (exists, interface)
-  - `ClockOffset`: `com.dhyan.app.ingest.ClockOffset` (exists, to be extended with Section 7.1 rolling estimator)
+  - `ClockOffset`: `com.dhyan.app.ingest.ClockOffset` (extended with Section 7.1 rolling estimator)
   - `RoomDecisionLogStore`: `com.dhyan.app.data.RoomDecisionLogStore` (exists, records actuation decisions)
   - `SyncCursorDao` & `SettingsDao`: exist in Room DB
-  - Room version: 2 (exported schema at `phone/app/schemas/com.dhyan.app.data.DhyanDatabase/2.json`)
+  - Room version: 2 -> upgraded to 3 (schema `3.json` exported)
 - **Key Architectural Decisions:**
   - Android 15 foreground service: updated to `specialUse` per DD-10 to survive >6 hour limits.
   - Room migration 2 -> 3: non-destructive migration adding `cmd_log` table and updating `events` with canonical envelope identity & tombstone status.
@@ -24,16 +24,107 @@
 
 ---
 
-## Milestone M1: Plumbing
-- Status: IN PROGRESS
-- Deliverables:
-  - Manifest: Add `android.permission.INTERNET`, update `DhyanForegroundService` to `specialUse` with property subtype.
-  - Network Security: `network_security_config.xml` (debug permits `ws://` to LAN and `10.0.2.2`; release strict TLS `wss://` only).
-  - Dependencies: Add OkHttp (`com.squareup.okhttp3:okhttp:4.12.0`) in `phone/app/build.gradle.kts`.
-  - Room Database v3:
-    - Entity `CmdLogEntity` & DAO `CmdLogDao`
-    - Update `EventEntity` with canonical envelope columns (`eventId`, `seq`, `deviceId`, `settledStatus`, `schemaVersion`)
-    - Migration `MIGRATION_2_3` in `DhyanDatabase.kt`
-    - Export schema `3.json`
-    - Migration test verifying non-destructive upgrade.
-  - Schema version bump to `1.1.0`.
+## Milestone M1: Plumbing (Commit `615894a`)
+- **Manifest:** Added `android.permission.INTERNET`, updated `DhyanForegroundService` to `specialUse|dataSync` with `PROPERTY_SPECIAL_USE_FGS_SUBTYPE` per DD-10.
+- **Network Security:** `network_security_config.xml` (debug permits cleartext `ws://` to LAN IPs and `10.0.2.2`; release keeps strict TLS `wss://` only).
+- **Dependencies:** Added OkHttp (`com.squareup.okhttp3:okhttp:4.12.0`) in `phone/app/build.gradle.kts`.
+- **Room Database v3:**
+  - Entity `CmdLogEntity` & DAO `CmdLogDao`
+  - Canonical envelope columns in `EventEntity`: `eventId`, `seq`, `deviceId`, `settledStatus`, `schemaVersion`.
+  - Non-destructive `MIGRATION_2_3` in `DhyanDatabase.kt`.
+  - Exported schema `phone/app/schemas/com.dhyan.app.data.DhyanDatabase/3.json` (22.0 KB).
+  - Verified `DhyanDatabaseMigrationTest` PASS.
+- **Schema version:** Bumped to `"1.1.0"` in `SchemaVersion.kt` and `SchemaVersionTest.kt`.
+- **Test Vectors Copy Task:** Configured `copySyncTestVectors` Gradle task.
+
+---
+
+## Milestone M2: JCA Cryptography (Commit `6776b7c`)
+- **Pure JCA Implementation (`SyncCrypto.kt`):**
+  - Ephemeral P-256 key generation (`KeyPairGenerator`).
+  - SEC1 uncompressed point encoding and decoding (`0x04 || X || Y`).
+  - ECDH shared secret derivation (32-byte X-coordinate via `KeyAgreement`).
+  - RFC 5869 HKDF-SHA256 (Extract and Expand).
+  - Transcript hash (`SHA-256("dhyan-transcript-v1" || ...)`).
+  - 6-digit Short Authentication String (`XXX XXX`, `790 350` vector match).
+  - Confirmation MACs (`HMAC-SHA256` with `kConf`).
+  - Permanent pairing key `PK` and session room `sid` derivation.
+  - Hello MAC derivation (`kHello`) and calculation.
+  - Session key derivation (`k_l2p` and `k_p2l`).
+  - AES-256-GCM authenticated encryption/decryption with 12-byte big-endian counter nonces and ASCII AAD.
+- **Keystore Key Wrapper (`KeystoreKeyWrapper.kt`):**
+  - Wraps permanent pairing key using Android Keystore AES-GCM (with JVM test fallback).
+- **Vector Verification (`SyncCryptoVectorsTest.kt`):**
+  - Verified 100% byte-for-byte match on all 7 test vector steps in `contracts/sync/test-vectors.json`.
+
+---
+
+## Milestone M3: Pairing Controller (Commit `6f24485`)
+- **State Machine (`PairingController.kt`):**
+  - Finite state machine per Contract Section 4.
+  - States: `Idle`, `Joining`, `WaitingOffer`, `WaitingConfirmation(sas)`, `Confirming`, `Paired`, `Failed`.
+  - Enforces commit verification before showing SAS.
+  - Immediate zeroization and cleanup of ephemeral key material upon completion or failure.
+  - Secure credential persistence in `settings` table.
+  - Clean `unpair()` removing stored keys.
+- **Unit Tests (`PairingControllerTest.kt`):**
+  - Full handshake, commit mismatch rejection, user cancellation, and unpair verified PASS.
+
+---
+
+## Milestone M4: Session Client (`RelayClient`) (Commit `3197906`)
+- **Session Framing (`RelayClient.kt`, `SessionState.kt`, `SessionTransport.kt`):**
+  - Authenticated hello handshake with fresh 16-byte random nonces (`snP`, `snL`).
+  - Mutual HMAC-SHA256 hello MAC verification (3 failures in 60s close connection with code 1008).
+  - Symmetric key derivation from `snL || snP`.
+  - AES-256-GCM framing with 12-byte nonces (`0x00000000 || ctr`) and AAD (`dhyan|1|<type>|p2l|<ctr>`).
+  - Strict counter sequencing; rejection of replayed or reordered frames (`ctr <= inboundCtr`).
+  - Strict 32 KB plaintext limit enforcement.
+  - Policy enforcement: 3 tag failures in 60s close connection with code 1008 (`tag_failure_limit`).
+  - Built-in ping/pong response and keepalive.
+  - Exponential reconnect backoff with jitter.
+- **Unit Tests (`RelayClientTest.kt`):**
+  - 5/5 tests PASS (handshake, framing, replay rejection, tag limit, pong response).
+
+---
+
+## Milestone M5: Data Flow (`SyncDataEngine`) (Commit `d91ed02`)
+- **Outbound Streaming:**
+  - Bounded batch exporter (<= 50 events, 32 KB) querying `EventDao.getOutboundAfterSeq`.
+  - Encrypted `events` frame transmission.
+- **Inbound Settlement (Contract Section 16):**
+  - Transactional batch verification: monotonic seqs, valid UUID, sender device identity, schemaVersion compatibility.
+  - Partial acceptance: valid events saved with `settledStatus = "valid"`.
+  - Privacy violations or future timestamps (> 5 min) saved as metadata-only tombstones (`settledStatus = "tombstone"`, never storing rejected payload or text).
+  - Deduplication: duplicate IDs settled as controlled duplicate tombstones.
+  - Atomic Room commit before sending cumulative `ack { upToSeq }`.
+- **Clock Offset Estimator (`ClockOffset.kt`):**
+  - Contract Section 7.1 rolling estimator: RTT filtering (<= 2000 ms), window of 8 samples, selection of sample with minimum RTT.
+  - Adjusts peer timestamps into phone reference time.
+- **Privacy Enforcement (`PrivacyGuard.kt`):**
+  - Strict recursive inspection against 22 forbidden fields and canary regex patterns (URLs, emails, canary tokens).
+- **Context State Sync:**
+  - Periodic (5 s) snapshot publishing using `SnapshotSource` (`confidence = "uncalibrated"`).
+
+---
+
+## Milestone M6: Commands & Mirror (`SyncCommandDispatcher`) (Commit `d91ed02`)
+- **Command Handling:**
+  - Strict 60s expiry check against local clock and clock offset.
+  - 24h idempotency via `CmdLogDao`.
+  - Remote kill switch authorization: `kill_switch { on: false }` from laptop peer is REJECTED with `cmd_ack{status:"rejected", reason:"unauthorized"}`. Fail-open `kill_switch { on: true }` is applied.
+  - Remote `show_now { heldId }` or `show_now { all: true }` releases held items via `PhoneControl`.
+  - Remote `declare_session` and `end_session` applied.
+- **Actuation & Held Items Mirror:**
+  - `sendHeldList()` exports up to 50 active held items (opaque `heldId`, `appCat`, `heldAt`, `expiresAt`, `status`; zero notification text or titles).
+  - `sendPetEvent()` mirrors actuation events (`held`, `released`, `nudge`, `celebrate`).
+
+---
+
+## Milestone M7: Interoperability Harness & Runbook (Commit `d91ed02`)
+- **Runbook:** Created `phone/README-sync.md` documenting PowerShell commands for running `tools/mock-relay`, `tools/mock-peer`, pairing, and running attack suites (`bad-sas`, `disable-kill-switch`, `tag-failure`, `replay`, `expired`).
+- **Full Test Suite Status:**
+  - Phone unit tests: **283 / 283 PASS, 0 failures, 0 errors**.
+  - Root checks:
+    - `npm run checks`: PASS (1.1.0, 444 twin files, 336 production files).
+    - `npm run check:contracts`: 59 / 59 PASS, 0 failures.
