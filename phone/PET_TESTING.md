@@ -76,3 +76,11 @@ Executed results for this QA session are recorded after execution in DECISIONS_p
 - Full app JVM regression: 381 tests, 1 failure, 0 errors. The unchanged `Stage4BParameterRecoveryTest.rahulFourteenDayReplayRecoversPickupProbWithinEightPercent` estimates 0.7247279352031226 against required [0.54, 0.7]. Its model and threshold were not altered by this UI task.
 - Debug app and instrumentation APKs assembled. Test APK packaging initially needed uncached transitive artifacts; the online retry succeeded (`BUILD SUCCESSFUL in 2m 46s`).
 - Root schema sync, twin purity and persona-import checks passed. Physical device, haptic feel and performance remain not verified on target.
+
+Subsequent startup correction: see `DECISIONS_pet-startup.md`. The owner's connected phone exposed a version-4 database / version-3 APK mismatch and a separate chart endpoint crash. The corrected APK preserves version 4. Three new instrumented regressions passed on that phone (database reopening, migration and chart drawing); 48 selected JVM tests passed. These checks supersede the earlier no-device claim only for those startup/regression scenarios, not haptic feel, battery or performance.
+
+Run the startup regressions explicitly after building/installing both APKs:
+
+```powershell
+adb -s <serial> shell am instrument -w -r -e class com.dhyan.app.data.DatabaseCompatibilityTest,com.dhyan.app.ui.components.DistributionCanvasTest com.dhyan.app.test/androidx.test.runner.AndroidJUnitRunner
+```

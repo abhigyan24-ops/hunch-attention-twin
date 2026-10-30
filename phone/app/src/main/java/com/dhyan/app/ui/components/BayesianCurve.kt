@@ -281,9 +281,10 @@ fun LogNormalDistributionCanvas(
         val points = mutableListOf<Offset>()
 
         var maxVal = 0.0
-        val vals = DoubleArray(steps)
+        // The drawn curve includes both endpoints: indices 0 through steps.
+        val vals = DoubleArray(steps + 1)
 
-        for (i in 1 until steps) {
+        for (i in 1..steps) {
             val x = (i.toDouble() / steps) * maxMinutes
             val logDiff = ln(x) - mu
             val v = (1.0 / (x * sigma)) * exp(-(logDiff.pow(2.0)) / (2.0 * sigma * sigma))
