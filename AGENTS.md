@@ -40,4 +40,4 @@ Stage 1A must not modify `phone/`, `laptop/`, or `relay/`.
 - Pure Kotlin, no I/O or new dependencies; explicit nowMs and seeded exploration only. No content in facts, records, diagnostics or exceptions; template explanations only.
 - Fail open and never-hold absolute. Contract files freeze after reviewed 5.0 merge. Report cross-stage/contract requests in STAGE5_NOTES.md.
 
-Prompts live in docs/prompts/. Owner decisions live in docs/OWNER_DECISIONS.md and override defaults. Subagent rules: docs/prompts/DHYAN_NEXT_PROMPTS.md section L (not yet supplied); follow the signed DD-15 and disjoint-scope rules.
+Prompts live in docs/prompts/. Grounding rules: docs/prompts/GROUNDING.md. Owner decisions live in docs/OWNER_DECISIONS.md and override defaults. Subagent rules: docs/prompts/DHYAN_NEXT_PROMPTS.md section L (not yet supplied); follow the signed DD-15 and disjoint-scope rules.
