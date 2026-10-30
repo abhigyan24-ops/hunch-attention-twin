@@ -10,9 +10,11 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test test/*.test.mjs",
     "check:aw": "node scripts/check-aw.mjs",
-    "check:s7": "node scripts/check-s7.mjs"
+    "check:s7": "node scripts/check-s7.mjs",
+    "setup:ollama": "node scripts/setup-ollama.mjs"
   },
   "dependencies": {
+    "@google/genai": "^2.32.0",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "react": "^19.2.0",
