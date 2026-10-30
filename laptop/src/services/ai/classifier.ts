@@ -79,6 +79,14 @@ function validateRawTierResult(val: unknown): RawTierResult | null {
   };
 }
 
+function normalizeEndpoint(ep?: string): string {
+  let url = (ep || process.env.OLLAMA_HOST || 'http://127.0.0.1:11434').trim();
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = `http://${url}`;
+  }
+  return url.replace('://0.0.0.0:', '://127.0.0.1:');
+}
+
 /**
  * Tier 1 — Local Ollama (127.0.0.1:11434)
  * Primary private, offline inference engine.
@@ -88,7 +96,7 @@ export async function tryTier1Ollama(
   input: ScreenSignalInput,
   options?: ClassifierOptions
 ): Promise<RawTierResult | null> {
-  const endpoint = options?.ollamaEndpoint || process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
+  const endpoint = normalizeEndpoint(options?.ollamaEndpoint);
   const timeoutMs = options?.timeoutMs?.ollama ?? 1500;
 
   const hasImage = Boolean(input.screenshotBuffer && input.screenshotBuffer.length > 0);

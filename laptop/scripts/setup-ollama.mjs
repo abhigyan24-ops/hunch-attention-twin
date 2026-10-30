@@ -8,7 +8,15 @@
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-const DEFAULT_ENDPOINT = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
+function normalizeEndpoint(ep) {
+  let url = (ep || process.env.OLLAMA_HOST || 'http://127.0.0.1:11434').trim();
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = `http://${url}`;
+  }
+  return url.replace('://0.0.0.0:', '://127.0.0.1:');
+}
+
+const DEFAULT_ENDPOINT = normalizeEndpoint();
 const REQUIRED_MODELS = ['llama3.2:1b', 'moondream'];
 
 export async function checkOllamaHealth(endpoint = DEFAULT_ENDPOINT) {
