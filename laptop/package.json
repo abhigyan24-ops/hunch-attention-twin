@@ -6,9 +6,10 @@
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "build": "electron-vite build && node scripts/build-overlay.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/*.test.mjs",
+    "test": "node --test test/*.test.mjs && vitest run",
+    "test:vitest": "vitest run",
     "check:aw": "node scripts/check-aw.mjs",
     "check:s7": "node scripts/check-s7.mjs"
   },
@@ -29,7 +30,8 @@
     "electron-vite": "^4.0.1",
     "esbuild": "^0.25.11",
     "typescript": "^5.9.3",
-    "vite": "^7.1.12"
+    "vite": "^7.1.12",
+    "vitest": "^5.0.5"
   },
   "overrides": {
     "rollup": "npm:@rollup/wasm-node@4.52.4",
