@@ -2,7 +2,7 @@
 export const pipConfig = {
   work: ['coding', 'docs', 'learning'], distraction: ['social', 'short_video', 'games', 'shopping', 'news'],
   recentWorkMs: 900000, gapMs: 20000, freshMs: 15000, remoteFreshMs: 30000,
-  thresholdsMs: [0, 60000, 180000, 480000, 1200000], watchMultiplier: 2,
+  thresholdsMs: [0, 0, 5000, 12000, 1200000], watchMultiplier: 2,
   recoveryMs: 60000, overlapBubbleMs: 120000, cooldownMs: [0, 0, 600000, 1200000, 0],
   hourMs: 3600000, hourCap: 4, dayCap: 20, suppressMs: 3600000,
   dismissMultiplier: 1.5, dismissalLimit: 3, quietStart: 1320, quietEnd: 420,
@@ -99,7 +99,8 @@ export class EscalationLadder {
     row[kind]++;
     if (kind === 'accepted') { this.dismissals = 0; return; }
     this.suppressed.set(category + ':' + surface, now + pipConfig.suppressMs);
-    this.multiplier = pipConfig.dismissMultiplier;
+    const shown=this.counters.reduce((sum,row)=>sum+row.shown,0),dismissed=this.counters.reduce((sum,row)=>sum+row.dismissed,0),accepted=this.counters.reduce((sum,row)=>sum+row.accepted,0);
+    if(shown>=5&&dismissed>accepted&&dismissed/shown>.6)this.multiplier=pipConfig.dismissMultiplier;
     if (++this.dismissals >= pipConfig.dismissalLimit) { this.pauseUntil = now + pipConfig.suppressMs; this.dismissals = 0; }
   }
   decide(a: Assessment, e: Evidence, respect: Respect): Nudge {
@@ -117,7 +118,7 @@ export class EscalationLadder {
     this.shown = this.shown.filter(at => now - at < pipConfig.hourMs);
     if (this.shown.length >= pipConfig.hourCap || (this.daily.get(respect.dayKey) ?? 0) >= pipConfig.dayCap) return no('budget');
     const previous = this.lastLevel.get(a.level);
-    if (previous !== undefined && now - previous < pipConfig.cooldownMs[a.level]) return no('cooldown');
+    if (previous !== undefined && now - previous < pipConfig.cooldownMs[a.level]*this.multiplier) return no('cooldown');
     if (a.level === 4 && this.level4Episode === a.episode) return no('episode_limit');
     this.lastLevel.set(a.level, now); this.shown.push(now);
     this.daily.set(respect.dayKey, (this.daily.get(respect.dayKey) ?? 0) + 1);
@@ -130,7 +131,7 @@ export class EscalationLadder {
   }
 }
 const copy = [
-  'Need a hand getting back?', 'Ready for a small next step?', 'Would a short pause help?', 'Want to return to your plan?',
+  'Drifting off?', 'Ready for a small next step?', 'Would a short pause help?', 'Want to return to your plan?',
   'Time for a gentle reset?', 'Shall we make room for focus?', 'Would a stretch feel good?', 'What would feel useful now?',
 ] as const;
 /** Explicit seed; the picker never reads ambient randomness or content. */

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 
-export type SpiritEmotion = 'CURIOUS' | 'FOCUSED' | 'HAPPY' | 'SLEEPY' | 'DISTRACTED';
+export type SpiritEmotion = 'CURIOUS' | 'FOCUSED' | 'HAPPY' | 'SLEEPY' | 'DISTRACTED' | 'SURPRISED' | 'POUTING';
 
 interface Particle {
   x: number;
@@ -41,7 +41,7 @@ export function renderCloudSpirit(
   } else if (emotion === 'SLEEPY') {
     aura.addColorStop(0, 'rgba(147, 197, 253, 0.28)');
     aura.addColorStop(0.6, 'rgba(199, 210, 254, 0.10)');
-  } else if (emotion === 'DISTRACTED') {
+  } else if (emotion === 'DISTRACTED' || emotion === 'POUTING' || emotion === 'SURPRISED') {
     aura.addColorStop(0, 'rgba(244, 63, 94, 0.40)');
     aura.addColorStop(0.6, 'rgba(251, 146, 60, 0.16)');
   } else {
@@ -69,7 +69,7 @@ export function renderCloudSpirit(
     bodyGrad.addColorStop(0.35, '#EFF6FF');
     bodyGrad.addColorStop(0.75, '#93C5FD');
     bodyGrad.addColorStop(1, '#3B82F6');
-  } else if (emotion === 'DISTRACTED') {
+  } else if (emotion === 'DISTRACTED' || emotion === 'POUTING' || emotion === 'SURPRISED') {
     bodyGrad.addColorStop(0.35, '#FFF1F2');
     bodyGrad.addColorStop(0.75, '#FDA4AF');
     bodyGrad.addColorStop(1, '#F43F5E');
@@ -160,7 +160,9 @@ export function renderCloudSpirit(
     ctx.arc(dx * 0.4, 6 + dy * 0.2, 5.5, 0.1 * Math.PI, 0.9 * Math.PI);
   } else if (emotion === 'SLEEPY') {
     ctx.arc(dx * 0.4, 7 + dy * 0.2, 3, 0, Math.PI);
-  } else if (emotion === 'DISTRACTED') {
+  } else if (emotion === 'SURPRISED') {
+    ctx.arc(dx * 0.4, 7 + dy * 0.2, 3, 0, Math.PI * 2);
+  } else if (emotion === 'DISTRACTED' || emotion === 'POUTING') {
     // Worried wavy mouth
     ctx.moveTo(-5 + dx * 0.4, 7 + dy * 0.2);
     ctx.quadraticCurveTo(-2 + dx * 0.4, 4 + dy * 0.2, 0 + dx * 0.4, 7 + dy * 0.2);
@@ -219,6 +221,7 @@ export function renderCloudSpirit(
 
 interface CloudSpiritCanvasProps {
   emotion?: SpiritEmotion;
+  gaze?: {x:number;y:number};
   width?: number;
   height?: number;
   interactive?: boolean;
@@ -227,6 +230,7 @@ interface CloudSpiritCanvasProps {
 
 export function CloudSpiritCanvas({
   emotion = 'CURIOUS',
+  gaze,
   width = 180,
   height = 140,
   interactive = true,
@@ -269,6 +273,7 @@ export function CloudSpiritCanvas({
     let time = 0;
     const render = () => {
       time += 0.04;
+      if(gaze){lookPos.current.x+=(gaze.x-lookPos.current.x)*0.14;lookPos.current.y+=(gaze.y-lookPos.current.y)*0.14;}
 
       // 1. Spring-damped mass physics for squash-and-stretch
       const targetScaleX = isMouseDown.current ? 1.25 : 1.0;
@@ -328,7 +333,7 @@ export function CloudSpiritCanvas({
     return () => {
       if (animFrame.current) cancelAnimationFrame(animFrame.current);
     };
-  }, [emotion, width, height]);
+  }, [emotion, width, height, gaze?.x, gaze?.y]);
 
   // Interactive mouse handlers for petting & squishing
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
