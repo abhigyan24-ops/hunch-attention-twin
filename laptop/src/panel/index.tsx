@@ -250,7 +250,7 @@ function App() {
     const element = hitbox.current;
     if (!element) return;
     let dragging = false, lastX = 0, lastY = 0;
-    const down = (event: PointerEvent) => { dragging = true; lastX = event.screenX; lastY = event.screenY; element.setPointerCapture(event.pointerId); };
+    const down = (event: PointerEvent) => { if((event.target as Element).closest('.pip-actions'))return; dragging = true; lastX = event.screenX; lastY = event.screenY; element.setPointerCapture(event.pointerId); };
     const move = (event: PointerEvent) => { if (!dragging) return; window.dhyan.movePet(event.screenX-lastX,event.screenY-lastY); lastX=event.screenX; lastY=event.screenY; };
     const up = () => { dragging = false; window.dhyan.setIgnoreMouseEvents(true); };
     element.addEventListener('pointerdown',down);
@@ -296,7 +296,7 @@ function App() {
       <div id="pip-hitbox" ref={hitbox}>
         <PipCompanion
           behavior={unavailable ? null : data?.pet.behavior ?? null}
-          speechBubble={unavailable ? 'Data unavailable' : bubble}
+          speechBubble={unavailable ? 'Data unavailable' : data?.reaction?.message ?? bubble}
           heldCount={unavailable ? null : data?.pet.heldCount ?? null}
           onClick={() => {
             if (isPanelWindow) {
@@ -306,6 +306,8 @@ function App() {
             }
           }}
         />
+        {data?.reaction?.level === 4 && data.reaction.message && <div className="pip-actions"><button onClick={() => void window.dhyan.petAction('back')}>Back to task</button><button onClick={() => void window.dhyan.petAction('break15')}>Break 15 min</button><button onClick={() => void window.dhyan.petAction('dismiss')}>Not distracted</button><button onClick={() => void window.dhyan.petAction('focus25')}>Focus 25 min</button></div>}
+        {data?.reaction?.level === 3 && data.reaction.message && <div className="pip-actions"><button onClick={() => void window.dhyan.petAction('back')}>Back to task</button><button onClick={() => void window.dhyan.petAction('break15')}>Break 15 min</button><button onClick={() => void window.dhyan.petAction('dismiss')}>Not distracted</button></div>}
         {data?.demo && <small style={{ display: 'block', textAlign: 'center', fontSize: '9px' }}>DEV SIMULATION</small>}
       </div>
     );

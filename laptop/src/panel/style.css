@@ -79,6 +79,7 @@ body {
   text-align: center;
   position: relative;
 }
+.pip-actions{display:flex;flex-wrap:wrap;gap:3px;justify-content:center;max-width:170px}.pip-actions button{font-size:9px;padding:3px;border-radius:7px;border:1px solid var(--dhyan-border);background:var(--dhyan-card);color:var(--dhyan-text-main)}
 
 .pip-bubble {
   font-size: 11px;
