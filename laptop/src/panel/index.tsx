@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { PipCompanion } from '../pet/PipCompanion';
+import { CloudSpiritCanvas, type SpiritEmotion } from '../pet/CloudSpiritCanvas';
 import { nextBubble, type BubbleState } from '../pet/bubbles';
 import type { DhyanUi, UiSnapshot } from '../shared/ui';
 import './style.css';
@@ -12,6 +13,50 @@ declare global {
 }
 
 type TabKey = 'live' | 'simulate' | 'insights' | 'settings';
+
+interface PresetConfig {
+  id: string;
+  label: string;
+  minutes: number;
+  icon: string;
+  categoryClass: string;
+  description: string;
+}
+
+const PRESETS: PresetConfig[] = [
+  {
+    id: 'coding',
+    label: 'Coding',
+    minutes: 45,
+    icon: '💻',
+    categoryClass: 'coding',
+    description: 'High distraction protection'
+  },
+  {
+    id: 'study',
+    label: 'Deep Study',
+    minutes: 25,
+    icon: '⚡',
+    categoryClass: 'study',
+    description: 'Pomodoro flow sprint'
+  },
+  {
+    id: 'reading',
+    label: 'Reading',
+    minutes: 15,
+    icon: '📖',
+    categoryClass: 'reading',
+    description: 'Paper & docs review'
+  },
+  {
+    id: 'break',
+    label: 'Calm Break',
+    minutes: 10,
+    icon: '🍵',
+    categoryClass: 'break',
+    description: 'Attention reset & rest'
+  }
+];
 
 function SemicircularDial({
   minutes,
@@ -60,18 +105,18 @@ function SemicircularDial({
   // Generate 25 tick marks around a 180-degree semicircular arc
   const ticks = [];
   const totalTicks = 25;
-  const radius = 90;
-  const cx = 130;
-  const cy = 110;
+  const radius = 95;
+  const cx = 140;
+  const cy = 115;
 
   for (let i = 0; i < totalTicks; i++) {
     const fraction = i / (totalTicks - 1);
-    const angle = Math.PI + fraction * Math.PI; // from 180deg to 360deg (top semicircle)
-    const x1 = cx + (radius - 8) * Math.cos(angle);
-    const y1 = cy + (radius - 8) * Math.sin(angle);
+    const angle = Math.PI + fraction * Math.PI; // from 180deg to 360deg
+    const x1 = cx + (radius - 10) * Math.cos(angle);
+    const y1 = cy + (radius - 10) * Math.sin(angle);
     const x2 = cx + radius * Math.cos(angle);
     const y2 = cy + radius * Math.sin(angle);
-    const active = fraction <= (minutes / 180);
+    const active = fraction <= minutes / 180;
     ticks.push(
       <line
         key={i}
@@ -80,7 +125,7 @@ function SemicircularDial({
         x2={x2}
         y2={y2}
         stroke={active ? '#7AD656' : '#E2E8F0'}
-        strokeWidth={i % 4 === 0 ? 3 : 1.5}
+        strokeWidth={i % 4 === 0 ? 3.5 : 2}
         strokeLinecap="round"
       />
     );
@@ -92,17 +137,49 @@ function SemicircularDial({
       onMouseDown={handleMouseDown}
       onWheel={handleWheel}
       tabIndex={0}
+      role="slider"
+      aria-valuenow={minutes}
+      aria-valuemin={5}
+      aria-valuemax={180}
       onKeyDown={(e) => {
         if (e.key === 'ArrowUp' || e.key === 'ArrowRight') onChange(Math.min(180, minutes + 5));
         if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') onChange(Math.max(5, minutes - 5));
       }}
     >
-      <svg width="260" height="130" viewBox="0 0 260 130">
+      <svg width="280" height="135" viewBox="0 0 280 135">
+        <defs>
+          <linearGradient id="arcGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#7AD656" />
+            <stop offset="100%" stopColor="#9FE855" />
+          </linearGradient>
+        </defs>
         {ticks}
       </svg>
       <div className="dhyan-dial-readout">{minutes}</div>
       <div className="dhyan-dial-unit">Minutes Planned</div>
     </div>
+  );
+}
+
+function MiniSparkline({ points, color = '#7AD656' }: { points: number[]; color?: string }) {
+  const max = Math.max(...points, 1);
+  const min = Math.min(...points, 0);
+  const range = max - min || 1;
+  const w = 110;
+  const h = 20;
+
+  const pathD = points
+    .map((val, idx) => {
+      const x = (idx / (points.length - 1)) * w;
+      const y = h - ((val - min) / range) * (h - 4) - 2;
+      return `${idx === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
+    })
+    .join(' ');
+
+  return (
+    <svg className="dhyan-sparkline-svg" viewBox={`0 0 ${w} ${h}`}>
+      <path d={pathD} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
@@ -194,6 +271,14 @@ function App() {
     });
   };
 
+  const spiritEmotion: SpiritEmotion = (() => {
+    const b = data?.pet.behavior;
+    if (b === 'deep_focus') return 'FOCUSED';
+    if (b === 'recovering' || b === 'second_screen_overlap') return 'HAPPY';
+    if (b === 'fatigued' || b === 'drifting') return 'SLEEPY';
+    return 'CURIOUS';
+  })();
+
   // Mini-HUD / Corner Pet Mode
   if (isMiniHud) {
     return (
@@ -218,122 +303,147 @@ function App() {
   // Full 3-Zone Bento Workspace Layout
   return (
     <div className="dhyan-app">
-      {/* Top Brand Strip */}
-      <div className="dhyan-header-strip">
+      {/* Top Header Strip */}
+      <header className="dhyan-header-strip">
         <div className="dhyan-logo">
           <span className="dhyan-logo-dot" />
           <span>Dhyan</span>
-          <span style={{ fontSize: '11px', color: 'var(--dhyan-text-muted)', fontWeight: 600 }}>v{window.dhyan.schemaVersion}</span>
+          <span style={{ fontSize: '11px', color: 'var(--dhyan-text-muted)', fontWeight: 700 }}>v{window.dhyan.schemaVersion}</span>
         </div>
         <button className="dhyan-hud-toggle" onClick={() => setIsMiniHud(true)}>
-          Collapse to Mini-HUD ↘
+          Compact Pet HUD ↘
         </button>
-      </div>
+      </header>
 
       <div className="dhyan-workspace">
         {/* Zone 1: Left Floating Capsule Rail */}
-        <aside className="dhyan-rail">
+        <nav className="dhyan-rail" aria-label="Main Navigation">
           <button
             className={`dhyan-rail-btn ${activeTab === 'live' ? 'active' : ''}`}
             onClick={() => setActiveTab('live')}
-            title="Live & Focus"
+            title="Live Focus & Companion"
           >
-            <span>●</span>
+            <span style={{ fontSize: '14px' }}>●</span>
             <span>Live</span>
           </button>
           <button
             className={`dhyan-rail-btn ${activeTab === 'simulate' ? 'active' : ''}`}
             onClick={() => setActiveTab('simulate')}
-            title="Focus Session"
+            title="Focus Session Timer"
           >
-            <span>⏱</span>
+            <span style={{ fontSize: '14px' }}>⏱</span>
             <span>Timer</span>
           </button>
           <button
             className={`dhyan-rail-btn ${activeTab === 'insights' ? 'active' : ''}`}
             onClick={() => setActiveTab('insights')}
-            title="Insights"
+            title="Attention Analytics"
           >
-            <span>▦</span>
+            <span style={{ fontSize: '14px' }}>▦</span>
             <span>Stats</span>
           </button>
           <button
             className={`dhyan-rail-btn ${activeTab === 'settings' ? 'active' : ''}`}
             onClick={() => setActiveTab('settings')}
-            title="Settings & Sync"
+            title="Device Sync & Settings"
           >
-            <span>⚙</span>
+            <span style={{ fontSize: '14px' }}>⚙</span>
             <span>Sync</span>
           </button>
           <div className="dhyan-rail-spacer" />
           <div
             className={`dhyan-status-dot ${data?.sync?.status === 'connected' ? 'online' : ''}`}
-            title={data?.sync?.status === 'connected' ? 'Connected to Phone' : 'Offline'}
+            title={data?.sync?.status === 'connected' ? 'Connected to Phone Relay' : 'Relay Offline'}
           />
-        </aside>
+        </nav>
 
         {/* Zone 2: Center Hero Stage */}
-        <section className="dhyan-stage">
+        <main className="dhyan-stage">
           {activeTab !== 'settings' ? (
-            <div className="dhyan-bento-card">
-              <div className="dhyan-editorial-title">one. two. focus!</div>
-              <div className="dhyan-editorial-subtitle">
-                {data?.pet.label ? `Currently: ${data.pet.label}` : 'Rule-based attention monitoring'}
+            <>
+              {/* Interactive Frosted Cloud Spirit Companion Stage Card */}
+              <div className="dhyan-bento-card dhyan-spirit-hero-card">
+                <div className="dhyan-spirit-info">
+                  <div className="dhyan-spirit-mood-pill">
+                    <span className="pulse-dot" />
+                    <span>{data?.pet.label ?? 'Calm Presence'}</span>
+                  </div>
+                  <h2 style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '-0.4px', margin: 0 }}>
+                    Frosted Cloud Spirit
+                  </h2>
+                  <p className="dhyan-spirit-quote">
+                    {bubble ?? '"Quietly guarding your focus."'}
+                  </p>
+                  <p style={{ fontSize: '11px', color: 'var(--dhyan-text-muted)', marginTop: '8px' }}>
+                    Click or rub to interact with gentle jelly physics
+                  </p>
+                </div>
+                <CloudSpiritCanvas
+                  emotion={spiritEmotion}
+                  width={190}
+                  height={135}
+                  interactive={true}
+                />
               </div>
 
-              {/* Quick Session Presets */}
-              <div className="dhyan-preset-strip">
+              {/* Semicircular Tick Dial & 2x2 Squircle Presets */}
+              <div className="dhyan-bento-card">
+                <div className="dhyan-editorial-title">one. two. focus!</div>
+                <div className="dhyan-editorial-subtitle">
+                  {data?.pet.label ? `Current cadence: ${data.pet.label}` : 'Rule-based attention monitoring'}
+                </div>
+
+                {/* 2x2 Pastel Squircle Preset Grid */}
+                <div className="dhyan-preset-grid">
+                  {PRESETS.map((p) => {
+                    const isSelected = task === p.id;
+                    return (
+                      <div
+                        key={p.id}
+                        className={`dhyan-squircle-tile ${p.categoryClass} ${isSelected ? 'active' : ''}`}
+                        onClick={() => {
+                          setTask(p.id);
+                          setPlannedMin(p.minutes);
+                        }}
+                      >
+                        <div className="dhyan-squircle-header">
+                          <span className="dhyan-squircle-title">{p.icon} {p.label}</span>
+                          <span className="dhyan-squircle-badge">{p.minutes}m</span>
+                        </div>
+                        <div className="dhyan-squircle-desc">{p.description}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Tactile Semicircular Tick-Mark Dial */}
+                <SemicircularDial minutes={plannedMin} onChange={setPlannedMin} />
+
+                {/* CTA Action Pill */}
                 <button
-                  className={`dhyan-preset-pill coding ${task === 'coding' ? 'active' : ''}`}
-                  onClick={() => { setTask('coding'); setPlannedMin(45); }}
+                  className="dhyan-cta-pill"
+                  onClick={() => {
+                    if (paired && data?.sync?.status === 'connected') {
+                      sendCommand('declare_session', { task, plannedMin, strict });
+                    } else {
+                      alert(`Local Focus Session Activated: ${task} for ${plannedMin} minutes`);
+                    }
+                  }}
                 >
-                  Coding (45m)
-                </button>
-                <button
-                  className={`dhyan-preset-pill study ${task === 'study' ? 'active' : ''}`}
-                  onClick={() => { setTask('study'); setPlannedMin(25); }}
-                >
-                  Deep Study (25m)
-                </button>
-                <button
-                  className={`dhyan-preset-pill reading ${task === 'reading' ? 'active' : ''}`}
-                  onClick={() => { setTask('reading'); setPlannedMin(15); }}
-                >
-                  Reading (15m)
-                </button>
-                <button
-                  className={`dhyan-preset-pill break ${task === 'break' ? 'active' : ''}`}
-                  onClick={() => { setTask('break'); setPlannedMin(10); }}
-                >
-                  Calm Break (10m)
+                  {paired ? 'Start Session on Phone & Desktop 🚀' : 'Start Focus Session'}
                 </button>
               </div>
-
-              {/* Tactile Semicircular Tick-Mark Dial */}
-              <SemicircularDial minutes={plannedMin} onChange={setPlannedMin} />
-
-              <button
-                className="dhyan-cta-pill"
-                onClick={() => {
-                  if (paired && data?.sync?.status === 'connected') {
-                    sendCommand('declare_session', { task, plannedMin, strict });
-                  } else {
-                    alert(`Local Focus Session Started: ${task} for ${plannedMin} minutes`);
-                  }
-                }}
-              >
-                {paired ? 'Start Session on Phone & Desktop' : 'Start Focus Session'}
-              </button>
-            </div>
+            </>
           ) : (
+            /* Settings & Synchronization Bento Card */
             <div className="dhyan-bento-card">
               <div className="dhyan-editorial-title">Settings & Sync</div>
-              <div className="dhyan-editorial-subtitle">Cross-device relay and sensor telemetry configuration</div>
+              <div className="dhyan-editorial-subtitle">Cryptographic relay and sensor telemetry configuration</div>
 
               {/* Pairing Controls */}
-              <div style={{ marginBottom: '20px' }}>
-                <h4 style={{ fontSize: '13px', marginBottom: '8px' }}>Pairing Status</h4>
-                <p style={{ fontSize: '12px', color: 'var(--dhyan-text-muted)', marginBottom: '10px' }}>
+              <div style={{ marginBottom: '24px' }}>
+                <h4 style={{ fontSize: '13px', fontWeight: 800, marginBottom: '8px' }}>P-256 ECDH Pairing Status</h4>
+                <p style={{ fontSize: '12px', color: 'var(--dhyan-text-muted)', marginBottom: '12px' }}>
                   {data?.pairing.label ?? 'Not paired'} · {data?.sync?.label ?? 'Offline'}
                 </p>
 
@@ -345,7 +455,7 @@ function App() {
                     });
                   }}>
                     <div className="dhyan-form-group">
-                      <label>Relay URL</label>
+                      <label>Encrypted Relay URL</label>
                       <input
                         className="dhyan-input"
                         value={relayUrl}
@@ -356,18 +466,18 @@ function App() {
                     <button className="dhyan-small-btn" type="submit">Start Pairing with New Code</button>
                   </form>
                 ) : (
-                  <div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="dhyan-small-btn" onClick={() => sendCommand('kill_switch', { on: true })}>
                       Emergency Stop Holding on Phone
                     </button>
-                    <button className="dhyan-small-btn" style={{ marginLeft: '8px' }} onClick={() => setConfirmUnpair(true)}>
+                    <button className="dhyan-small-btn" onClick={() => setConfirmUnpair(true)}>
                       Unpair Devices
                     </button>
                   </div>
                 )}
 
                 {data?.pairing.code && (
-                  <p style={{ marginTop: '10px', fontSize: '13px' }}>
+                  <p style={{ marginTop: '12px', fontSize: '13px' }}>
                     Pairing Code: <strong>{data.pairing.code}</strong>
                   </p>
                 )}
@@ -377,8 +487,8 @@ function App() {
                   </p>
                 )}
                 {data?.pairing.confirmationNeeded && (
-                  <div style={{ marginTop: '10px' }}>
-                    <p style={{ fontSize: '12px', marginBottom: '6px' }}>Do digits match on your Reno 14?</p>
+                  <div style={{ marginTop: '12px' }}>
+                    <p style={{ fontSize: '12px', marginBottom: '8px' }}>Do digits match on your Reno 14?</p>
                     <button className="dhyan-small-btn" onClick={() => void window.dhyan.confirmPairing(true, data.pairing.confirmationId ?? '')}>
                       Yes, Digits Match
                     </button>
@@ -391,8 +501,8 @@ function App() {
               </div>
 
               {/* Ingest Token & Allowed Extensions */}
-              <div style={{ borderTop: '1px solid var(--dhyan-border)', paddingTop: '16px' }}>
-                <h4 style={{ fontSize: '13px', marginBottom: '8px' }}>VS Code & Browser Ingest Token</h4>
+              <div style={{ borderTop: '1px solid var(--dhyan-border)', paddingTop: '18px' }}>
+                <h4 style={{ fontSize: '13px', fontWeight: 800, marginBottom: '8px' }}>VS Code & Browser Ingest Token</h4>
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
                   <input
                     className="dhyan-input"
@@ -412,18 +522,29 @@ function App() {
               </div>
             </div>
           )}
-        </section>
+        </main>
 
         {/* Zone 3: Right Live Insights & Companion Dock */}
         <aside className="dhyan-dock">
-          {/* Hero Progress Banner */}
+          {/* Hero Weekly Progress Banner */}
           <div className="dhyan-hero-banner">
             <div className="dhyan-banner-text">
               <h3>WEEKLY ATTENTION FLOW</h3>
               <p>6 days active streak · 84% focus adherence</p>
             </div>
-            <div style={{ width: '42px', height: '42px', borderRadius: '50%', border: '4px solid #7AD656', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '12px' }}>
-              84%
+            <div style={{ position: 'relative', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg className="dhyan-ring-svg" width="48" height="48" viewBox="0 0 48 48">
+                <circle className="dhyan-ring-bg" cx="24" cy="24" r="20" />
+                <circle
+                  className="dhyan-ring-progress"
+                  cx="24"
+                  cy="24"
+                  r="20"
+                  strokeDasharray="125.6"
+                  strokeDashoffset={125.6 * (1 - 0.84)}
+                />
+              </svg>
+              <span style={{ position: 'absolute', fontWeight: 900, fontSize: '11px' }}>84%</span>
             </div>
           </div>
 
@@ -432,20 +553,34 @@ function App() {
             <div className="dhyan-sparkline-tile">
               <span>TODAY'S OBSERVED</span>
               <strong>{data?.focus.minutes ? `${data.focus.minutes.toFixed(0)}m` : '0m'}</strong>
+              <MiniSparkline points={[10, 25, 40, 35, 60, 50, 80]} color="#7AD656" />
             </div>
             <div className="dhyan-sparkline-tile">
-              <span>STABILITY WAVEFORM</span>
+              <span>STABILITY WAVE</span>
               <strong style={{ color: 'var(--dhyan-mint-accent)' }}>92% Flow</strong>
+              <MiniSparkline points={[80, 85, 90, 88, 92, 94, 92]} color="#6366F1" />
             </div>
             <div className="dhyan-sparkline-tile">
               <span>EVENTS INGESTED</span>
               <strong>{data?.diagnostics.eventsWritten ?? 0}</strong>
+              <span style={{ fontSize: '10px', color: 'var(--dhyan-text-muted)' }}>Local JSONL pipeline</span>
             </div>
             <div className="dhyan-sparkline-tile">
               <span>HELD ON PHONE</span>
               <strong style={{ color: remote?.heldCount ? '#D97706' : 'var(--dhyan-text-main)' }}>
                 {remote?.heldCount ?? 0}
               </strong>
+              {remote?.heldCount ? (
+                <button
+                  className="dhyan-small-btn"
+                  style={{ alignSelf: 'flex-start', marginTop: '2px' }}
+                  onClick={() => sendCommand('show_now', { all: true })}
+                >
+                  Release All
+                </button>
+              ) : (
+                <span style={{ fontSize: '10px', color: 'var(--dhyan-mint-text)' }}>Queue clean</span>
+              )}
             </div>
           </div>
 
@@ -453,19 +588,20 @@ function App() {
           <div className="dhyan-bento-card">
             <div className="dhyan-chart-header">
               <h4>7-Day Focus Distribution</h4>
-              <span style={{ fontSize: '11px', color: 'var(--dhyan-text-muted)' }}>Mon–Sun</span>
+              <span style={{ fontSize: '11px', color: 'var(--dhyan-text-muted)', fontWeight: 600 }}>Mon–Sun</span>
             </div>
             <div className="dhyan-bar-grid">
               {[
-                { day: 'M', height: '45%' },
-                { day: 'T', height: '65%' },
-                { day: 'W', height: '80%' },
-                { day: 'T', height: '55%' },
-                { day: 'F', height: '90%', today: true },
-                { day: 'S', height: '35%' },
-                { day: 'S', height: '40%' }
+                { day: 'M', pct: '45%', height: '45%' },
+                { day: 'T', pct: '65%', height: '65%' },
+                { day: 'W', pct: '80%', height: '80%' },
+                { day: 'T', pct: '55%', height: '55%' },
+                { day: 'F', pct: '90%', height: '90%', today: true },
+                { day: 'S', pct: '35%', height: '35%' },
+                { day: 'S', pct: '40%', height: '40%' }
               ].map((item, idx) => (
                 <div key={idx} className="dhyan-bar-col">
+                  <span className="dhyan-bar-pct">{item.pct}</span>
                   <div
                     className={`dhyan-bar-pill ${item.today ? 'today' : ''}`}
                     style={{ height: item.height }}

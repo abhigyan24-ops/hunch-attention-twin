@@ -44,10 +44,10 @@
     --dhyan-text-muted: #94A3B8;
     --dhyan-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 
-    --dhyan-mint-bg: rgba(122, 214, 86, 0.14);
-    --dhyan-lavender-bg: rgba(99, 102, 241, 0.16);
-    --dhyan-sand-bg: rgba(217, 119, 6, 0.14);
-    --dhyan-sky-bg: rgba(56, 189, 248, 0.14);
+    --dhyan-mint-bg: rgba(122, 214, 86, 0.16);
+    --dhyan-lavender-bg: rgba(99, 102, 241, 0.18);
+    --dhyan-sand-bg: rgba(217, 119, 6, 0.16);
+    --dhyan-sky-bg: rgba(56, 189, 248, 0.16);
   }
 }
 
@@ -112,31 +112,32 @@ body {
 .dhyan-app {
   min-height: 100vh;
   background: var(--dhyan-bg);
-  padding: 20px;
+  padding: 24px;
 }
 
 .dhyan-header-strip {
   max-width: 1280px;
-  margin: 0 auto 16px auto;
+  margin: 0 auto 18px auto;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .dhyan-logo {
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 800;
   letter-spacing: -0.5px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .dhyan-logo-dot {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: var(--dhyan-mint-accent);
+  box-shadow: 0 0 8px rgba(122, 214, 86, 0.7);
 }
 
 .dhyan-hud-toggle {
@@ -146,43 +147,45 @@ body {
   font-size: 12px;
   font-weight: 600;
   border-radius: var(--dhyan-radius-pill);
-  padding: 6px 14px;
+  padding: 7px 16px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.18s ease;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.02);
 }
 
 .dhyan-hud-toggle:hover {
   color: var(--dhyan-text-main);
-  border-color: var(--dhyan-text-muted);
+  border-color: var(--dhyan-mint-accent);
+  transform: translateY(-1px);
 }
 
 .dhyan-workspace {
   max-width: 1280px;
   margin: 0 auto;
   display: flex;
-  gap: 16px;
+  gap: 20px;
   align-items: flex-start;
 }
 
 /* Zone 1: Left Floating Capsule Rail */
 .dhyan-rail {
-  width: 72px;
+  width: 76px;
   background: var(--dhyan-card);
   border: 1px solid var(--dhyan-border);
   border-radius: var(--dhyan-radius-lg);
   box-shadow: var(--dhyan-shadow);
-  padding: 18px 8px;
+  padding: 20px 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
-  min-height: 580px;
+  gap: 16px;
+  min-height: 620px;
 }
 
 .dhyan-rail-btn {
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
   border: none;
   background: transparent;
   color: var(--dhyan-text-muted);
@@ -193,8 +196,8 @@ body {
   font-size: 10px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.18s ease;
-  gap: 2px;
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  gap: 3px;
 }
 
 .dhyan-rail-btn:hover {
@@ -205,7 +208,8 @@ body {
 .dhyan-rail-btn.active {
   background: var(--dhyan-mint-bg);
   color: var(--dhyan-mint-text);
-  font-weight: 700;
+  font-weight: 800;
+  box-shadow: 0 4px 12px rgba(122, 214, 86, 0.15);
 }
 
 .dhyan-rail-spacer {
@@ -213,24 +217,24 @@ body {
 }
 
 .dhyan-status-dot {
-  width: 10px;
-  height: 10px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
   background: #CBD5E1;
-  title: "Status";
+  transition: all 0.3s ease;
 }
 
 .dhyan-status-dot.online {
   background: var(--dhyan-mint-accent);
-  box-shadow: 0 0 8px rgba(122, 214, 86, 0.6);
+  box-shadow: 0 0 10px rgba(122, 214, 86, 0.8);
 }
 
 /* Zone 2: Center Hero Stage */
 .dhyan-stage {
-  flex: 1.25;
+  flex: 1.35;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
   min-width: 0;
 }
 
@@ -238,13 +242,62 @@ body {
   background: var(--dhyan-card);
   border: 1px solid var(--dhyan-border);
   border-radius: var(--dhyan-radius-lg);
-  padding: 20px;
+  padding: 22px;
   box-shadow: var(--dhyan-shadow);
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease;
+}
+
+/* Cloud Spirit Companion Hero Card */
+.dhyan-spirit-hero-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  background: linear-gradient(135deg, var(--dhyan-card) 60%, var(--dhyan-mint-bg) 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.dhyan-spirit-info {
+  flex: 1;
+}
+
+.dhyan-spirit-mood-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--dhyan-radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--dhyan-mint-bg);
+  color: var(--dhyan-mint-text);
+  margin-bottom: 8px;
+}
+
+.dhyan-spirit-mood-pill .pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dhyan-mint-accent);
+  animation: spiritPulse 2s infinite ease-in-out;
+}
+
+@keyframes spiritPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.6; }
+}
+
+.dhyan-spirit-quote {
+  font-size: 13px;
+  color: var(--dhyan-text-muted);
+  font-style: italic;
+  margin-top: 4px;
 }
 
 .dhyan-editorial-title {
-  font-size: 26px;
-  font-weight: 800;
+  font-size: 28px;
+  font-weight: 900;
   letter-spacing: -0.8px;
   margin-bottom: 4px;
 }
@@ -252,45 +305,81 @@ body {
 .dhyan-editorial-subtitle {
   font-size: 13px;
   color: var(--dhyan-text-muted);
-  margin-bottom: 16px;
-}
-
-/* Presets Strip */
-.dhyan-preset-strip {
-  display: flex;
-  gap: 8px;
   margin-bottom: 20px;
-  flex-wrap: wrap;
 }
 
-.dhyan-preset-pill {
-  padding: 6px 14px;
-  border-radius: var(--dhyan-radius-pill);
-  font-size: 12px;
-  font-weight: 600;
+/* 2x2 Pastel Squircle Preset Grid */
+.dhyan-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.dhyan-squircle-tile {
+  border-radius: 20px;
+  padding: 16px;
+  min-height: 88px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   cursor: pointer;
-  border: 1px solid transparent;
-  transition: all 0.15s ease;
+  border: 1.5px solid transparent;
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  text-align: left;
 }
 
-.dhyan-preset-pill.coding {
-  background: var(--dhyan-lavender-bg);
-  color: var(--dhyan-lavender-text);
+.dhyan-squircle-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
 }
-.dhyan-preset-pill.study {
+
+.dhyan-squircle-tile.coding {
   background: var(--dhyan-mint-bg);
   color: var(--dhyan-mint-text);
 }
-.dhyan-preset-pill.reading {
+.dhyan-squircle-tile.study {
+  background: var(--dhyan-lavender-bg);
+  color: var(--dhyan-lavender-text);
+}
+.dhyan-squircle-tile.reading {
   background: var(--dhyan-sand-bg);
   color: var(--dhyan-sand-text);
 }
-.dhyan-preset-pill.break {
+.dhyan-squircle-tile.break {
   background: var(--dhyan-sky-bg);
   color: var(--dhyan-sky-text);
 }
-.dhyan-preset-pill.active {
+
+.dhyan-squircle-tile.active {
+  border-color: var(--dhyan-text-main);
   box-shadow: 0 0 0 2px var(--dhyan-text-main);
+}
+
+.dhyan-squircle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dhyan-squircle-title {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+}
+
+.dhyan-squircle-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--dhyan-radius-pill);
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.dhyan-squircle-desc {
+  font-size: 11px;
+  opacity: 0.85;
+  margin-top: 6px;
 }
 
 /* Tactile Semicircular Tick-Mark Dial */
@@ -298,25 +387,26 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 10px 0 20px 0;
+  padding: 10px 0 24px 0;
   cursor: ns-resize;
+  outline: none;
 }
 
 .dhyan-dial-readout {
-  font-size: 64px;
+  font-size: 68px;
   font-weight: 900;
-  letter-spacing: -2px;
+  letter-spacing: -2.5px;
   line-height: 1;
   color: var(--dhyan-text-main);
-  margin-top: -30px;
+  margin-top: -34px;
   text-align: center;
 }
 
 .dhyan-dial-unit {
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 1.2px;
   color: var(--dhyan-text-muted);
   margin-top: 4px;
 }
@@ -327,21 +417,23 @@ body {
   color: #FFFFFF;
   border: none;
   border-radius: var(--dhyan-radius-pill);
-  padding: 14px 24px;
+  padding: 16px 28px;
   font-size: 14px;
   font-weight: 700;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.3px;
   cursor: pointer;
-  transition: transform 0.1s ease, opacity 0.15s ease;
+  transition: transform 0.12s ease, opacity 0.15s ease, box-shadow 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
+  box-shadow: 0 4px 14px rgba(18, 20, 23, 0.18);
 }
 
 .dhyan-cta-pill:hover {
-  opacity: 0.92;
-  transform: translateY(-1px);
+  opacity: 0.94;
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 20px rgba(18, 20, 23, 0.26);
 }
 
 .dhyan-cta-pill:active {
@@ -350,10 +442,10 @@ body {
 
 /* Zone 3: Right Live Insights & Companion Dock */
 .dhyan-dock {
-  flex: 1;
+  flex: 1.05;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
   min-width: 0;
 }
 
@@ -362,15 +454,17 @@ body {
   background: var(--dhyan-mint-bg);
   border: 1px solid var(--dhyan-mint-accent);
   border-radius: var(--dhyan-radius-lg);
-  padding: 18px;
+  padding: 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  box-shadow: 0 4px 16px rgba(122, 214, 86, 0.08);
 }
 
 .dhyan-banner-text h3 {
   font-size: 14px;
   font-weight: 800;
+  letter-spacing: 0.3px;
   color: var(--dhyan-mint-text);
   margin-bottom: 2px;
 }
@@ -378,7 +472,26 @@ body {
 .dhyan-banner-text p {
   font-size: 12px;
   color: var(--dhyan-mint-text);
-  opacity: 0.85;
+  opacity: 0.88;
+}
+
+/* Circular SVG Progress Ring */
+.dhyan-ring-svg {
+  transform: rotate(-90deg);
+}
+
+.dhyan-ring-bg {
+  stroke: rgba(122, 214, 86, 0.25);
+  fill: none;
+  stroke-width: 4;
+}
+
+.dhyan-ring-progress {
+  stroke: var(--dhyan-mint-accent);
+  fill: none;
+  stroke-width: 4;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.8s ease;
 }
 
 /* 2-Column Mini Sparkline Tiles */
@@ -392,24 +505,33 @@ body {
   background: var(--dhyan-card);
   border: 1px solid var(--dhyan-border);
   border-radius: var(--dhyan-radius-md);
-  padding: 14px;
+  padding: 15px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 84px;
+  min-height: 94px;
+  box-shadow: var(--dhyan-shadow);
 }
 
 .dhyan-sparkline-tile span {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--dhyan-text-muted);
+  letter-spacing: 0.4px;
 }
 
 .dhyan-sparkline-tile strong {
-  font-size: 18px;
-  font-weight: 800;
+  font-size: 20px;
+  font-weight: 900;
   color: var(--dhyan-text-main);
-  margin-top: 4px;
+  margin: 4px 0;
+  letter-spacing: -0.5px;
+}
+
+.dhyan-sparkline-svg {
+  width: 100%;
+  height: 22px;
+  overflow: visible;
 }
 
 /* 7-Day Horizontal Pill Calendar & Bar Chart */
@@ -417,7 +539,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .dhyan-chart-header h4 {
@@ -432,9 +554,9 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  height: 90px;
-  padding-top: 16px;
-  gap: 8px;
+  height: 110px;
+  padding-top: 10px;
+  gap: 10px;
 }
 
 .dhyan-bar-col {
@@ -446,41 +568,50 @@ body {
   justify-content: flex-end;
 }
 
+.dhyan-bar-pct {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--dhyan-text-muted);
+  margin-bottom: 4px;
+}
+
 .dhyan-bar-pill {
   width: 100%;
-  max-width: 22px;
+  max-width: 24px;
   background: var(--dhyan-mint-bg);
-  border-radius: 6px;
-  transition: height 0.3s ease;
+  border-radius: 8px;
+  transition: height 0.4s cubic-bezier(0.22, 1, 0.36, 1);
   position: relative;
 }
 
 .dhyan-bar-pill.today {
-  background: var(--dhyan-mint-accent);
+  background: linear-gradient(180deg, var(--dhyan-mint-accent) 0%, #4E9E26 100%);
+  box-shadow: 0 4px 10px rgba(122, 214, 86, 0.3);
 }
 
 .dhyan-bar-label {
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--dhyan-text-muted);
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 /* Remote Phone & Held Items Section */
 .dhyan-phone-card {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .dhyan-held-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
+  padding: 10px 14px;
   background: var(--dhyan-bg);
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 12px;
+  font-weight: 600;
 }
 
 .dhyan-small-btn {
@@ -488,39 +619,42 @@ body {
   border: 1px solid var(--dhyan-border);
   color: var(--dhyan-text-main);
   border-radius: var(--dhyan-radius-pill);
-  padding: 4px 10px;
+  padding: 5px 12px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .dhyan-small-btn:hover {
   background: var(--dhyan-mint-bg);
   color: var(--dhyan-mint-text);
+  border-color: var(--dhyan-mint-accent);
 }
 
 /* Settings Form & Inputs */
 .dhyan-form-group {
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .dhyan-form-group label {
   display: block;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--dhyan-text-muted);
   margin-bottom: 6px;
 }
 
 .dhyan-input, .dhyan-select, .dhyan-textarea {
   width: 100%;
-  padding: 10px 14px;
+  padding: 12px 16px;
   background: var(--dhyan-bg);
   border: 1px solid var(--dhyan-border);
-  border-radius: 12px;
+  border-radius: 14px;
   color: var(--dhyan-text-main);
   font-size: 13px;
   outline: none;
+  transition: border-color 0.18s ease;
 }
 
 .dhyan-input:focus, .dhyan-select:focus, .dhyan-textarea:focus {
