@@ -13,7 +13,8 @@
     "build-vectors": "node tools/gen-vectors.mjs",
     "check:actuator": "node tools/check-actuator-contract.mjs",
     "check:s7": "npm --prefix laptop run check:s7",
-    "check:s8l": "node laptop/scripts/check-s8l.mjs"
+    "check:s8l": "node laptop/scripts/check-s8l.mjs",
+    "validate:pitch": "node tools/validate-pitch-metrics.mjs"
   },
   "devDependencies": {
     "ajv": "^8.17.1",
