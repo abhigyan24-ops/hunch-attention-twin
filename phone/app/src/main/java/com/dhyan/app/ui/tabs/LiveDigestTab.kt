@@ -42,6 +42,7 @@ import com.dhyan.app.twin.model.ContextSnapshot
 import com.dhyan.app.twin.model.LaptopState
 import com.dhyan.app.twin.model.FocusState
 import com.dhyan.app.ui.components.FocusRing
+import com.dhyan.app.ui.components.*
 import com.dhyan.app.ui.model.AttentionState
 import com.dhyan.app.ui.theme.BorderSubtle
 import com.dhyan.app.ui.theme.DhyanPrimary
@@ -117,7 +118,11 @@ fun LiveDigestContent(
     var showDecisions by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)) {
-        Text("Here & now.", style = MaterialTheme.typography.headlineLarge)
+        PastelSquircleCard(tone = PastelTone.SKY) {
+            StatusPillBadge("${uiState.mode.name.replace('_', ' ')} · notification policy")
+            Text("A little more\nheadspace.", style = MaterialTheme.typography.headlineLarge)
+            Text("Your live context & quiet queue", style = MaterialTheme.typography.bodyMedium)
+        }
         LiveCard("Notification policy · ${uiState.mode.name.replace('_', ' ')}") {
             Text(when (uiState.mode) {
                 PolicyMode.OFF -> "Observation only. Notifications are not held."
@@ -128,7 +133,7 @@ fun LiveDigestContent(
                 color = MaterialTheme.colorScheme.secondary)
             Text(if (uiState.killSwitchActive) "Emergency stop is active." else "Emergency stop is available.",
                 style = MaterialTheme.typography.bodySmall)
-            androidx.compose.material3.OutlinedButton(onClick = onToggleKillSwitch) {
+            Button(onClick = onToggleKillSwitch, modifier = Modifier.fillMaxWidth()) {
                 Text(if (uiState.killSwitchActive) "Resume policy" else "Stop all holds")
             }
         }
@@ -163,7 +168,7 @@ fun LiveDigestContent(
             if (uiState.heldQueue.isEmpty()) Text("Nothing waiting. You’re all caught up.",
                 style = MaterialTheme.typography.bodyLarge)
             else {
-                TextButton(onClick = onReleaseAll) { Text("Release all") }
+                Button(onClick = onReleaseAll, modifier = Modifier.fillMaxWidth()) { Text("Release all") }
                 uiState.heldQueue.forEach { item ->
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Text(item.appCat.replace('_', ' '), style = MaterialTheme.typography.titleMedium)
@@ -215,12 +220,8 @@ fun LiveDigestContent(
 
 @Composable
 private fun LiveCard(title: String, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
-    androidx.compose.material3.Card(
-        colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-    ) {
-        Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(title, style = MaterialTheme.typography.titleLarge)
-            content()
-        }
+    PastelSquircleCard {
+        Text(title, style = MaterialTheme.typography.titleLarge)
+        content()
     }
 }

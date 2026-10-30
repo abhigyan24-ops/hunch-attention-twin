@@ -34,6 +34,7 @@ fun VerdictCard(verdict: ActionVerdict, explanation: String, modifier: Modifier 
 @Composable
 fun ContextChip(label: String, isSelected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     FilterChip(selected = isSelected, onClick = onClick, label = { Text(label) },
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
         modifier = modifier.heightIn(min = 48.dp))
 }
 

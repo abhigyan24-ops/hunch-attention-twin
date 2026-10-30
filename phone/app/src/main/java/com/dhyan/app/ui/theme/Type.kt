@@ -10,8 +10,8 @@ private fun type(size: Int, line: Int, weight: FontWeight = FontWeight.Normal) =
     TextStyle(fontFamily = FontFamily.SansSerif, fontSize = size.sp, lineHeight = line.sp, fontWeight = weight)
 
 val DhyanTypography = Typography(
-    displayLarge = type(48, 56, FontWeight.Medium),
-    headlineLarge = type(30, 38, FontWeight.SemiBold),
+    displayLarge = type(64, 72, FontWeight.Medium),
+    headlineLarge = type(36, 43, FontWeight.SemiBold),
     headlineMedium = type(24, 32, FontWeight.SemiBold),
     headlineSmall = type(22, 30, FontWeight.Medium),
     titleLarge = type(20, 28, FontWeight.SemiBold),

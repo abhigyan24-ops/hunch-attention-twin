@@ -25,6 +25,7 @@ android {
   targetCompatibility = JavaVersion.VERSION_17
  }
  sourceSets {
+  getByName("androidTest") { assets.directories.add("schemas") }
   getByName("debug") {
    java.srcDirs("src/debug/java")
   }

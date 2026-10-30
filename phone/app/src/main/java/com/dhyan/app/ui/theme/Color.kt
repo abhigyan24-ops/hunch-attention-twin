@@ -16,30 +16,30 @@ data class DhyanPalette(
 )
 
 val LightPalette = DhyanPalette(
-    background = Color(0xFFF6F7F2), surface = Color(0xFFFFFFFF), low = Color(0xFFEFF2EA),
-    high = Color(0xFFE3E8DF), variant = Color(0xFFE0E7DC), text = Color(0xFF1B231D),
-    muted = Color(0xFF526157), primary = Color(0xFF426347), onPrimary = Color.White,
-    primaryContainer = Color(0xFFD7EBD2), onPrimaryContainer = Color(0xFF203D25),
-    secondary = Color(0xFF805B30), onSecondary = Color.White,
-    secondaryContainer = Color(0xFFF6E4C5), onSecondaryContainer = Color(0xFF493214),
-    tertiary = Color(0xFF356176), onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFD4E8F2), onTertiaryContainer = Color(0xFF173E50),
+    background = Color(0xFFF7F8FA), surface = Color.White, low = Color(0xFFF1F3F7),
+    high = Color(0xFFE9EEF4), variant = Color(0xFFEAEEF4), text = Color(0xFF121417),
+    muted = Color(0xFF56606E), primary = Color(0xFF121417), onPrimary = Color.White,
+    primaryContainer = Color(0xFFE8F3E8), onPrimaryContainer = Color(0xFF2E6F40),
+    secondary = Color(0xFF8D6E63), onSecondary = Color.White,
+    secondaryContainer = Color(0xFFEFEBE4), onSecondaryContainer = Color(0xFF59473F),
+    tertiary = Color(0xFF5558D6), onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFE9EAF8), onTertiaryContainer = Color(0xFF3B3D88),
     error = Color(0xFFBA1A1A), onError = Color.White,
     errorContainer = Color(0xFFFFDAD6), onErrorContainer = Color(0xFF410002),
-    outline = Color(0xFF727D72), outlineVariant = Color(0xFFD5DDD1)
+    outline = Color(0xFF7B8491), outlineVariant = Color(0xFFEAEEF4)
 )
 val DarkPalette = DhyanPalette(
-    background = Color(0xFF0F1511), surface = Color(0xFF151C17), low = Color(0xFF1B241E),
-    high = Color(0xFF263229), variant = Color(0xFF303C33), text = Color(0xFFE3E9DF),
-    muted = Color(0xFFB9C6B8), primary = Color(0xFFA6CBA3), onPrimary = Color(0xFF17351F),
-    primaryContainer = Color(0xFF2D4732), onPrimaryContainer = Color(0xFFD3EACD),
-    secondary = Color(0xFFE4C088), onSecondary = Color(0xFF422D0A),
-    secondaryContainer = Color(0xFF49391F), onSecondaryContainer = Color(0xFFF5DFBC),
-    tertiary = Color(0xFFA4CDDF), onTertiary = Color(0xFF123544),
-    tertiaryContainer = Color(0xFF294652), onTertiaryContainer = Color(0xFFD1E8F2),
+    background = Color(0xFF11151B), surface = Color(0xFF1B2028), low = Color(0xFF212832),
+    high = Color(0xFF2B3440), variant = Color(0xFF303C4B), text = Color(0xFFF1F4F8),
+    muted = Color(0xFFC1CBD7), primary = Color(0xFFF1F4F8), onPrimary = Color(0xFF121417),
+    primaryContainer = Color(0xFF243F2D), onPrimaryContainer = Color(0xFFB9E9BE),
+    secondary = Color(0xFFD9C2B5), onSecondary = Color(0xFF31231D),
+    secondaryContainer = Color(0xFF42362E), onSecondaryContainer = Color(0xFFF1DFCF),
+    tertiary = Color(0xFFBFC1FF), onTertiary = Color(0xFF28295F),
+    tertiaryContainer = Color(0xFF313359), onTertiaryContainer = Color(0xFFE5E4FF),
     error = Color(0xFFFFB4AB), onError = Color(0xFF690005),
     errorContainer = Color(0xFF542420), onErrorContainer = Color(0xFFFFDAD6),
-    outline = Color(0xFF879385), outlineVariant = Color(0xFF354338)
+    outline = Color(0xFF8B98AA), outlineVariant = Color(0xFF364151)
 )
 
 

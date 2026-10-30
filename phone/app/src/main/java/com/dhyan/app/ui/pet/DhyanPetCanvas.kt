@@ -147,7 +147,7 @@ fun DhyanPetCharacter(
     val bubbleAlpha by animateFloatAsState(if (bubbleVisible) 1f else 0f, tween(180), label = "pet speech alpha")
     val bubbleScale by animateFloatAsState(if (bubbleVisible) 1f else .85f,
         spring(dampingRatio = .8f), label = "pet speech scale")
-    val ink = Color(0xFF26362E)
+    val ink = Color(0xFF182127)
 
     Canvas(modifier.size(96.dp).onSizeChanged { canvasSize = it }.semantics {
         contentDescription = "Dhyan Spirit, ${emotion.name.lowercase()}" +
@@ -167,21 +167,31 @@ fun DhyanPetCharacter(
 
         scale(scaleX.finiteOrDefault(1f).coerceIn(.5f, 1.6f),
             scaleY.finiteOrDefault(1f).coerceIn(.5f, 1.6f), center) {
+            // A continuous multi-puff outline: no overlapping circle seams or bitmap assets.
             val body = Path().apply {
-                moveTo(center.x - r * .12f, center.y - r * 1.03f)
-                cubicTo(center.x + r * .7f, center.y - r * 1.05f,
-                    center.x + r * 1.1f, center.y - r * .3f, center.x + r, center.y + r * .25f)
-                cubicTo(center.x + r * .95f, center.y + r * .95f,
-                    center.x - r * .85f, center.y + r * 1.02f, center.x - r, center.y + r * .3f)
-                cubicTo(center.x - r * 1.14f, center.y - r * .25f,
-                    center.x - r * .7f, center.y - r * .85f, center.x - r * .12f, center.y - r * 1.03f)
+                moveTo(center.x - r * .95f, center.y + r * .32f)
+                cubicTo(center.x - r * 1.30f, center.y + r * .25f,
+                    center.x - r * 1.30f, center.y - r * .30f, center.x - r * .78f, center.y - r * .36f)
+                cubicTo(center.x - r * .90f, center.y - r * .80f,
+                    center.x - r * .37f, center.y - r * 1.10f, center.x - r * .08f, center.y - r * .72f)
+                cubicTo(center.x + r * .20f, center.y - r * 1.27f,
+                    center.x + r * .83f, center.y - r * 1.02f, center.x + r * .78f, center.y - r * .50f)
+                cubicTo(center.x + r * 1.30f, center.y - r * .58f,
+                    center.x + r * 1.50f, center.y + r * .12f, center.x + r * 1.04f, center.y + r * .40f)
+                cubicTo(center.x + r * .75f, center.y + r * .82f,
+                    center.x - r * .80f, center.y + r * .83f, center.x - r * .95f, center.y + r * .32f)
                 close()
             }
-            drawPath(body, Brush.linearGradient(
-                listOf(androidx.compose.ui.graphics.lerp(color, Color.White, .28f), color),
-                Offset(center.x, center.y - r), Offset(center.x, center.y + r)))
-            drawOval(Color.White.copy(alpha = .22f),
-                Offset(center.x - r * .63f, center.y - r * .78f), Size(r * .55f, r * .24f))
+            drawPath(body, Brush.radialGradient(
+                listOf(androidx.compose.ui.graphics.lerp(color, Color.White, .78f), color,
+                    androidx.compose.ui.graphics.lerp(color, Color(0xFF477D80), .23f)),
+                center + Offset(-r * .45f, -r * .65f), r * 2.2f))
+            clipPath(body) {
+                drawPath(body, Color.White.copy(alpha = .60f), style = Stroke(r * .12f))
+                drawOval(Brush.radialGradient(listOf(Color.White.copy(alpha = .55f), Color.Transparent),
+                    center + Offset(-r * .4f, -r * .55f), r * .8f),
+                    center + Offset(-r, -r), Size(r * 1.5f, r * 1.1f))
+            }
             val sway = (scaleX.finiteOrDefault(1f) - 1f) * r * .25f + gazeX * r * .08f
             val stem = Path().apply {
                 moveTo(center.x, center.y - r * .93f)
@@ -202,6 +212,11 @@ fun DhyanPetCharacter(
                 close()
             }
             drawPath(leaf, Color(0xFF8BAF78))
+            if (emotion == PetEmotion.CURIOUS || emotion == PetEmotion.FOCUSED) {
+                drawRoundRect(Color.White.copy(alpha = .40f),
+                    center + Offset(-r * .70f, -r * .43f), Size(r * 1.40f, r * .70f),
+                    CornerRadius(r * .32f))
+            }
             repeat(2) { index ->
                 val side = if (index == 0) -1f else 1f
                 drawCircle(Color(0xFFE48CA6).copy(alpha = blush.coerceIn(0f, 1f) * .8f),
@@ -259,8 +274,8 @@ private fun DrawScope.drawSpiritEye(
     center: Offset, r: Float, openness: Float, slant: Float, pupilScale: Float, arcs: Float,
     gazeX: Float, gazeY: Float, dizzy: Boolean, phase: Float, ink: Color
 ) {
-    val width = r * .3f
-    val height = r * .41f * openness.coerceIn(.03f, 1.4f)
+    val width = r * .44f
+    val height = r * .61f * openness.coerceIn(.03f, 1.4f)
     val rect = Rect(center.x - width / 2f, center.y - height / 2f,
         center.x + width / 2f, center.y + height / 2f)
     val eyeAlpha = (1f - arcs) * (openness / .25f).coerceIn(0f, 1f)
