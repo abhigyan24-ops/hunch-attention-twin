@@ -56,6 +56,37 @@ fun InsightsTab(viewModel: InsightsViewModel, modifier: Modifier = Modifier) {
             MiniSparklineCard("Saved Focus", "${(com.dhyan.app.collectors.A11yCollector.distractionsShieldedCount.get() + com.dhyan.app.collectors.A11yCollector.doomscrollsPreventedCount.get()) * 8}m", emptyList(),
                 Modifier.weight(1f), PastelTone.SAND)
         }
+        val petController = remember { com.dhyan.app.ui.pet.PetDistractionController.getInstance() }
+        PastelSquircleCard(tone = PastelTone.SAGE) {
+            StatusPillBadge("Intervention telemetry · Local validation", active = true)
+            Text("Proactive nudges", style = MaterialTheme.typography.titleMedium)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column {
+                    Text("${petController.nudgesShown}", style = MaterialTheme.typography.headlineMedium)
+                    Text("Shown", style = MaterialTheme.typography.bodySmall)
+                }
+                Column {
+                    Text("${petController.nudgesAccepted}", style = MaterialTheme.typography.headlineMedium)
+                    Text("Accepted", style = MaterialTheme.typography.bodySmall)
+                }
+                Column {
+                    Text("${petController.nudgesDismissed}", style = MaterialTheme.typography.headlineMedium)
+                    Text("Dismissed", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Text(
+                String.format(
+                    java.util.Locale.US,
+                    "Current threshold multiplier: %.2fx · Dismissal rate: %.1f%%",
+                    petController.nudgeThresholdMultiplier,
+                    petController.dismissalRate * 100f
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
         PastelSquircleCard {
             Text("Today in your week", style = MaterialTheme.typography.titleMedium)
             CalendarDayStrip(java.time.LocalDate.now().dayOfWeek)

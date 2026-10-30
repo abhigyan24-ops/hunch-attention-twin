@@ -42,6 +42,12 @@ class PetPhysicsState(initialX: Float = 500f, initialY: Float = 1000f) {
         if (amount.isFinite()) deformationVel = (deformationVel + amount).coerceIn(-12f, 12f)
     }
 
+    /** Immediately releases edge magnetism so autonomous movement or dragging is never trapped. */
+    fun undock() {
+        isDockedEdge = false
+        dockSide = 0
+    }
+
     fun step(
         dtSeconds: Float,
         boundsWidth: Float,
