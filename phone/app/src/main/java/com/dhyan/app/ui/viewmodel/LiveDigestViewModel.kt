@@ -166,6 +166,62 @@ class LiveDigestViewModel(
         PolicySettingsHolder.setMode(mode)
     }
 
+    fun startFocusSession(minutes: Double, task: String = "coding", strict: Boolean = false) {
+        scope.launch {
+            val sync = runCatching { com.dhyan.app.DhyanApplication.syncManager }.getOrNull()
+            if (sync != null) {
+                sync.startFocusSession(minutes, task, strict)
+            } else {
+                val taskType = try {
+                    com.dhyan.app.twin.model.TaskType.valueOf(task.uppercase())
+                } catch (_: Exception) {
+                    com.dhyan.app.twin.model.TaskType.UNKNOWN
+                }
+                val now = clock.nowMs()
+                val cur = LiveContextHolder.currentSnapshot()
+                val session = com.dhyan.app.twin.model.DeclaredSession(
+                    task = taskType,
+                    plannedMin = minutes,
+                    strict = strict,
+                    startedTs = now
+                )
+                val updated = cur?.copy(declaredSession = session, taskSource = com.dhyan.app.twin.model.TaskSource.DECLARED)
+                    ?: com.dhyan.app.twin.model.ContextSnapshot(
+                        ts = now,
+                        focusState = com.dhyan.app.twin.model.FocusState.WORKING,
+                        taskType = taskType,
+                        taskSource = com.dhyan.app.twin.model.TaskSource.DECLARED,
+                        confidence = 0.5,
+                        hourBand = "afternoon",
+                        minutesInState = 0.0,
+                        fatigueBand = "low",
+                        recentInterrupts30m = 0,
+                        laptopState = com.dhyan.app.twin.model.LaptopState.OFFLINE,
+                        phoneState = com.dhyan.app.twin.model.PhoneState.IN_APP,
+                        secondScreenOverlap = false,
+                        declaredSession = session
+                    )
+                LiveContextHolder.update(updated)
+            }
+        }
+    }
+
+    fun endFocusSession() {
+        scope.launch {
+            val sync = runCatching { com.dhyan.app.DhyanApplication.syncManager }.getOrNull()
+            if (sync != null) {
+                sync.endFocusSession()
+            } else {
+                val cur = LiveContextHolder.currentSnapshot()
+                if (cur != null) {
+                    LiveContextHolder.update(
+                        cur.copy(taskSource = com.dhyan.app.twin.model.TaskSource.INFERRED, declaredSession = null)
+                    )
+                }
+            }
+        }
+    }
+
     private fun HeldNotifEntity.toUi(nowMs: Long): LiveHeldItemUi {
         val elapsedSec = ((nowMs - heldSinceMs) / 1000).coerceAtLeast(0)
         val heldAgo = when {

@@ -20,6 +20,8 @@ export function PipCompanion({
       case 'recovering':
       case 'second_screen_overlap':
         return 'HAPPY';
+      case 'distracted':
+        return 'DISTRACTED';
       case 'fatigued':
       case 'drifting':
         return 'SLEEPY';

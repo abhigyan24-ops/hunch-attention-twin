@@ -124,6 +124,11 @@ class ContextFuser(
         recompute()
     }
 
+    @Synchronized fun updateDeclaredSession(session: DeclaredSession?) {
+        this.phoneDeclaredSession = session
+        recompute()
+    }
+
     /**
      * Ingests remote laptop state received from sync session.
      */

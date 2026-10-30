@@ -35,6 +35,7 @@ fun SettingsBottomSheet(stateHolder: DhyanStateHolder? = null, onDismiss: () -> 
 @Composable
 fun SettingsBottomSheet(viewModel: SettingsViewModel, onDismiss: () -> Unit) {
     val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     var contact by remember { mutableStateOf("") }
     var advanced by remember { mutableStateOf(false) }
     var trusted by remember { mutableStateOf(false) }
@@ -65,6 +66,50 @@ fun SettingsBottomSheet(viewModel: SettingsViewModel, onDismiss: () -> Unit) {
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 SettingSwitch("Emergency stop", "Release held items and suspend actuation.",
                     state.settings.killSwitch) { viewModel.toggleKillSwitch() }
+            }
+            SettingsCard("Focus Shield & App Restrictor") {
+                var shieldEnabled by remember { mutableStateOf(com.dhyan.app.collectors.A11yCollector.focusShieldEnabled) }
+                var doomscrollEnabled by remember { mutableStateOf(com.dhyan.app.collectors.A11yCollector.doomscrollBrakeEnabled) }
+                val isA11yOn = com.dhyan.app.collectors.A11yCollector.isServiceConnected
+
+                StatusPillBadge(if (isA11yOn && shieldEnabled) "Active Shield" else "Focus Shield",
+                    active = isA11yOn && shieldEnabled)
+
+                SettingSwitch(
+                    "Block distracting apps during Focus",
+                    "Intercepts Instagram, TikTok, Reels, Shorts, and games when a focus session is active.",
+                    shieldEnabled
+                ) {
+                    shieldEnabled = it
+                    com.dhyan.app.collectors.A11yCollector.focusShieldEnabled = it
+                }
+
+                SettingSwitch(
+                    "Doomscroll Brake",
+                    "Detects compulsive scroll bursts and triggers gentle haptic brakes to pause endless scrolling.",
+                    doomscrollEnabled
+                ) {
+                    doomscrollEnabled = it
+                    com.dhyan.app.collectors.A11yCollector.doomscrollBrakeEnabled = it
+                }
+
+                if (isA11yOn) {
+                    Text("● Accessibility Interceptor Active · Zero screen text or URLs collected",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("⚠️ Accessibility service is disabled. Real-time app blocking requires accessibility permissions.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                        OutlinedButton(onClick = {
+                            val intent = android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                                flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                            }
+                            context.startActivity(intent)
+                        }, modifier = Modifier.fillMaxWidth()) {
+                            Text("Open Accessibility Settings")
+                        }
+                    }
+                }
             }
             SettingsCard("Digest rhythm") {
                 Text("Release interval · ${state.settings.digestIntervalMin} min", style = MaterialTheme.typography.bodyMedium)

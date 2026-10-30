@@ -26,6 +26,9 @@
     <!-- Contacts (optional VIP) -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
 
+    <!-- Haptic feedback for Doomscroll Brake -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <application
         android:label="Dhyan"
         android:name=".DhyanApplication"
@@ -41,10 +44,17 @@
             </intent-filter>
         </activity>
 
+        <!-- Focus Shield Interceptor Activity -->
+        <activity
+            android:name=".ui.shield.FocusShieldActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:excludeFromRecents="true" />
+
         <!-- Notification Listener Service -->
         <service
             android:name=".collectors.NotifCollector"
-            android:label="Dhyan Notification Access"
+            android:label="Dhyan Notifications"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
             android:exported="true">
             <intent-filter>
@@ -73,10 +83,10 @@
             android:exported="false">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Local attention digital twin continuous sensor sampling and privacy-preserving inference" />
+                android:value="dhyan_attention_monitoring" />
         </service>
 
-        <!-- Boot receiver -->
+        <!-- Boot Receiver -->
         <receiver
             android:name=".ingest.BootReceiver"
             android:exported="true">
@@ -86,4 +96,5 @@
         </receiver>
 
     </application>
+
 </manifest>

@@ -439,6 +439,8 @@ export class DhyanCompanionViewProvider {
         aura.addColorStop(0, 'rgba(251, 191, 36, 0.40)');
       } else if (emotion === 'SLEEPY') {
         aura.addColorStop(0, 'rgba(147, 197, 253, 0.30)');
+      } else if (emotion === 'DISTRACTED') {
+        aura.addColorStop(0, 'rgba(244, 63, 94, 0.40)');
       } else {
         aura.addColorStop(0, 'rgba(124, 200, 248, 0.35)');
       }
@@ -460,6 +462,9 @@ export class DhyanCompanionViewProvider {
       } else if (emotion === 'SLEEPY') {
         bodyGrad.addColorStop(0.55, '#93C5FD');
         bodyGrad.addColorStop(1, '#2563EB');
+      } else if (emotion === 'DISTRACTED') {
+        bodyGrad.addColorStop(0.55, '#FDA4AF');
+        bodyGrad.addColorStop(1, '#F43F5E');
       } else {
         bodyGrad.addColorStop(0.55, '#38BDF8');
         bodyGrad.addColorStop(1, '#0284C7');
@@ -509,6 +514,10 @@ export class DhyanCompanionViewProvider {
         ctx.arc(dx * 0.4, 6 + dy * 0.2, 5, 0.1 * Math.PI, 0.9 * Math.PI);
       } else if (emotion === 'SLEEPY') {
         ctx.arc(dx * 0.4, 7 + dy * 0.2, 2.5, 0, Math.PI);
+      } else if (emotion === 'DISTRACTED') {
+        ctx.moveTo(-4 + dx * 0.4, 7 + dy * 0.2);
+        ctx.quadraticCurveTo(-2 + dx * 0.4, 4 + dy * 0.2, 0 + dx * 0.4, 7 + dy * 0.2);
+        ctx.quadraticCurveTo(2 + dx * 0.4, 10 + dy * 0.2, 4 + dx * 0.4, 7 + dy * 0.2);
       } else {
         ctx.arc(dx * 0.4, 6 + dy * 0.2, 4.2, 0.15 * Math.PI, 0.85 * Math.PI);
       }
@@ -672,6 +681,7 @@ export class DhyanCompanionViewProvider {
         if (currentEmotion === 'FOCUSED') quoteEl.textContent = '"Locked into coding flow"';
         else if (currentEmotion === 'HAPPY') quoteEl.textContent = '"Great progress! ✨"';
         else if (currentEmotion === 'SLEEPY') quoteEl.textContent = '"Zzz... taking a quiet break"';
+        else if (currentEmotion === 'DISTRACTED') quoteEl.textContent = '"Phone distraction detected! Stay with your code 🌿"';
         else quoteEl.textContent = '"Watching your code flow"';
       } else if (msg.type === 'focusMinutes') {
         document.getElementById('status-text').textContent = \`Focused \${msg.minutes}m\`;

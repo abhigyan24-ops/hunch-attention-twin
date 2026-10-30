@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 
-export type SpiritEmotion = 'CURIOUS' | 'FOCUSED' | 'HAPPY' | 'SLEEPY';
+export type SpiritEmotion = 'CURIOUS' | 'FOCUSED' | 'HAPPY' | 'SLEEPY' | 'DISTRACTED';
 
 interface Particle {
   x: number;
@@ -11,7 +11,7 @@ interface Particle {
   alpha: number;
   life: number;
   maxLife: number;
-  type: 'sparkle' | 'zzz' | 'heart';
+  type: 'sparkle' | 'zzz' | 'heart' | 'alert';
 }
 
 export function renderCloudSpirit(
@@ -41,6 +41,9 @@ export function renderCloudSpirit(
   } else if (emotion === 'SLEEPY') {
     aura.addColorStop(0, 'rgba(147, 197, 253, 0.28)');
     aura.addColorStop(0.6, 'rgba(199, 210, 254, 0.10)');
+  } else if (emotion === 'DISTRACTED') {
+    aura.addColorStop(0, 'rgba(244, 63, 94, 0.40)');
+    aura.addColorStop(0.6, 'rgba(251, 146, 60, 0.16)');
   } else {
     aura.addColorStop(0, 'rgba(124, 200, 248, 0.35)');
     aura.addColorStop(0.6, 'rgba(124, 200, 248, 0.12)');
@@ -66,6 +69,10 @@ export function renderCloudSpirit(
     bodyGrad.addColorStop(0.35, '#EFF6FF');
     bodyGrad.addColorStop(0.75, '#93C5FD');
     bodyGrad.addColorStop(1, '#3B82F6');
+  } else if (emotion === 'DISTRACTED') {
+    bodyGrad.addColorStop(0.35, '#FFF1F2');
+    bodyGrad.addColorStop(0.75, '#FDA4AF');
+    bodyGrad.addColorStop(1, '#F43F5E');
   } else {
     bodyGrad.addColorStop(0.35, '#E0F2FE');
     bodyGrad.addColorStop(0.75, '#38BDF8');
@@ -153,6 +160,11 @@ export function renderCloudSpirit(
     ctx.arc(dx * 0.4, 6 + dy * 0.2, 5.5, 0.1 * Math.PI, 0.9 * Math.PI);
   } else if (emotion === 'SLEEPY') {
     ctx.arc(dx * 0.4, 7 + dy * 0.2, 3, 0, Math.PI);
+  } else if (emotion === 'DISTRACTED') {
+    // Worried wavy mouth
+    ctx.moveTo(-5 + dx * 0.4, 7 + dy * 0.2);
+    ctx.quadraticCurveTo(-2 + dx * 0.4, 4 + dy * 0.2, 0 + dx * 0.4, 7 + dy * 0.2);
+    ctx.quadraticCurveTo(2 + dx * 0.4, 10 + dy * 0.2, 5 + dx * 0.4, 7 + dy * 0.2);
   } else {
     ctx.arc(dx * 0.4, 6 + dy * 0.2, 4.5, 0.15 * Math.PI, 0.85 * Math.PI);
   }
@@ -192,6 +204,12 @@ export function renderCloudSpirit(
         ctx.bezierCurveTo(-s, -s * 0.6, -s * 1.4, s * 0.4, 0, s * 1.4);
         ctx.bezierCurveTo(s * 1.4, s * 0.4, s, -s * 0.6, 0, s * 0.4);
         ctx.fill();
+      } else if (p.type === 'alert') {
+        // Amber warning dot
+        ctx.fillStyle = '#F59E0B';
+        ctx.beginPath();
+        ctx.arc(0, 0, p.size * 0.4, 0, Math.PI * 2);
+        ctx.fill();
       }
       ctx.restore();
     });
@@ -226,7 +244,7 @@ export function CloudSpiritCanvas({
   const lastMousePos = useRef({ x: 0, y: 0 });
 
   // Spawn sparkle or Zzz particles
-  const spawnParticles = (type: 'sparkle' | 'zzz' | 'heart', count = 3) => {
+  const spawnParticles = (type: 'sparkle' | 'zzz' | 'heart' | 'alert', count = 3) => {
     for (let i = 0; i < count; i++) {
       particlesRef.current.push({
         x: (Math.random() - 0.5) * 40,
@@ -278,6 +296,7 @@ export function CloudSpiritCanvas({
       if (Math.random() < 0.03) {
         if (emotion === 'HAPPY') spawnParticles('sparkle', 1);
         if (emotion === 'SLEEPY') spawnParticles('zzz', 1);
+        if (emotion === 'DISTRACTED') spawnParticles('alert', 1);
       }
 
       // 3. Update active particles

@@ -275,6 +275,7 @@ function App() {
     const b = data?.pet.behavior;
     if (b === 'deep_focus') return 'FOCUSED';
     if (b === 'recovering' || b === 'second_screen_overlap') return 'HAPPY';
+    if (b === 'distracted') return 'DISTRACTED';
     if (b === 'fatigued' || b === 'drifting') return 'SLEEPY';
     return 'CURIOUS';
   })();

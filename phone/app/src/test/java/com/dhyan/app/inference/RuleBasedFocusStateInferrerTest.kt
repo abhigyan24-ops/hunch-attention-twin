@@ -129,4 +129,46 @@ class RuleBasedFocusStateInferrerTest {
             inferrer.inferFocusState(PhoneState.SCREEN_OFF, LaptopState.OFFLINE, false, false, null)
         )
     }
+
+    @Test
+    fun testScrollingDuringSessionProducesDistracted() {
+        val session = DeclaredSession(TaskType.CODING, 45.0, strict = false, startedTs = 1000L)
+        val state = inferrer.inferFocusState(
+            phoneState = PhoneState.SCROLLING,
+            laptopState = LaptopState.FLOWING,
+            isLaptopStale = false,
+            isSecondScreenOverlap = false,
+            declaredSession = session,
+            phoneAppCat = "communication"
+        )
+        assertEquals(FocusState.DISTRACTED, state)
+    }
+
+    @Test
+    fun testSocialAppDuringSessionProducesDistracted() {
+        val session = DeclaredSession(TaskType.CODING, 45.0, strict = false, startedTs = 1000L)
+        val state = inferrer.inferFocusState(
+            phoneState = PhoneState.IN_APP,
+            laptopState = LaptopState.FLOWING,
+            isLaptopStale = false,
+            isSecondScreenOverlap = false,
+            declaredSession = session,
+            phoneAppCat = "social"
+        )
+        assertEquals(FocusState.DISTRACTED, state)
+    }
+
+    @Test
+    fun testEntertainmentAppDuringSessionProducesDistracted() {
+        val session = DeclaredSession(TaskType.STUDYING, 25.0, strict = false, startedTs = 1000L)
+        val state = inferrer.inferFocusState(
+            phoneState = PhoneState.IN_APP,
+            laptopState = LaptopState.IDLE_OPEN,
+            isLaptopStale = false,
+            isSecondScreenOverlap = false,
+            declaredSession = session,
+            phoneAppCat = "entertainment"
+        )
+        assertEquals(FocusState.DISTRACTED, state)
+    }
 }

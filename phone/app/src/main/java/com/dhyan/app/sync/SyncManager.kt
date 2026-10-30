@@ -59,7 +59,7 @@ import kotlinx.coroutines.launch
  */
 class SyncManager(
     private val db: DhyanDatabase,
-    private val phoneControl: PhoneControl,
+    val phoneControl: PhoneControl,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO),
     val contextFuser: ContextFuser = ContextFuser(),
     private val rendezvousTransportProvider: () -> RendezvousTransport = { OkHttpRendezvousTransport() },
@@ -411,6 +411,34 @@ class SyncManager(
             sessionStateFlow.value = SessionState.Disconnected
             contextFuser.reset()
             _activeDeclaredSession.value = null
+        }
+    }
+
+    fun startFocusSession(minutes: Double, task: String = "coding", strict: Boolean = false) {
+        scope.launch {
+            phoneControl.declareSession(task, minutes, strict)
+            val session = LiveContextHolder.currentSnapshot()?.declaredSession
+            if (session != null) {
+                _activeDeclaredSession.value = session
+                contextFuser.updateDeclaredSession(session)
+                val payload = mapOf(
+                    "task" to session.task.wire,
+                    "plannedMin" to session.plannedMin,
+                    "strict" to session.strict,
+                    "startedTs" to session.startedTs
+                )
+                recordLocalEvent("session_declared", "phone", payload, session.startedTs)
+            }
+        }
+    }
+
+    fun endFocusSession() {
+        scope.launch {
+            phoneControl.endSession()
+            _activeDeclaredSession.value = null
+            contextFuser.updateDeclaredSession(null)
+            val now = System.currentTimeMillis()
+            recordLocalEvent("session_ended", "phone", emptyMap(), now)
         }
     }
 }

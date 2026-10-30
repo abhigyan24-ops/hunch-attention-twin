@@ -8,9 +8,9 @@ import com.dhyan.app.twin.model.PhoneState
 /**
  * Minimal rule-based focus state inferrer for Stage 8 multi-device fusion (Milestone M2).
  *
- * Clearly marked as NEW implementation per Prompt 8P2 instructions.
  * Infers [FocusState] from declared session, laptop state, phone state,
- * and second-screen overlap.
+ * and second-screen overlap. Real-time distraction (social, entertainment, scrolling)
+ * during an active focus session is strictly detected as DISTRACTED.
  */
 class RuleBasedFocusStateInferrer {
 
@@ -26,18 +26,18 @@ class RuleBasedFocusStateInferrer {
 
         // 1. Explicit declared focus session takes highest priority
         if (declaredSession != null) {
-            if (declaredSession.strict) {
-                return if (phoneState != PhoneState.SCREEN_OFF) {
+            if (phoneState != PhoneState.SCREEN_OFF) {
+                // Active phone scrolling or distraction during focus session is immediately marked DISTRACTED
+                if (phoneAppCat in listOf("social", "entertainment", "gaming") || phoneState == PhoneState.SCROLLING) {
+                    return FocusState.DISTRACTED
+                }
+                return if (declaredSession.strict) {
                     if (isSecondScreenOverlap) FocusState.DRIFTING else FocusState.DISTRACTED
                 } else {
-                    FocusState.DEEP_FOCUS
+                    if (isSecondScreenOverlap) FocusState.DRIFTING else FocusState.WORKING
                 }
             } else {
-                return if (phoneState != PhoneState.SCREEN_OFF) {
-                    if (isSecondScreenOverlap) FocusState.DRIFTING else FocusState.WORKING
-                } else {
-                    if (effectiveLaptop == LaptopState.FLOWING) FocusState.DEEP_FOCUS else FocusState.WORKING
-                }
+                return if (declaredSession.strict || effectiveLaptop == LaptopState.FLOWING) FocusState.DEEP_FOCUS else FocusState.WORKING
             }
         }
 
