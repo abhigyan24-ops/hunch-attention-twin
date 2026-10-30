@@ -1,1 +1,528 @@
-:root{font-family:system-ui,sans-serif;color:#e5eef3;background:transparent;color-scheme:dark}body{margin:0}button,input,select{font:inherit}button{cursor:pointer}main{background:#12212c;padding:24px;min-height:100vh;box-sizing:border-box}h1{margin-top:0}section{padding:16px 0;border-top:1px solid #385061}p{line-height:1.5}small{color:#a4bbc8}label{display:block;margin:12px 0}input,select,form button{padding:8px;background:#223b4c;border:1px solid #6b899c;border-radius:6px;color:inherit}input[type=checkbox]{margin-right:8px}[role=alert]{color:#ffd092}#pip-hitbox{display:inline-block;margin:12px;position:relative;width:160px;min-height:120px}.pip-container{text-align:center}.pip-avatar{background:transparent;border:0;padding:8px}.pip-bubble{font-size:12px;background:#233e51;border-radius:12px;padding:8px;margin:0}.held-badge{display:block;color:#bde3ff}.pip-deep_focus{animation:breathe 4s ease-in-out infinite}.pip-held{animation:perk 1s ease-in-out infinite}.pip-drifting{transform:rotate(-5deg)}.pip-distracted{filter:saturate(.5)}.pip-recovering{animation:perk .7s ease-in-out infinite}.pip-fatigued{opacity:.7}.pip-second_screen_overlap{transform:rotate(6deg)}.pip-neutral{opacity:.6}@keyframes breathe{50%{transform:scale(1.04)}}@keyframes perk{50%{transform:translateY(-4px)}}@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+/* ==========================================================================
+   Dhyan Desktop App Design System: Calm Daylight & Adaptive Bento Glass
+   ========================================================================== */
+
+:root {
+  --dhyan-bg: #F7F8FA;
+  --dhyan-card: #FFFFFF;
+  --dhyan-border: #EAEEF4;
+  --dhyan-text-main: #121417;
+  --dhyan-text-muted: #64748B;
+  --dhyan-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+
+  /* Pastel Semantic Accents */
+  --dhyan-lime: #9FE855;
+  --dhyan-mint-bg: #E8F3E8;
+  --dhyan-mint-accent: #7AD656;
+  --dhyan-mint-text: #1E5631;
+
+  --dhyan-lavender-bg: #E9EAF8;
+  --dhyan-lavender-accent: #6366F1;
+  --dhyan-lavender-text: #312E81;
+
+  --dhyan-sand-bg: #EFEBE4;
+  --dhyan-sand-accent: #D97706;
+  --dhyan-sand-text: #78350F;
+
+  --dhyan-sky-bg: #E3F4F4;
+  --dhyan-sky-accent: #38BDF8;
+  --dhyan-sky-text: #0C4A6E;
+
+  --dhyan-radius-lg: 24px;
+  --dhyan-radius-md: 18px;
+  --dhyan-radius-pill: 9999px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --dhyan-bg: #0F141C;
+    --dhyan-card: #161F2C;
+    --dhyan-border: rgba(255, 255, 255, 0.08);
+    --dhyan-text-main: #F8FAFC;
+    --dhyan-text-muted: #94A3B8;
+    --dhyan-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+
+    --dhyan-mint-bg: rgba(122, 214, 86, 0.14);
+    --dhyan-lavender-bg: rgba(99, 102, 241, 0.16);
+    --dhyan-sand-bg: rgba(217, 119, 6, 0.14);
+    --dhyan-sky-bg: rgba(56, 189, 248, 0.14);
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: transparent;
+  color: var(--dhyan-text-main);
+  overflow-x: hidden;
+  user-select: none;
+}
+
+/* --------------------------------------------------------------------------
+   Mini-HUD & Floating Pip Pet Window
+   -------------------------------------------------------------------------- */
+#pip-hitbox {
+  display: inline-block;
+  margin: 12px;
+  position: relative;
+  width: 170px;
+  min-height: 130px;
+}
+
+.pip-container {
+  text-align: center;
+  position: relative;
+}
+
+.pip-bubble {
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--dhyan-card);
+  border: 1px solid var(--dhyan-border);
+  color: var(--dhyan-text-main);
+  border-radius: 12px;
+  padding: 6px 10px;
+  margin: 0 0 4px 0;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+  max-width: 150px;
+  display: inline-block;
+}
+
+.held-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--dhyan-mint-bg);
+  color: var(--dhyan-mint-text);
+  border: 1px solid var(--dhyan-mint-accent);
+  border-radius: var(--dhyan-radius-pill);
+  padding: 2px 8px;
+  margin-top: 4px;
+}
+
+/* --------------------------------------------------------------------------
+   Full Window Bento Workspace (1280px Grid)
+   -------------------------------------------------------------------------- */
+.dhyan-app {
+  min-height: 100vh;
+  background: var(--dhyan-bg);
+  padding: 20px;
+}
+
+.dhyan-header-strip {
+  max-width: 1280px;
+  margin: 0 auto 16px auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dhyan-logo {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dhyan-logo-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dhyan-mint-accent);
+}
+
+.dhyan-hud-toggle {
+  background: var(--dhyan-card);
+  border: 1px solid var(--dhyan-border);
+  color: var(--dhyan-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--dhyan-radius-pill);
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dhyan-hud-toggle:hover {
+  color: var(--dhyan-text-main);
+  border-color: var(--dhyan-text-muted);
+}
+
+.dhyan-workspace {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+/* Zone 1: Left Floating Capsule Rail */
+.dhyan-rail {
+  width: 72px;
+  background: var(--dhyan-card);
+  border: 1px solid var(--dhyan-border);
+  border-radius: var(--dhyan-radius-lg);
+  box-shadow: var(--dhyan-shadow);
+  padding: 18px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  min-height: 580px;
+}
+
+.dhyan-rail-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  border: none;
+  background: transparent;
+  color: var(--dhyan-text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  gap: 2px;
+}
+
+.dhyan-rail-btn:hover {
+  background: var(--dhyan-bg);
+  color: var(--dhyan-text-main);
+}
+
+.dhyan-rail-btn.active {
+  background: var(--dhyan-mint-bg);
+  color: var(--dhyan-mint-text);
+  font-weight: 700;
+}
+
+.dhyan-rail-spacer {
+  flex: 1;
+}
+
+.dhyan-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #CBD5E1;
+  title: "Status";
+}
+
+.dhyan-status-dot.online {
+  background: var(--dhyan-mint-accent);
+  box-shadow: 0 0 8px rgba(122, 214, 86, 0.6);
+}
+
+/* Zone 2: Center Hero Stage */
+.dhyan-stage {
+  flex: 1.25;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.dhyan-bento-card {
+  background: var(--dhyan-card);
+  border: 1px solid var(--dhyan-border);
+  border-radius: var(--dhyan-radius-lg);
+  padding: 20px;
+  box-shadow: var(--dhyan-shadow);
+}
+
+.dhyan-editorial-title {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.8px;
+  margin-bottom: 4px;
+}
+
+.dhyan-editorial-subtitle {
+  font-size: 13px;
+  color: var(--dhyan-text-muted);
+  margin-bottom: 16px;
+}
+
+/* Presets Strip */
+.dhyan-preset-strip {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.dhyan-preset-pill {
+  padding: 6px 14px;
+  border-radius: var(--dhyan-radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.dhyan-preset-pill.coding {
+  background: var(--dhyan-lavender-bg);
+  color: var(--dhyan-lavender-text);
+}
+.dhyan-preset-pill.study {
+  background: var(--dhyan-mint-bg);
+  color: var(--dhyan-mint-text);
+}
+.dhyan-preset-pill.reading {
+  background: var(--dhyan-sand-bg);
+  color: var(--dhyan-sand-text);
+}
+.dhyan-preset-pill.break {
+  background: var(--dhyan-sky-bg);
+  color: var(--dhyan-sky-text);
+}
+.dhyan-preset-pill.active {
+  box-shadow: 0 0 0 2px var(--dhyan-text-main);
+}
+
+/* Tactile Semicircular Tick-Mark Dial */
+.dhyan-dial-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0 20px 0;
+  cursor: ns-resize;
+}
+
+.dhyan-dial-readout {
+  font-size: 64px;
+  font-weight: 900;
+  letter-spacing: -2px;
+  line-height: 1;
+  color: var(--dhyan-text-main);
+  margin-top: -30px;
+  text-align: center;
+}
+
+.dhyan-dial-unit {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--dhyan-text-muted);
+  margin-top: 4px;
+}
+
+.dhyan-cta-pill {
+  width: 100%;
+  background: var(--dhyan-text-main);
+  color: #FFFFFF;
+  border: none;
+  border-radius: var(--dhyan-radius-pill);
+  padding: 14px 24px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  transition: transform 0.1s ease, opacity 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.dhyan-cta-pill:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.dhyan-cta-pill:active {
+  transform: translateY(0);
+}
+
+/* Zone 3: Right Live Insights & Companion Dock */
+.dhyan-dock {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* Hero Progress Banner */
+.dhyan-hero-banner {
+  background: var(--dhyan-mint-bg);
+  border: 1px solid var(--dhyan-mint-accent);
+  border-radius: var(--dhyan-radius-lg);
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dhyan-banner-text h3 {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--dhyan-mint-text);
+  margin-bottom: 2px;
+}
+
+.dhyan-banner-text p {
+  font-size: 12px;
+  color: var(--dhyan-mint-text);
+  opacity: 0.85;
+}
+
+/* 2-Column Mini Sparkline Tiles */
+.dhyan-sparkline-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.dhyan-sparkline-tile {
+  background: var(--dhyan-card);
+  border: 1px solid var(--dhyan-border);
+  border-radius: var(--dhyan-radius-md);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 84px;
+}
+
+.dhyan-sparkline-tile span {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dhyan-text-muted);
+}
+
+.dhyan-sparkline-tile strong {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--dhyan-text-main);
+  margin-top: 4px;
+}
+
+/* 7-Day Horizontal Pill Calendar & Bar Chart */
+.dhyan-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.dhyan-chart-header h4 {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--dhyan-text-muted);
+}
+
+.dhyan-bar-grid {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  height: 90px;
+  padding-top: 16px;
+  gap: 8px;
+}
+
+.dhyan-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.dhyan-bar-pill {
+  width: 100%;
+  max-width: 22px;
+  background: var(--dhyan-mint-bg);
+  border-radius: 6px;
+  transition: height 0.3s ease;
+  position: relative;
+}
+
+.dhyan-bar-pill.today {
+  background: var(--dhyan-mint-accent);
+}
+
+.dhyan-bar-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--dhyan-text-muted);
+  margin-top: 6px;
+}
+
+/* Remote Phone & Held Items Section */
+.dhyan-phone-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dhyan-held-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--dhyan-bg);
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.dhyan-small-btn {
+  background: var(--dhyan-card);
+  border: 1px solid var(--dhyan-border);
+  color: var(--dhyan-text-main);
+  border-radius: var(--dhyan-radius-pill);
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dhyan-small-btn:hover {
+  background: var(--dhyan-mint-bg);
+  color: var(--dhyan-mint-text);
+}
+
+/* Settings Form & Inputs */
+.dhyan-form-group {
+  margin-bottom: 14px;
+}
+
+.dhyan-form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dhyan-text-muted);
+  margin-bottom: 6px;
+}
+
+.dhyan-input, .dhyan-select, .dhyan-textarea {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--dhyan-bg);
+  border: 1px solid var(--dhyan-border);
+  border-radius: 12px;
+  color: var(--dhyan-text-main);
+  font-size: 13px;
+  outline: none;
+}
+
+.dhyan-input:focus, .dhyan-select:focus, .dhyan-textarea:focus {
+  border-color: var(--dhyan-mint-accent);
+}

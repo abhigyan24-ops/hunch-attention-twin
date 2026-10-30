@@ -1,4 +1,6 @@
 import { WebSocket } from 'ws';
+import { DhyanCompanionViewProvider } from './companionProvider.js';
+import { DhyanInsightsPanel } from './insightsPanel.js';
 
 export class DhyanVsCodeSensor {
   constructor(options = {}) {
@@ -28,24 +30,33 @@ export class DhyanVsCodeSensor {
     this.focusRegainedTs = null;
     this.waitingForFirstEdit = false;
 
-    // State machine
+    // State machine & Pet Bridge
     this.lastEditTs = Date.now();
     this.currentState = 'flowing'; // 'flowing' | 'stuck' | 'idle_open'
+    this.companionProvider = null;
+    this.idleTimer = null;
+    this.statusBarItem = null;
 
     // Subscriptions to dispose
     this.disposables = [];
+  }
+
+  setCompanionProvider(provider) {
+    this.companionProvider = provider;
   }
 
   start() {
     this.connect();
     this.setupListeners();
     this.startBurstTimer();
+    this.setupIdleTracker();
   }
 
   stop() {
     this.stopped = true;
     clearInterval(this.heartbeatTimer);
     clearInterval(this.burstTimer);
+    clearInterval(this.idleTimer);
     clearTimeout(this.reconnectTimer);
 
     if (this.ws) {
@@ -98,45 +109,43 @@ export class DhyanVsCodeSensor {
         this.authenticated = true;
         this.startHeartbeat(msg.config && msg.config.heartbeatSec ? msg.config.heartbeatSec : 5);
         this.sendState();
+      } else if (msg.kind === 'auth_fail') {
+        this.authenticated = false;
+        this.stop();
       }
     });
 
     this.ws.on('close', () => {
       this.authenticated = false;
-      clearInterval(this.heartbeatTimer);
-      if (!this.stopped) {
-        this.scheduleReconnect();
-      }
+      if (!this.stopped) this.scheduleReconnect();
     });
 
     this.ws.on('error', () => {
-      // ws close event will trigger reconnect
+      // Handled by close listener
     });
   }
 
   scheduleReconnect() {
-    const delay = Math.min(1000 * Math.pow(1.5, this.reconnectAttempts++), 30000);
-    this.reconnectTimer = setTimeout(() => {
-      this.connect();
-    }, delay);
+    if (this.stopped) return;
+    this.reconnectAttempts++;
+    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
+    this.reconnectTimer = setTimeout(() => this.connect(), delay);
   }
 
   send(msg) {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    try {
       this.ws.send(JSON.stringify(msg));
-    }
+    } catch (_) {}
   }
 
-  startHeartbeat(heartbeatSec) {
+  startHeartbeat(sec) {
     clearInterval(this.heartbeatTimer);
     this.heartbeatTimer = setInterval(() => {
       if (this.authenticated) {
-        this.send({
-          kind: 'ext_heartbeat',
-          ts: Date.now()
-        });
+        this.send({ kind: 'ping' });
       }
-    }, heartbeatSec * 1000);
+    }, sec * 1000);
   }
 
   startBurstTimer() {
@@ -163,20 +172,36 @@ export class DhyanVsCodeSensor {
       windowSec: this.windowSec
     });
 
-    // Reset window counters
     this.editsInWindow = 0;
     this.savesInWindow = 0;
   }
 
-  onDocumentChange() {
+  setupIdleTracker() {
+    clearInterval(this.idleTimer);
+    this.idleTimer = setInterval(() => {
+      const now = Date.now();
+      const idleSec = (now - this.lastEditTs) / 1000;
+      if (idleSec >= 20 && this.companionProvider) {
+        this.companionProvider.updateEmotion('SLEEPY');
+      }
+    }, 5000);
+  }
+
+  onDocumentChange(e) {
     this.editsInWindow++;
     this.lastEditTs = Date.now();
 
+    // Pet eye saccades toward typing
+    if (this.companionProvider) {
+      const eyeDx = (Math.random() - 0.5) * 1.5;
+      const eyeDy = (Math.random() - 0.5) * 0.8;
+      this.companionProvider.updateEmotion('FOCUSED', eyeDx, eyeDy);
+    }
+
     // Check resumption delay
     if (this.waitingForFirstEdit && this.focusRegainedTs) {
-      const delayMs = Math.min(Math.max(Date.now() - this.focusRegainedTs, 0), 3600000);
+      const delayMs = Date.now() - this.focusRegainedTs;
       this.waitingForFirstEdit = false;
-      this.focusRegainedTs = null;
 
       if (this.authenticated) {
         this.send({
@@ -186,10 +211,13 @@ export class DhyanVsCodeSensor {
         });
       }
     }
+
+    this.updateState();
   }
 
   onDocumentSave() {
     this.savesInWindow++;
+    this.updateState();
   }
 
   onWindowStateChange(focused) {
@@ -200,9 +228,15 @@ export class DhyanVsCodeSensor {
       // Focus regained!
       this.focusRegainedTs = Date.now();
       this.waitingForFirstEdit = true;
+      if (this.companionProvider) {
+        this.companionProvider.updateEmotion('CURIOUS');
+      }
     } else if (!focused) {
       // Focus lost
       this.waitingForFirstEdit = false;
+      if (this.companionProvider) {
+        this.companionProvider.updateEmotion('SLEEPY');
+      }
     }
 
     this.updateState();
@@ -250,14 +284,24 @@ export class DhyanVsCodeSensor {
     });
   }
 
+  startSession(preset, minutes) {
+    if (this.statusBarItem) {
+      this.statusBarItem.text = `$(pulse) Dhyan: ${minutes}:00 • ${preset} (100%)`;
+    }
+    if (this.companionProvider) {
+      this.companionProvider.updateEmotion('FOCUSED');
+      this.companionProvider.updateFocusMinutes(minutes);
+    }
+  }
+
   setupListeners() {
     if (!this.vscode) return;
 
     // Text edit: COUNT ONLY. NEVER inspect document content or path!
     if (this.vscode.workspace && this.vscode.workspace.onDidChangeTextDocument) {
       this.disposables.push(
-        this.vscode.workspace.onDidChangeTextDocument(() => {
-          this.onDocumentChange();
+        this.vscode.workspace.onDidChangeTextDocument((e) => {
+          this.onDocumentChange(e);
         })
       );
     }
@@ -276,6 +320,17 @@ export class DhyanVsCodeSensor {
       this.disposables.push(
         this.vscode.window.onDidChangeWindowState((state) => {
           this.onWindowStateChange(Boolean(state && state.focused));
+        })
+      );
+    }
+
+    // Tasks / Build end event bridge
+    if (this.vscode.tasks && this.vscode.tasks.onDidEndTaskProcess) {
+      this.disposables.push(
+        this.vscode.tasks.onDidEndTaskProcess((e) => {
+          if (e && e.exitCode === 0 && this.companionProvider) {
+            this.companionProvider.updateEmotion('HAPPY');
+          }
         })
       );
     }
@@ -336,6 +391,43 @@ export function activate(context) {
     token,
     vscode: context
   });
+
+  // 1. Surface 1: Status Bar Focus Pill
+  if (context && context.window && context.window.createStatusBarItem) {
+    const statusBar = context.window.createStatusBarItem(1, 100);
+    statusBar.text = '$(pulse) Dhyan: 24:15 • Focused (92%)';
+    statusBar.tooltip = 'Dhyan Attention Companion — Click to view sidebar or toggle session';
+    statusBar.command = 'dhyan.openInsights';
+    statusBar.show();
+    sensorInstance.statusBarItem = statusBar;
+    if (context.subscriptions) context.subscriptions.push(statusBar);
+  }
+
+  // 2. Surface 2: Sidebar Webview Panel
+  if (context && context.window && context.window.registerWebviewViewProvider) {
+    const provider = new DhyanCompanionViewProvider(context.extensionUri, sensorInstance);
+    sensorInstance.setCompanionProvider(provider);
+    if (context.subscriptions) {
+      context.subscriptions.push(
+        context.window.registerWebviewViewProvider('dhyan.companion', provider)
+      );
+    }
+  }
+
+  // 3. Surface 3: Full-Tab Insights Dashboard Command
+  if (context && context.commands && context.commands.registerCommand) {
+    context.subscriptions.push(
+      context.commands.registerCommand('dhyan.openInsights', () => {
+        DhyanInsightsPanel.createOrShow(context.extensionUri, sensorInstance);
+      })
+    );
+    context.subscriptions.push(
+      context.commands.registerCommand('dhyan.toggleTimer', () => {
+        sensorInstance.startSession('coding', 25);
+      })
+    );
+  }
+
   sensorInstance.start();
 }
 

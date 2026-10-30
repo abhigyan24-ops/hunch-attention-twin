@@ -1,8 +1,8 @@
 {
   "name": "dhyan-vscode",
-  "displayName": "Dhyan VS Code Sensor",
+  "displayName": "Dhyan VS Code Sensor & Attention Companion",
   "type": "module",
-  "description": "Privacy-preserving telemetry sensor for Dhyan (counts and categories only, zero document text)",
+  "description": "Privacy-preserving telemetry sensor and companion pet for Dhyan (counts and categories only, zero document text)",
   "version": "1.0.0",
   "publisher": "dhyan",
   "engines": {
@@ -16,6 +16,24 @@
   ],
   "main": "./src/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "dhyan-container",
+          "title": "Dhyan",
+          "icon": "resources/dhyan-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "dhyan-container": [
+        {
+          "type": "webview",
+          "id": "dhyan.companion",
+          "name": "Dhyan Companion"
+        }
+      ]
+    },
     "configuration": {
       "title": "Dhyan Sensor",
       "properties": {
@@ -32,6 +50,14 @@
       }
     },
     "commands": [
+      {
+        "command": "dhyan.openInsights",
+        "title": "Dhyan: Open Insights Dashboard"
+      },
+      {
+        "command": "dhyan.toggleTimer",
+        "title": "Dhyan: Toggle Focus Session"
+      },
       {
         "command": "dhyan.reconnect",
         "title": "Dhyan: Reconnect Sensor"
