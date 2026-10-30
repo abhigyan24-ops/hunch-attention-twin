@@ -249,12 +249,22 @@ function App() {
     if (!isMiniHud) return;
     const element = hitbox.current;
     if (!element) return;
+    let dragging = false, lastX = 0, lastY = 0;
+    const down = (event: PointerEvent) => { dragging = true; lastX = event.screenX; lastY = event.screenY; element.setPointerCapture(event.pointerId); };
+    const move = (event: PointerEvent) => { if (!dragging) return; window.dhyan.movePet(event.screenX-lastX,event.screenY-lastY); lastX=event.screenX; lastY=event.screenY; };
+    const up = () => { dragging = false; window.dhyan.setIgnoreMouseEvents(true); };
+    element.addEventListener('pointerdown',down);
+    element.addEventListener('pointermove',move);
+    element.addEventListener('pointerup',up);
     const enter = () => window.dhyan.setIgnoreMouseEvents(false);
     const leave = () => window.dhyan.setIgnoreMouseEvents(true);
     element.addEventListener('mouseenter', enter);
     element.addEventListener('mouseleave', leave);
     return () => {
       element.removeEventListener('mouseenter', enter);
+      element.removeEventListener('pointerdown',down);
+      element.removeEventListener('pointermove',move);
+      element.removeEventListener('pointerup',up);
       element.removeEventListener('mouseleave', leave);
     };
   }, [isMiniHud]);
