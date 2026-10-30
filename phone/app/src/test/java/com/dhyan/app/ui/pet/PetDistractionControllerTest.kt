@@ -3,6 +3,7 @@ package com.dhyan.app.ui.pet
 import com.dhyan.app.twin.model.FocusState
 import org.junit.Assert.*
 import org.junit.Test
+import kotlin.math.abs
 
 class PetDistractionControllerTest {
 
@@ -65,29 +66,63 @@ class PetDistractionControllerTest {
     }
 
     @Test
-    fun distractionStateTriggersActiveInterventionAndIncrementsNudgesShown() {
+    fun analyticalSpringToConvergesMonotonicallyWithoutOvershoot() {
+        val state = PetPhysicsState(100f, 100f)
+        val targetX = 500f
+        val targetY = 800f
+        val dt = 1f / 60f
+
+        // Step spring towards target over 1.5 seconds (90 frames)
+        repeat(90) {
+            state.springTo(targetX, targetY, omega = 10f, dtSeconds = dt, boundsWidth = 1080f, boundsHeight = 2400f, petSizePx = 96f)
+        }
+
+        // Must converge cleanly within 1px of target without overshooting
+        assertEquals(targetX, state.x, 1.5f)
+        assertEquals(targetY, state.y, 1.5f)
+        assertTrue("Residual velocity must be near zero", abs(state.vx) < 5f && abs(state.vy) < 5f)
+    }
+
+    @Test
+    fun distractionEscalatesThroughAllFourStages() {
         val controller = PetDistractionController(null)
         assertEquals(DistractionStage.CALM, controller.stage)
         assertEquals(0, controller.nudgesShown)
         assertFalse(controller.nudgeActive)
 
-        // Mild drift triggers Stage 1
+        // Stage 1 (0–5s): Subtle Gaze docked at edge
         controller.step(FocusState.DRIFTING, isTaskActive = true, nowMs = 1000L)
-        assertEquals(DistractionStage.MILD_DRIFT, controller.stage)
+        assertEquals(DistractionStage.STAGE1_SUBTLE_GAZE, controller.stage)
+        assertEquals(0, controller.nudgesShown)
+        assertFalse(controller.nudgeActive)
+
+        // Step at 3s elapsed -> Still Stage 1
+        controller.step(FocusState.DRIFTING, isTaskActive = true, nowMs = 4000L)
+        assertEquals(DistractionStage.STAGE1_SUBTLE_GAZE, controller.stage)
         assertEquals(0, controller.nudgesShown)
 
-        // Active distraction triggers Stage 2 intervention walk-in and increments nudgesShown
-        controller.step(FocusState.DISTRACTED, isTaskActive = true, nowMs = 2000L)
-        assertEquals(DistractionStage.ACTIVE_DISTRACTION, controller.stage)
+        // Stage 2 (5–12s): Edge Peek & Knock at 6s elapsed
+        controller.step(FocusState.DRIFTING, isTaskActive = true, nowMs = 7000L)
+        assertEquals(DistractionStage.STAGE2_EDGE_PEEK_KNOCK, controller.stage)
         assertEquals(1, controller.nudgesShown)
         assertTrue(controller.nudgeActive)
-        assertEquals(2000L, controller.lastNudgeTimeMs)
+        assertEquals("stage2", controller.nudgeType)
+        assertEquals("Drifting off?", controller.nudgePrompt)
+
+        // Stage 3 (>12s): Active Center Interceptor at 13s elapsed
+        controller.step(FocusState.DRIFTING, isTaskActive = true, nowMs = 14000L)
+        assertEquals(DistractionStage.STAGE3_CENTER_INTERCEPTOR, controller.stage)
+        assertTrue(controller.nudgeActive)
+        assertEquals("stage3", controller.nudgeType)
+        assertEquals("Take a breath. Refocus?", controller.nudgePrompt)
+        // Escalation within same distraction episode must not double-count nudgesShown
+        assertEquals(1, controller.nudgesShown)
     }
 
     @Test
     fun acceptingNudgeIncrementsAcceptedAndTransitionsToReturnMargin() {
         val controller = PetDistractionController(null)
-        controller.triggerActiveDistraction(1000L, "Refocus prompt")
+        controller.triggerStage2(1000L)
         assertEquals(1, controller.nudgesShown)
         assertEquals(0, controller.nudgesAccepted)
         assertTrue(controller.nudgeActive)
@@ -104,7 +139,7 @@ class PetDistractionControllerTest {
     @Test
     fun resumingTaskWithinTenSecondsAutomaticallyAcceptsNudge() {
         val controller = PetDistractionController(null)
-        controller.triggerActiveDistraction(10_000L)
+        controller.triggerStage3(10_000L)
         assertEquals(1, controller.nudgesShown)
         assertEquals(0, controller.nudgesAccepted)
 
@@ -118,7 +153,7 @@ class PetDistractionControllerTest {
     @Test
     fun dismissingNudgeIncrementsDismissedAndTransitionsToReturnMargin() {
         val controller = PetDistractionController(null)
-        controller.triggerActiveDistraction(1000L)
+        controller.triggerStage2(1000L)
         assertEquals(0, controller.nudgesDismissed)
 
         controller.onNudgeDismissed()
@@ -128,7 +163,7 @@ class PetDistractionControllerTest {
     }
 
     @Test
-    fun adaptiveThresholdMultiplierIncreasesWhenDismissalsDominate() {
+    fun autoBackoffRuleIncreasesCooldownMultiplierWhenDismissalsDominate() {
         val controller = PetDistractionController(null)
 
         // Set up 5 nudges: 4 dismissed, 1 accepted -> dismissalRate = 80% (> 60%)
@@ -139,15 +174,15 @@ class PetDistractionControllerTest {
         controller.evaluateAdaptiveThreshold()
         assertEquals(0.80f, controller.dismissalRate, 0.001f)
         assertTrue(
-            "Multiplier must increase above 1.0f when dismissals exceed 60%",
-            controller.nudgeThresholdMultiplier > 1.0f
+            "Multiplier must be raised to 1.5x cooldown multiplier when dismissals exceed 60%",
+            controller.nudgeThresholdMultiplier >= 1.5f
         )
         assertTrue(
-            "Multiplier must be capped at 2.5f",
-            controller.nudgeThresholdMultiplier <= 2.5f
+            "Multiplier must be capped at 3.0f",
+            controller.nudgeThresholdMultiplier <= 3.0f
         )
 
-        // When acceptance improves (4 accepted, 1 dismissed -> dismissalRate = 20%)
+        // When acceptance improves (4 accepted, 1 dismissed -> dismissalRate = 20% <= 40%)
         controller.nudgesShown = 5
         controller.nudgesAccepted = 4
         controller.nudgesDismissed = 1

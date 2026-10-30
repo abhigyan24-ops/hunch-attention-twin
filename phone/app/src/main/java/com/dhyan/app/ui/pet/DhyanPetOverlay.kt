@@ -13,7 +13,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -49,10 +48,22 @@ import kotlin.random.Random
 /**
  * In-app host for the Frosted Cloud Spirit companion.
  *
- * Provides full-screen unconstrained movement and dragging bounds (capturing true screen size via
- * Modifier.onSizeChanged), 4-stage distraction intervention escalation (docked calm, mild drift hop,
- * active distraction walk-in to screen center-third with interactive Nudge Bubble, and margin return),
- * and local telemetry loop with adaptive threshold backoff.
+ * Implements silky-smooth spring-damper dynamics across 100% of the screen, the 4-Stage
+ * Distraction Escalation & Adaptive Threshold Loop:
+ *
+ * 1. Stage 1 — Subtle Gaze & Ear/Brow Alert (0–5s of Distraction / Idle Drift):
+ *    The pet stays docked peacefully at the screen edge (PEEK_MODE), narrowing its eyes into
+ *    FOCUSED / CURIOUS and tracking touch toward the distraction.
+ * 2. Stage 2 — Edge Peek & Knock (5–12s of Distraction):
+ *    The pet slides out from the edge, does a double-hop, and displays a non-intrusive pill
+ *    bubble ("Drifting off?") with [Back to Task] and [✕].
+ * 3. Stage 3 — Active Screen Walk-In / Center Interceptor (>12s or high distraction):
+ *    The pet launches to the screen center using critically damped spring velocity, lands with
+ *    a jelly squash, waves/pouts (POUTING / SURPRISED), and presents a 1-click "Refocus Now" action.
+ *    Upon accepting or resuming work, it celebrates (HAPPY + sparkles) and glides back to the edge.
+ * 4. Stage 4 — Self-Tuning Validation Counters & Auto-Backoff:
+ *    Local counters (nudgesShown, nudgesAccepted, nudgesDismissed) with automatic threshold backoff
+ *    (1.5x cooldown multiplier when dismissals exceed 60% after >= 5 nudges).
  */
 @Composable
 fun DhyanPetOverlay(
@@ -88,91 +99,114 @@ fun DhyanPetOverlay(
             val screenH = hostSize.height.toFloat()
 
             if (screenW > 0f && screenH > 0f && screenW >= petSizePx && screenH >= petSizePx) {
+                val marginDockX = (screenW - petSizePx - 16f).coerceAtLeast(0f)
+                val marginDockY = (screenH * 0.28f).coerceIn(16f, screenH - petSizePx - 16f)
+
                 if (!positioned) {
-                    // Start docked near the upper-right edge
-                    physicsState.x = (screenW - petSizePx - 16f).coerceAtLeast(0f)
-                    physicsState.y = (screenH * 0.28f).coerceAtMost(screenH - petSizePx)
+                    physicsState.x = marginDockX
+                    physicsState.y = marginDockY
                     physicsState.isDockedEdge = true
                     positioned = true
                 }
+
                 if (minimized) {
                     physicsState.vx = 0f
                     physicsState.vy = 0f
                 }
 
-                // 4-Stage Distraction Escalation State Machine
+                // 4-Stage Distraction Escalation State Machine Step
                 val snapshot = LiveContextHolder.currentSnapshot()
                 val focusState = snapshot?.focusState
                 controller.step(focusState, taskActive, nowMs)
 
                 if (!physicsState.isDragged && !minimized) {
+                    val targetX: Float
+                    val targetY: Float
+
                     when (controller.stage) {
                         DistractionStage.CALM -> {
-                            // Pet stays peacefully docked at margin; no intervention active
+                            targetX = marginDockX
+                            // Silky smooth floating idle breathing bob
+                            targetY = marginDockY + 6f * sin(nowMs / 450.0).toFloat()
                         }
-                        DistractionStage.MILD_DRIFT -> {
-                            // Threshold 1: Curious perk-up and subtle hop at edge
-                            if (behavior.emotion != PetEmotion.CURIOUS) {
-                                behavior.react(PetEmotion.CURIOUS, 2000L, null)
-                                physicsState.impulseSquash(-1.2f)
-                                physicsState.vy = -160f
+                        DistractionStage.STAGE1_SUBTLE_GAZE -> {
+                            // Stage 1 (0–5s): Stays docked at edge (PEEK_MODE), eyes focused/curious, tracks touch
+                            targetX = marginDockX
+                            targetY = marginDockY + 6f * sin(nowMs / 380.0).toFloat()
+                            if (behavior.emotion != PetEmotion.FOCUSED && behavior.emotion != PetEmotion.CURIOUS) {
+                                behavior.react(PetEmotion.CURIOUS, 1000L, null)
                             }
                         }
-                        DistractionStage.ACTIVE_DISTRACTION -> {
-                            // Threshold 2: Physically launch/glide from margin into visible center-third
-                            val targetX = (screenW * 0.5f - petSizePx * 0.5f).coerceAtLeast(0f)
-                            val targetY = (screenH * 0.42f).coerceAtLeast(0f)
-                            val dx = targetX - physicsState.x
-                            val dy = targetY - physicsState.y
-                            val dist = hypot(dx, dy)
-                            if (dist > 8f) {
+                        DistractionStage.STAGE2_EDGE_PEEK_KNOCK -> {
+                            // Stage 2 (5–12s): Slides out 40dp into view, performs double-hop
+                            targetX = (screenW - petSizePx - 56f).coerceAtLeast(0f)
+                            targetY = marginDockY
+
+                            val elapsed = nowMs - controller.distractionStartedMs
+                            if (elapsed in 5200L..5600L && controller.hopCount == 0) {
                                 physicsState.undock()
-                                val speed = 620f
-                                physicsState.vx = (dx / dist) * speed
-                                physicsState.vy = (dy / dist) * speed
-                            } else {
-                                physicsState.vx = 0f
-                                physicsState.vy = 0f
-                                physicsState.x = targetX
-                                physicsState.y = targetY
-                                if (behavior.emotion != PetEmotion.POUTING && behavior.emotion != PetEmotion.SURPRISED) {
-                                    physicsState.impulseSquash(0.3f)
-                                    behavior.react(PetEmotion.POUTING, 30_000L, null)
-                                }
+                                physicsState.vy = -220f
+                                physicsState.impulseSquash(-1.2f)
+                                controller.hopCount = 1
+                            } else if (elapsed in 6800L..7200L && controller.hopCount == 1) {
+                                physicsState.undock()
+                                physicsState.vy = -190f
+                                physicsState.impulseSquash(-1.0f)
+                                controller.hopCount = 2
                             }
+                        }
+                        DistractionStage.STAGE3_CENTER_INTERCEPTOR -> {
+                            // Stage 3 (>12s or high distraction): Launches into center-third of screen
+                            targetX = (screenW * 0.5f - petSizePx * 0.5f).coerceAtLeast(0f)
+                            targetY = (screenH * 0.42f).coerceAtLeast(0f)
                         }
                         DistractionStage.RETURN_TO_MARGIN -> {
-                            // Smoothly glide back to docked screen edge
-                            val marginX = if (physicsState.x < screenW * 0.5f) 12f else (screenW - petSizePx - 12f)
-                            val marginY = (screenH * 0.28f).coerceIn(12f, screenH - petSizePx - 12f)
-                            val dx = marginX - physicsState.x
-                            val dy = marginY - physicsState.y
-                            val dist = hypot(dx, dy)
-                            if (dist > 8f) {
-                                physicsState.undock()
-                                val speed = 750f
-                                physicsState.vx = (dx / dist) * speed
-                                physicsState.vy = (dy / dist) * speed
-                            } else {
-                                physicsState.vx = 0f
-                                physicsState.vy = 0f
-                                physicsState.x = marginX
-                                physicsState.y = marginY
-                                physicsState.isDockedEdge = true
-                                controller.onReturnCompleted()
-                            }
+                            // Glides back to closest docked screen margin
+                            targetX = if (physicsState.x < screenW * 0.5f) 16f else marginDockX
+                            targetY = marginDockY
                         }
                     }
-                }
 
-                // Advance physics across 100% of the screen bounds
-                physicsState.step(
-                    dt,
-                    screenW,
-                    screenH,
-                    petSizePx,
-                    gravityEnabled = false
-                )
+                    // Analytical Critically-Damped Spring Dynamics
+                    // Monotonic, zero-overshoot convergence at any frame rate (60Hz–120Hz)
+                    val omega = when (controller.stage) {
+                        DistractionStage.STAGE3_CENTER_INTERCEPTOR -> 9f
+                        DistractionStage.RETURN_TO_MARGIN -> 10f
+                        DistractionStage.STAGE2_EDGE_PEEK_KNOCK -> 11f
+                        else -> 12f
+                    }
+                    physicsState.springTo(
+                        targetX = targetX,
+                        targetY = targetY,
+                        omega = omega,
+                        dtSeconds = dt,
+                        boundsWidth = screenW,
+                        boundsHeight = screenH,
+                        petSizePx = petSizePx
+                    )
+
+                    val distFromTarget = hypot(targetX - physicsState.x, targetY - physicsState.y)
+                    if (controller.stage == DistractionStage.STAGE3_CENTER_INTERCEPTOR &&
+                        distFromTarget < 16f && hypot(physicsState.vx, physicsState.vy) < 40f
+                    ) {
+                        if (behavior.emotion != PetEmotion.POUTING && behavior.emotion != PetEmotion.SURPRISED) {
+                            physicsState.impulseSquash(0.4f)
+                            behavior.react(PetEmotion.POUTING, 30_000L, null)
+                        }
+                    } else if (controller.stage == DistractionStage.RETURN_TO_MARGIN && distFromTarget < 10f) {
+                        physicsState.isDockedEdge = true
+                        controller.onReturnCompleted()
+                    }
+                } else if (!minimized) {
+                    // Free flight / ballistic mode after fling or drag
+                    physicsState.step(
+                        dt,
+                        screenW,
+                        screenH,
+                        petSizePx,
+                        gravityEnabled = false
+                    )
+                }
             }
             particleEmitter.update(dt)
         }
@@ -204,7 +238,6 @@ fun DhyanPetOverlay(
                                 (change.position - change.previousPosition).getDistance() > 2f
                             )
                         }
-                        // Observer only: NEVER consume down, movement, or up here.
                     }
                 }
             }
@@ -283,10 +316,9 @@ private fun SpiritInteractionLayer(
             if (minimized) {
                 Canvas(
                     Modifier
-                        .offset {
-                            val x = if (physics.x + petSizePx / 2f < screenWidth / 2f) 12f else screenWidth - orbSizePx - 12f
-                            val y = (physics.y + (petSizePx - orbSizePx) / 2f).coerceIn(12f, screenHeight - orbSizePx - 12f)
-                            IntOffset(x.roundToInt(), y.roundToInt())
+                        .graphicsLayer {
+                            translationX = if (physics.x + petSizePx / 2f < screenWidth / 2f) 12f else screenWidth - orbSizePx - 12f
+                            translationY = (physics.y + (petSizePx - orbSizePx) / 2f).coerceIn(12f, screenHeight - orbSizePx - 12f)
                         }
                         .size(28.dp)
                         .semantics {
@@ -310,11 +342,12 @@ private fun SpiritInteractionLayer(
                     drawCircle(Color(0xFF26362E), radius * .07f, center + Offset(radius * .18f, 0f))
                 }
             } else {
-                // Interactive Pet Container positioned by physics (x, y) across 100% of the screen
+                // Interactive Pet Container with sub-pixel RenderNode translation
                 Box(
                     modifier = Modifier
-                        .offset {
-                            IntOffset(physics.x.roundToInt(), physics.y.roundToInt())
+                        .graphicsLayer {
+                            translationX = physics.x
+                            translationY = physics.y
                         }
                         .size(96.dp)
                         .onGloballyPositioned { coordinates.pet = it }
@@ -341,11 +374,11 @@ private fun SpiritInteractionLayer(
                                 physics.vx = 0f
                                 physics.vy = 0f
                                 physics.isDragged = true
-                                physics.undock() // Clear edge magnetism immediately on drag start
+                                physics.undock()
 
-                                if (controller.nudgeActive) {
-                                    // Flinging/dragging pet away dismisses the active nudge
-                                    controller.onNudgeDismissed()
+                                val nowMs = System.currentTimeMillis()
+                                if (controller.nudgeActive && (nowMs - controller.lastNudgeTimeMs) <= 4000L) {
+                                    controller.onNudgeDismissed(nowMs)
                                 }
 
                                 try {
@@ -383,7 +416,6 @@ private fun SpiritInteractionLayer(
                                             displacement.getDistance() > maxOf(configuration.touchSlop, petSizePx * .3f))
                                         ) {
                                             dragged = true
-                                            // Free movement across 100% screen bounds (0..screenWidth - petSizePx)
                                             physics.x = (startPet.x + displacement.x).coerceIn(0f, screenWidth - petSizePx)
                                             physics.y = (startPet.y + displacement.y).coerceIn(0f, screenHeight - petSizePx)
                                         }
@@ -434,25 +466,74 @@ private fun SpiritInteractionLayer(
                             .graphicsLayer { rotationZ = rotation }
                     )
 
-                    // Interactive Nudge Bubble (Active Distraction Stage 2)
-                    if (controller.nudgeActive) {
+                    // Stage 2: Non-intrusive Edge Peek Pill Bubble ("Drifting off?")
+                    if (controller.nudgeActive && controller.stage == DistractionStage.STAGE2_EDGE_PEEK_KNOCK) {
+                        Surface(
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .offset(y = (-52).dp)
+                                .widthIn(min = 160.dp, max = 210.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFF1E2229),
+                            shadowElevation = 6.dp
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = "Drifting off?",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                                    color = Color.White,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Button(
+                                    onClick = {
+                                        controller.onNudgeAccepted()
+                                        reaction(PetEmotion.HAPPY, ParticleType.SPARKLE, "Back on track! 🌿", 2000L)
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF7AD656),
+                                        contentColor = Color(0xFF121417)
+                                    ),
+                                    shape = RoundedCornerShape(10.dp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                    modifier = Modifier.height(26.dp)
+                                ) {
+                                    Text("Back to Task", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                                TextButton(
+                                    onClick = { controller.onNudgeDismissed() },
+                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
+                                    modifier = Modifier.height(26.dp)
+                                ) {
+                                    Text("✕", fontSize = 12.sp, color = Color(0xFFA0AEC0))
+                                }
+                            }
+                        }
+                    }
+
+                    // Stage 3: Active Center Interceptor Card ("Refocus Now")
+                    if (controller.nudgeActive && controller.stage == DistractionStage.STAGE3_CENTER_INTERCEPTOR) {
                         Surface(
                             modifier = Modifier
                                 .align(Alignment.TopCenter)
                                 .offset(y = (-66).dp)
-                                .widthIn(min = 180.dp, max = 240.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFF1E2229),
-                            shadowElevation = 8.dp
+                                .widthIn(min = 190.dp, max = 250.dp),
+                            shape = RoundedCornerShape(18.dp),
+                            color = Color(0xFF121417),
+                            shadowElevation = 10.dp,
+                            border = BorderStroke(1.dp, Color(0xFF7AD656).copy(alpha = 0.4f))
                         ) {
                             Column(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Text(
-                                    text = controller.nudgePrompt,
-                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                                    text = "Take a breath. Refocus?",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
                                     color = Color.White,
                                     textAlign = TextAlign.Center
                                 )
@@ -463,17 +544,17 @@ private fun SpiritInteractionLayer(
                                     Button(
                                         onClick = {
                                             controller.onNudgeAccepted()
-                                            reaction(PetEmotion.HAPPY, ParticleType.SPARKLE, "Let's do this! ✨", 2000L)
+                                            reaction(PetEmotion.HAPPY, ParticleType.SPARKLE, "Let's focus! ✨", 2000L)
                                         },
                                         colors = ButtonDefaults.buttonColors(
                                             containerColor = Color(0xFF7AD656),
                                             contentColor = Color(0xFF121417)
                                         ),
-                                        shape = RoundedCornerShape(10.dp),
-                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-                                        modifier = Modifier.height(28.dp)
+                                        shape = RoundedCornerShape(12.dp),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
+                                        modifier = Modifier.height(30.dp)
                                     ) {
-                                        Text("Refocus", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        Text("Refocus Now", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                     }
                                     OutlinedButton(
                                         onClick = { controller.onNudgeDismissed() },
@@ -481,11 +562,11 @@ private fun SpiritInteractionLayer(
                                             contentColor = Color(0xFFE2E8F0)
                                         ),
                                         border = BorderStroke(1.dp, Color(0xFF4A5568)),
-                                        shape = RoundedCornerShape(10.dp),
+                                        shape = RoundedCornerShape(12.dp),
                                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                        modifier = Modifier.height(28.dp)
+                                        modifier = Modifier.height(30.dp)
                                     ) {
-                                        Text("Dismiss ✕", fontSize = 11.sp)
+                                        Text("✕", fontSize = 11.sp)
                                     }
                                 }
                             }
