@@ -135,3 +135,17 @@ Findings: ActivityWatch integration VERIFIED in main/laptopCore.ts and adapters/
 
 Next: review the episode-entry interpretation, complete M1 review, then M2 movement with its mandatory owner stop. No visible movement or reaction behavior was changed by this M1 foundation.
 Final restored rerun: tests 8, pass 8, fail 0, skipped 0; duration_ms 188.5393. git diff --check exit 0.
+
+## Pip v2 smooth intervention update
+
+Owner requested a faster four-stage loop and smoother movement on 2026-10-30. This explicit direction supersedes M0's assumed 60 s / 3 min / 8 min intervention defaults. Qualifying distraction still requires recent work, healthy fresh input, and the existing quiet-hours, break, snooze, DND, gaming and declared-focus suppressors. L1 is immediate gaze, L2 starts at 5 s with an edge peek and micro-actions, L3 starts at 12 s with a spring walk-in, and the existing long L4 remains for planned feature continuity. Animation uses a 16 ms window spring loop and renderer knock/landing animations; drag polling is 16 ms and setIgnoreMouseEvents is called only on transitions. Accept/focus return to the edge and briefly celebrate. Numeric shown/accepted/dismissed counters are logged without category or content. Dragging a nudge away within 4 s dismisses it. After at least five nudges, dismissed > accepted and dismissed/shown > 0.60 multiplies future thresholds and cooldowns by 1.5. This is an adaptive heuristic; no focus-improvement claim is made.
+
+The dev-only DHYAN_DEV_PET_LEVEL=1..4 switch renders a visibly marked synthetic reaction without changing real counters. It is disabled in packaged builds. Desktop window layering, fullscreen behavior, mixed DPI and user-perceived smoothness still need owner observation on target. Existing single-screen pointer drag was observed earlier; the new spring loop is validated by pure spring tests and build, not by a measured final Windows frame-cadence run.
+
+Verification in this session after the fast intervention update:
+- `npm run typecheck --prefix laptop`: exit 0 (`tsc --noEmit`).
+- `npm test --prefix laptop`: tests 102, pass 102, fail 0, skipped 0, duration_ms 3675.8783.
+- `npm run build --prefix laptop`: exit 0; main/preload/renderer compiled, renderer built in 973ms.
+- `npm run checks`: schema-sync PASS 1.1.0, twin-purity PASS 453, no-persona-imports PASS 465.
+- `git diff --check`: exit 0 (line-ending warnings only).
+- Windows UI: a dev-only Stage 3 simulation was launched and visually showed the pink surprised pet, the pill bubble, Refocus Now/Break/Dismiss actions, and the DEV SIMULATION marker. This confirms visible rendering, not a measured animation frame cadence or real-data trigger. Physical mixed-DPI/fullscreen/click-through remains pending owner verification.

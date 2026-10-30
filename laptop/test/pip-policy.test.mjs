@@ -9,13 +9,14 @@ const respect={minuteOfDay:720,dayKey:1,breakUntilMs:0,snoozeUntilMs:0,dnd:false
 function episode(){const a=new DistractionAssessor();a.step(evidence(0,{state:'flowing',category:'coding'}));a.step(evidence(1000));return a;}
 function advance(a,end,extra={}){let result;for(let now=2000;now<=end;now+=1000)result=a.step(evidence(now,extra));return result;}
 test('all ladder thresholds occur exactly, including a twenty-minute qualified episode',()=>{
- for(const [duration,level] of [[60000,1],[180000,2],[480000,3],[1200000,4]]){
+ assert.equal(episode().step(evidence(1001)).level,1);
+ for(const [duration,level] of [[5000,2],[12000,3],[1200000,4]]){
   const a=episode();const before=advance(a,duration);assert.equal(before.level,level-1);
   assert.equal(a.step(evidence(duration+1000)).level,level);
  }
 });
 test('watch doubles approved category thresholds; video alone never qualifies',()=>{
- const a=episode();assert.equal(advance(a,120000,{surface:'watch'}).level,0);assert.equal(a.step(evidence(121000,{surface:'watch'})).level,1);
+ const a=episode();assert.equal(advance(a,10000,{surface:'watch'}).level,1);assert.equal(a.step(evidence(11000,{surface:'watch'})).level,2);
  assert.equal(advance(episode(),181000,{category:'video',surface:'watch'}).level,0);
  assert.equal(advance(new DistractionAssessor(),181000).level,0);
 });
@@ -49,11 +50,11 @@ test('cooldown boundaries, hourly cap, daily cap and once-per-episode level four
  assert.equal(day.decide(assessment(4,21),evidence(21*3600000),respect).reason,'budget');
  assert.equal(day.decide(assessment(4,21),evidence(22*3600000),{...respect,dayKey:2}).showBubble,true);
 });
-test('dismissal suppresses category/surface, adapts thresholds and three dismissals pause',()=>{
- const l=new EscalationLadder();for(let i=0;i<3;i++){const category=['social','news','shopping'][i];const now=i*600000;l.decide(assessment(),evidence(now,{category}),respect);l.feedback('dismissed',1,2,category,'feed',now);}
- assert.equal(l.thresholdMultiplier(),1.5);assert.equal(l.decide(assessment(3),evidence(1200001,{category:'short_video'}),respect).reason,'snoozed');
+test('adaptive threshold requires five nudges and over sixty percent dismissals',()=>{
+ const l=new EscalationLadder();for(let i=0;i<5;i++){const category=['social','news','shopping','short_video','social'][i];const now=i*3600000;l.decide(assessment(),evidence(now,{category}),respect);l.feedback(i===2?'accepted':'dismissed',1,2,category,'feed',now);if(i<4)assert.equal(l.thresholdMultiplier(),1);}
+ assert.equal(l.thresholdMultiplier(),1.5);
  assert.ok(l.counters.every(row=>Object.values(row).every(value=>typeof value==='number')));
- const a=episode();advance(a,60000);assert.equal(a.step(evidence(61000),1.5).level,0);
+ const a=episode();advance(a,6000);assert.equal(a.step(evidence(7000),1.5).level,1);
 });
 test('seeded copy is reproducible, has no adjacent repeats and honors reduced text',()=>{
  const a=new BubblePolicy(42),b=new BubblePolicy(42);let previous;

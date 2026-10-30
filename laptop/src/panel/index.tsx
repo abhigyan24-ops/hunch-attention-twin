@@ -298,6 +298,9 @@ function App() {
           behavior={unavailable ? null : data?.pet.behavior ?? null}
           speechBubble={unavailable ? 'Data unavailable' : data?.reaction?.message ?? bubble}
           heldCount={unavailable ? null : data?.pet.heldCount ?? null}
+          reactionLevel={data?.reaction?.level ?? 0}
+          celebrating={data?.reaction?.celebrate === true}
+          gaze={data?.reaction?.gaze}
           onClick={() => {
             if (isPanelWindow) {
               setIsMiniHud(false);
@@ -306,8 +309,9 @@ function App() {
             }
           }}
         />
+        {data?.reaction?.level === 2 && data.reaction.message && <div className="pip-actions"><button onClick={() => void window.dhyan.petAction('back')}>Back to task</button><button aria-label="Dismiss nudge" onClick={() => void window.dhyan.petAction('dismiss')}>✕</button></div>}
         {data?.reaction?.level === 4 && data.reaction.message && <div className="pip-actions"><button onClick={() => void window.dhyan.petAction('back')}>Back to task</button><button onClick={() => void window.dhyan.petAction('break15')}>Break 15 min</button><button onClick={() => void window.dhyan.petAction('dismiss')}>Not distracted</button><button onClick={() => void window.dhyan.petAction('focus25')}>Focus 25 min</button></div>}
-        {data?.reaction?.level === 3 && data.reaction.message && <div className="pip-actions"><button onClick={() => void window.dhyan.petAction('back')}>Back to task</button><button onClick={() => void window.dhyan.petAction('break15')}>Break 15 min</button><button onClick={() => void window.dhyan.petAction('dismiss')}>Not distracted</button></div>}
+        {data?.reaction?.level === 3 && data.reaction.message && <div className="pip-actions"><button onClick={() => void window.dhyan.petAction('back')}>Refocus Now</button><button onClick={() => void window.dhyan.petAction('break15')}>Break 15 min</button><button onClick={() => void window.dhyan.petAction('dismiss')}>Not distracted</button></div>}
         {data?.demo && <small style={{ display: 'block', textAlign: 'center', fontSize: '9px' }}>DEV SIMULATION</small>}
       </div>
     );

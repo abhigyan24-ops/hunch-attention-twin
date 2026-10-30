@@ -6,14 +6,24 @@ export function PipCompanion({
   behavior,
   speechBubble,
   heldCount,
+  reactionLevel = 0,
+  celebrating = false,
+  gaze,
   onClick
 }: {
   behavior: PipBehavior | null;
   speechBubble: string | null;
   heldCount: number | null;
+  reactionLevel?: number;
+  celebrating?: boolean;
+  gaze?: {x:number;y:number};
   onClick: () => void;
 }) {
   const emotion: SpiritEmotion = (() => {
+    if(celebrating)return 'HAPPY';
+    if(reactionLevel>=4)return 'POUTING';
+    if(reactionLevel>=3)return 'SURPRISED';
+    if(reactionLevel===1)return 'FOCUSED';
     switch (behavior) {
       case 'deep_focus':
         return 'FOCUSED';
@@ -31,7 +41,7 @@ export function PipCompanion({
   })();
 
   return (
-    <div className="pip-container" data-behavior={behavior ?? 'neutral'}>
+    <div className="pip-container" data-behavior={behavior ?? 'neutral'} data-level={reactionLevel}>
       {speechBubble && (
         <p className="pip-bubble" aria-live="polite">
           {speechBubble}
@@ -43,7 +53,7 @@ export function PipCompanion({
         onClick={onClick}
         style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}
       >
-        <CloudSpiritCanvas emotion={emotion} width={130} height={105} />
+        <CloudSpiritCanvas emotion={emotion} gaze={gaze} width={130} height={105} />
       </button>
       {heldCount !== null && heldCount > 0 && (
         <span className="held-badge">{heldCount} held</span>

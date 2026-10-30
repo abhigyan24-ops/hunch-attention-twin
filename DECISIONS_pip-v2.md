@@ -29,3 +29,7 @@ Windows input behavior, multi-monitor operation and product idle CPU remain UNKN
 Owner approved the proposed defaults in chat on this continuation: P-1–P-7, declared-focus suppression, approved-category-only watch evidence and gaps without dwell accumulation. Implementation scope extensions remain pending.
 
 New explicit interpretation pending review: qualify recent work at episode entry, then retain it through continuous distraction. This permits L4 at 20 minutes despite the 15-minute lookback. The pure policy currently uses this interpretation, with no runtime wiring. Do not mark M1 accepted until reviewed.
+
+## Owner direction: faster intervention loop
+
+The owner's latest request explicitly sets L1 at 0–5 s, L2 after 5 s, and L3 after 12 s of qualifying distraction. This supersedes the earlier assumed 60 s / 3 min / 8 min values. L4 at 20 min remains as an existing planned feature. The phrase “1.5× cooldown” is applied to both future dwell thresholds and cooldowns after at least five nudges with dismissals above 60% and above acceptances. All measurements remain raw numeric counts, with no efficacy conclusion. This interpretation is documented because the phrase combined threshold and cooldown language.

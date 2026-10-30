@@ -79,7 +79,11 @@ body {
   text-align: center;
   position: relative;
 }
-.pip-actions{display:flex;flex-wrap:wrap;gap:3px;justify-content:center;max-width:170px}.pip-actions button{font-size:9px;padding:3px;border-radius:7px;border:1px solid var(--dhyan-border);background:var(--dhyan-card);color:var(--dhyan-text-main)}
+.pip-actions{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;max-width:170px}.pip-actions button{font-size:11px;padding:5px 7px;border-radius:9px;border:1px solid var(--dhyan-border);background:var(--dhyan-card);color:var(--dhyan-text-main);cursor:pointer}
+.pip-container[data-level="2"] .pip-avatar{animation:pip-knock .45s ease-out 2}.pip-container[data-level="3"] .pip-avatar,.pip-container[data-level="4"] .pip-avatar{animation:pip-land .55s cubic-bezier(.2,1.4,.4,1)}
+@keyframes pip-knock{0%,100%{transform:translateY(0)}45%{transform:translateY(-9px)}}
+@keyframes pip-land{0%{transform:translateY(-15px) scale(.92,1.1)}65%{transform:translateY(2px) scale(1.12,.88)}100%{transform:none}}
+@media(prefers-reduced-motion:reduce){.pip-container[data-level] .pip-avatar{animation:none}}
 
 .pip-bubble {
   font-size: 11px;
