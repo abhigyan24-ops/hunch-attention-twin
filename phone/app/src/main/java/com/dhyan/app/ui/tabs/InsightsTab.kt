@@ -11,6 +11,7 @@ import androidx.compose.ui.unit.dp
 import com.dhyan.app.data.DhyanDatabase
 import com.dhyan.app.ui.model.DhyanStateHolder
 import com.dhyan.app.ui.viewmodel.InsightsViewModel
+import com.dhyan.app.ui.components.*
 
 @Composable
 fun InsightsTab(stateHolder: DhyanStateHolder? = null, modifier: Modifier = Modifier) {
@@ -29,15 +30,37 @@ fun InsightsTab(viewModel: InsightsViewModel, modifier: Modifier = Modifier) {
         Text("Your attention,\nover time.", style = MaterialTheme.typography.headlineLarge)
         Text("Patterns need evidence. Only recorded counts are shown here.",
             style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
-            Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("${state.totalDecisions}", style = MaterialTheme.typography.displayLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer)
-                Text("Recorded decisions", style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer)
-                Text(if (state.totalDecisions == 0) "No decisions recorded yet." else "Stored totals across available history.",
-                    color = MaterialTheme.colorScheme.onPrimaryContainer)
+        PastelSquircleCard(tone = PastelTone.SAGE) {
+            StatusPillBadge("Recorded · available history")
+            Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text("${state.totalDecisions}", style = MaterialTheme.typography.displayLarge)
+                    Text("Recorded decisions", style = MaterialTheme.typography.titleMedium)
+                }
+                RecordedShareRing(state.allowCount, state.totalDecisions, "Allowed")
             }
+            Text(if (state.totalDecisions == 0) "No decisions recorded yet." else "Stored totals across available history.",
+                style = MaterialTheme.typography.bodySmall)
+        }
+        PastelSquircleCard {
+            Text("Action mix", style = MaterialTheme.typography.titleLarge)
+            Text("Recorded counts · not a time series", style = MaterialTheme.typography.bodySmall)
+            RoundedBarChart(listOf(ChartBar("Allowed", state.allowCount.toFloat()),
+                ChartBar("Delayed", state.delayCount.toFloat()), ChartBar("Digest", state.digestCount.toFloat()),
+                ChartBar("Silent", state.silentCount.toFloat())))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            MiniSparklineCard("Released", state.releasedCount.toString(), emptyList(),
+                Modifier.weight(1f), PastelTone.LAVENDER)
+            MiniSparklineCard("Failed open", state.failedOpenCount.toString(), emptyList(),
+                Modifier.weight(1f), PastelTone.SAND)
+        }
+        PastelSquircleCard {
+            Text("Today in your week", style = MaterialTheme.typography.titleMedium)
+            CalendarDayStrip(java.time.LocalDate.now().dayOfWeek)
+            Text("Calendar only · daily activity history is unavailable", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         InsightDisclosure("Decision breakdown", "Recorded actions and outcomes") {
             CountLine("Allowed", state.allowCount)

@@ -11,6 +11,7 @@ import androidx.compose.ui.unit.dp
 import com.dhyan.app.ui.model.DhyanStateHolder
 import com.dhyan.app.ui.settings.SettingsBottomSheet
 import com.dhyan.app.ui.tabs.*
+import com.dhyan.app.ui.components.FloatingCapsuleNavBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,7 +54,6 @@ fun DhyanMainScreen(stateHolder: DhyanStateHolder? = null) {
     val live = remember(provider) { provider[com.dhyan.app.ui.viewmodel.LiveDigestViewModel::class.java] }
     val insights = remember(provider) { provider[com.dhyan.app.ui.viewmodel.InsightsViewModel::class.java] }
     val settings = remember(provider) { provider[com.dhyan.app.ui.viewmodel.SettingsViewModel::class.java] }
-    val labels = listOf("Simulate", "Live", "Insights")
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -70,15 +70,9 @@ fun DhyanMainScreen(stateHolder: DhyanStateHolder? = null) {
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
-                labels.forEachIndexed { index, label ->
-                    NavigationBarItem(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        icon = { DestinationMark(index) },
-                        label = { Text(label) }
-                    )
-                }
+            Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp),
+                contentAlignment = androidx.compose.ui.Alignment.Center) {
+                FloatingCapsuleNavBar(selectedTab, { selectedTab = it })
             }
         }
     ) { insets ->

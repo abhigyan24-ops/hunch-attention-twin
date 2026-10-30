@@ -7,6 +7,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.*
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.dhyan.app.ui.components.*
 import com.dhyan.app.ui.model.*
@@ -27,9 +29,15 @@ fun SimulateTab(viewModel: SimulateViewModel, modifier: Modifier = Modifier) {
     var advanced by rememberSaveable { mutableStateOf(false) }
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)) {
-        Text("Make room\nfor focus.", style = MaterialTheme.typography.headlineLarge)
-        Text("Explore how an interruption could change your next few minutes.",
-            style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        PastelSquircleCard(tone = PastelTone.SAGE) {
+            StatusPillBadge("Synthetic sandbox")
+            Text(androidx.compose.ui.text.buildAnnotatedString {
+                append("one. two.\n")
+                pushStyle(androidx.compose.ui.text.SpanStyle(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold))
+                append("focus."); pop()
+            }, style = MaterialTheme.typography.headlineLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Light))
+            Text("Explore an interruption before it happens.", style = MaterialTheme.typography.bodyLarge)
+        }
         SimCard("A safe place to experiment") {
             Text("Synthetic personas · in-memory simulation. This does not change your live notifications.",
                 style = MaterialTheme.typography.bodyMedium)
@@ -54,13 +62,25 @@ fun SimulateTab(viewModel: SimulateViewModel, modifier: Modifier = Modifier) {
         }
         SimCard("Your context") {
             Text("Primary task", style = MaterialTheme.typography.titleSmall)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("Coding", "Studying", "Writing", "Gaming", "Browsing").forEach { task ->
-                    ContextChip(task, state.taskType.equals(task, true), { viewModel.setTask(task.lowercase()) })
+            listOf("Coding", "Studying", "Writing", "Gaming", "Browsing").chunked(2).forEachIndexed { row, tasks ->
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    tasks.forEachIndexed { column, task ->
+                        Surface(onClick = { viewModel.setTask(task.lowercase()) },
+                            modifier = Modifier.weight(1f).testTag("task-${task.lowercase()}").semantics {
+                                selected = state.taskType.equals(task, true)
+                                role = Role.RadioButton
+                            }, shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+                            color = pastelSurface(listOf(PastelTone.SAGE, PastelTone.LAVENDER, PastelTone.SAND, PastelTone.SKY)[(row * 2 + column) % 4]),
+                            border = androidx.compose.foundation.BorderStroke(if (state.taskType.equals(task, true)) 2.dp else 0.dp,
+                                if (state.taskType.equals(task, true)) MaterialTheme.colorScheme.onSurface else androidx.compose.ui.graphics.Color.Transparent)) {
+                            Text(task, Modifier.padding(20.dp), style = MaterialTheme.typography.titleMedium)
+                        }
+                    }
                 }
             }
-            Text(String.format(Locale.US, "Hours worked today · %.1f h", state.hoursWorked),
-                style = MaterialTheme.typography.titleSmall)
+            SemicircularTickDial(state.hoursWorked.toFloat(), 0f..10f,
+                String.format(Locale.US, "%.1f", state.hoursWorked), "hours worked today",
+                onValueChange = { viewModel.setHoursWorked(it.toDouble()) })
             Slider(state.hoursWorked.toFloat(), { viewModel.setHoursWorked(it.toDouble()) }, valueRange = 0f..10f)
             Text("Fatigue uses neutral switch-rate and stall inputs in this sandbox.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -132,10 +152,8 @@ fun SimulateTab(viewModel: SimulateViewModel, modifier: Modifier = Modifier) {
 
 @Composable
 private fun SimCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-        Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(title, style = MaterialTheme.typography.titleLarge)
-            content()
-        }
+    PastelSquircleCard {
+        Text(title, style = MaterialTheme.typography.titleLarge)
+        content()
     }
 }

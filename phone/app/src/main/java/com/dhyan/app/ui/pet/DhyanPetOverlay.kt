@@ -71,12 +71,15 @@ fun DhyanPetOverlay(
     val direction = LocalLayoutDirection.current
     val petSizePx by rememberUpdatedState(with(density) { 96.dp.toPx() })
     val safe = WindowInsets.safeDrawing
-    // Keep the pet clear of Dhyan's default 64.dp header and 80.dp navigation.
+    // Include the floating capsule's outer margins and larger-text height.
     val left = safe.getLeft(density, direction).toFloat().coerceAtMost(hostSize.width.toFloat())
     val right = (hostSize.width - safe.getRight(density, direction)).toFloat().coerceAtLeast(left)
     val top = (safe.getTop(density) + with(density) { 64.dp.roundToPx() })
         .toFloat().coerceAtMost(hostSize.height.toFloat())
-    val bottom = (hostSize.height - safe.getBottom(density) - with(density) { 80.dp.roundToPx() })
+    val navigationReserve = with(density) {
+        (104.dp + 20.dp * (fontScale - 1f).coerceAtLeast(0f)).roundToPx()
+    }
+    val bottom = (hostSize.height - safe.getBottom(density) - navigationReserve)
         .toFloat().coerceAtLeast(top)
     val viewport by rememberUpdatedState(Rect(left, top, right, bottom))
 

@@ -14,6 +14,7 @@ import com.dhyan.app.actuator.digest.AndroidDigestPoster
 import com.dhyan.app.data.DhyanDatabase
 import com.dhyan.app.twin.decision.PolicyMode
 import com.dhyan.app.ui.components.ContextChip
+import com.dhyan.app.ui.components.*
 import com.dhyan.app.ui.model.DhyanStateHolder
 import com.dhyan.app.ui.viewmodel.SettingsViewModel
 import java.util.Locale
@@ -67,6 +68,8 @@ fun SettingsBottomSheet(viewModel: SettingsViewModel, onDismiss: () -> Unit) {
             }
             SettingsCard("Digest rhythm") {
                 Text("Release interval · ${state.settings.digestIntervalMin} min", style = MaterialTheme.typography.bodyMedium)
+                Text("${state.settings.digestIntervalMin}", style = MaterialTheme.typography.displayLarge)
+                Text("minutes between digest releases", style = MaterialTheme.typography.bodySmall)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     (listOf(15, 30, 45, 60, com.dhyan.app.twin.decision.PolicyDefaults.DIGEST_INTERVAL_MIN) +
                         state.settings.digestIntervalMin).distinct().sorted().forEach { minutes ->
@@ -134,6 +137,8 @@ fun CrossDeviceSyncSection(viewModel: SettingsViewModel) {
         confirmButton = { TextButton(onClick = { viewModel.unpair(); unpair = false }) { Text("Unpair") } },
         dismissButton = { TextButton(onClick = { unpair = false }) { Text("Cancel") } })
     SettingsCard("Laptop companion") {
+        StatusPillBadge(if (status is SyncUiStatus.Connected) "Connected" else "Laptop sync",
+            active = status is SyncUiStatus.Connected)
         Text(status.description(), style = MaterialTheme.typography.bodyLarge)
         val sas = status as? SyncUiStatus.SasVerification
         if (sas != null) {
@@ -153,7 +158,7 @@ fun CrossDeviceSyncSection(viewModel: SettingsViewModel) {
                 modifier = Modifier.fillMaxWidth(), singleLine = true)
             OutlinedTextField(code, { if (it.length <= 6) code = it.uppercase(Locale.ROOT) },
                 label = { Text("Six-character pairing code") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-            Button(enabled = code.length == 6 && url.isNotBlank(),
+            Button(modifier = Modifier.fillMaxWidth(), enabled = code.length == 6 && url.isNotBlank(),
                 onClick = { viewModel.startPairing(code.trim(), url.trim()); code = "" }) { Text("Pair laptop") }
         }
         if (paired) TextButton(onClick = { unpair = true }) { Text("Unpair laptop") }
@@ -188,10 +193,8 @@ private fun SettingSwitch(title: String, description: String, checked: Boolean, 
 
 @Composable
 private fun SettingsCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-        Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(title, style = MaterialTheme.typography.titleLarge)
-            content()
-        }
+    PastelSquircleCard {
+        Text(title, style = MaterialTheme.typography.titleLarge)
+        content()
     }
 }
