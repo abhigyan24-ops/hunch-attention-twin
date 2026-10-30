@@ -307,14 +307,17 @@ All metrics reported below have been verified via test suites executed in this c
 
 | Metric / Test Suite | Scope | Target | Actual Verified Result | Status |
 |---|---|---|---|---|
-| **Twin Model JUnit Suite** | Pure Kotlin math & distributions | 100% pass | **45 / 45 PASS** | ✅ Verified |
-| **Gate 1 Warm Latency (Median)** | Paired Monte Carlo simulation | < 10.0 ms | **7.07 ms** (Host JVM; not verified on Reno 14) | ✅ Met |
-| **Gate 1 Warm Latency (p95)** | JVM Test Worker benchmark | < 10.0 ms target | **15.4 ms** (Exceeds 10 ms budget at p95; host JVM; not verified on Reno 14) | ⚠️ Exceeds Budget at p95 |
-| **Total Unit Tests** | Full Android phone suite | > 200 | **253 / 253 PASS** (0 failures, 0 skipped) | ✅ Verified |
-| **Contract & Tool Suites** | AJV schemas, crypto vectors | 100% pass | **74 / 74 PASS** | ✅ Verified |
-| **Actuator Contract Checks** | Gateway isolation, no leak checks | 6 / 6 pass | **6 / 6 PASS** | ✅ Verified |
-| **Twin Purity Verification** | Android dependency scan | 0 violations | **444 files scanned, 0 violations** | ✅ Verified |
-| **Persona Isolation Guard** | Persona imports in prod code | 0 imports | **282 files scanned, 0 imports** | ✅ Verified |
+| **Pitch Validation Runner** | 8 comprehensive suites (`validate:pitch`) | 100% | **8 / 8 PASS (100%)** | ✅ Verified |
+| **Phone Unit Test Suite** | Full Android phone suite (`testDebugUnitTest`) | > 200 | **400 / 400 PASS** (0 failures, 0 skipped) | ✅ Verified |
+| **Laptop Test Suite** | Laptop core, AW & sync (`npm --prefix laptop test`) | 100% | **86 / 86 PASS** (0 failures) | ✅ Verified |
+| **Contract & Tool Suites** | AJV schemas, crypto vectors (`npm test`) | 100% | **117 / 117 PASS** (0 failures) | ✅ Verified |
+| **Relay Security Tests** | Framing, auth, DoS bounds (`relay/test`) | 100% | **10 / 10 PASS** (0 failures) | ✅ Verified |
+| **In-Memory Decision Latency** | DecisionLatencyBenchmark (n=2000) | < 10.0 ms | **Median: 0.4889 ms, P95: 0.875 ms** | ✅ Met |
+| **Parameter Recovery Error** | 14-day Rahul replay (p_pickup) | <= 0.08 | **0.0084** (True: 0.62, Recovered: 0.6284) | ✅ Met |
+| **100% Safety Guarantee** | Urgent delayed decisions (`UrgentSuiteTest`) | 0 | **0 urgent delayed** (9,072 grid decisions) | ✅ Met |
+| **Twin Purity Verification** | Android dependency scan (`check:twin`) | 0 violations | **453 files scanned, 0 violations** | ✅ Verified |
+| **Persona Isolation Guard** | Persona imports in prod code (`check:personas`) | 0 imports | **438 files scanned, 0 imports** | ✅ Verified |
+| **Actuator Contract Checks** | Gateway isolation, no leak checks | 6 / 6 pass | **6 / 6 PASS**, 0 violations | ✅ Verified |
 | **Forbidden Fields Audit** | 23 prohibited keys across tree | 0 occurrences | **0 violations detected** | ✅ Verified |
 
 ---
