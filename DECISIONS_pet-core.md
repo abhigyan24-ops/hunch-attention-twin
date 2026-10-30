@@ -49,3 +49,29 @@ Executed this milestone:
 Executed after every production edit: compile success in 27s, 2m 12s, and the final combined compile/test run below. No new Kotlin warnings; the pre-existing AGP deprecation remains unchanged.
 
 Final command: `gradlew.bat --offline --max-workers=1 :app:compileDebugKotlin :app:compileDebugUnitTestKotlin :app:testDebugUnitTest --tests 'com.dhyan.app.ui.pet.*'` — `BUILD SUCCESSFUL in 7s`, `30 actionable tasks: 5 executed, 25 up-to-date`. JUnit: **31 tests, 0 failures, 0 errors** (11 physics/models, 7 particles, 13 overlay behavior/gesture classifier). Real haptics, touch dispatch, fling feel and renderer performance are **not verified on target**. No APK/full-suite/device/push/merge claim is made.
+
+## Owner-approved QA expansion and live app wiring
+
+The owner explicitly approved Compose UI-test dependencies, AndroidJUnitRunner and MainActivity wiring after the dependency guardrail was raised. Added BOM-managed ui-test-junit4 in androidTest, ui-test-manifest in debug and stable AndroidX runner 1.7.0 in androidTest. No runtime implementation dependency, Kotlin version, Compose BOM, frozen contract or root package change.
+
+MainActivity now wraps the existing DhyanMainScreen inside DhyanPetOverlay and DhyanTheme. Task activity comes from LiveContextHolder's existing fused declared-session source, covering phone declarations as well as eligible laptop declarations. The UI refreshes the existing source while a declaration exists so its own staleness rules remain authoritative; start/duration metadata is checked against the clock at one-second UI granularity. Null, future, expired, non-finite and non-positive declarations cannot manufacture a task. This does not create a meditation timer, alter focus inference, persist a task, or change actuation.
+
+PetEdgeCaseTest adds ten JVM tests for gesture timing boundaries, density/event granularity, jitter, unidirectional drag, invalid dimensions, touch-reset inactivity and reaction expiry. PetSessionBindingTest adds five JVM tests for the live wrapper's explicit-session predicate. The original 31 tests remain unchanged. Fresh expanded JVM run: BUILD SUCCESSFUL in 41s; 46 pet tests, 0 failures.
+
+PetOverlayComposeTest adds eight real Compose tests using pointer injection and explicit test-clock advancement: child Initial-pass consumption/button click, scrolling, head rub without displacement, idle sleep, underlying-touch wake, task suppression, pet-only consumption, and minimize/restore. Semantic click/scroll shortcuts are deliberately not used for pass-through tests. Instrumentation source compiled successfully in 38s. Device results are recorded only after execution below.
+
+Command reference and scenario coverage are in phone/PET_TESTING.md. Tests will target only a newly launched read-only emulator; the physical phone, cloud relay, and Antigravity's worktrees remain untouched. Earlier milestone-only verification limits above are historical, not substituted for the new QA run.
+
+Executed QA results:
+
+- Full JVM regression command `:app:testDebugUnitTest --continue` (alongside APK assembly) executed 381 tests: 1 failure, 0 errors. Existing unchanged `Stage4BParameterRecoveryTest.rahulFourteenDayReplayRecoversPickupProbWithinEightPercent` reports 0.7247279352031226 outside [0.54, 0.7]; error 0.10472793520312262 exceeds 0.08. No model, threshold or twin code was changed to hide this failure.
+- Debug app APK assembled. Offline test APK packaging needed uncached transitive test artifacts; online `:app:assembleDebugAndroidTest` succeeded: `BUILD SUCCESSFUL in 2m 46s`, `55 actionable tasks: 7 executed, 48 up-to-date`.
+- First `connectedDebugAndroidTest` attempt stalled during severe emulator System UI ANRs and was stopped. Its failed Gradle result is not a test pass. No physical device was selected.
+- Disposable Pixel_8a API 34 retry, emulator-5580, four cores and smaller 480x960 framebuffer: direct `adb -s emulator-5580 shell am instrument -w -r -e package com.dhyan.app.ui.pet com.dhyan.app.test/androidx.test.runner.AndroidJUnitRunner` completed with `Time: 215.028`, `OK (8 tests)`, `INSTRUMENTATION_CODE: -1`. All eight tests reported success status 0. This verifies real Compose dispatch on the emulator; it is not a successful Gradle connected-task claim.
+- MainActivity was launched on that emulator; screenshot pet-qa-app.png shows the actual root screen with the companion. Initial emulator launch attempts were delayed by System UI ANRs. No claim about target performance follows from the screenshot.
+- `npm run checks`: schema-sync PASS (1.1.0), twin-purity PASS (453 files), no-persona-imports PASS (401 files).
+- Final compile retry requires ANDROID_HOME because this worktree has no local.properties. An initial invocation without SDK configuration failed before compilation; rerun uses this machine's installed SDK. Final result is recorded below after completion.
+
+Artifacts/logs are under the external CX6-phone-review artifact folder: pet-qa-build-unit.log, pet-qa-test-apk-online.log, pet-qa-instrumented.log, pet-qa-instrumented-retry.log, pet-qa-app.png and Dhyan-spirit-debug.apk. The temporary emulator was shut down after testing. Physical Reno 14, real haptics, battery usage and hardware refresh rate remain **not verified on target**.
+
+Final SDK-configured command: `gradlew.bat --offline --max-workers=1 :app:compileDebugKotlin :app:testDebugUnitTest --tests 'com.dhyan.app.ui.pet.*'` — `BUILD SUCCESSFUL in 4m 6s`, `30 actionable tasks: 5 executed, 25 up-to-date`. JUnit XML: 46 tests, 0 failures, 0 errors. No new Kotlin warning; the existing AGP source-set deprecation remains. Only feature-branch changes; no push or merge.

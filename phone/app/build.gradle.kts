@@ -12,6 +12,7 @@ android {
   targetSdk = 37
   versionCode = 1
   versionName = "0.1.0"
+  testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   // Export Room schemas for migration verification
   ksp {
    arg("room.schemaLocation", "$projectDir/schemas")
@@ -71,6 +72,10 @@ dependencies {
  implementation(libs.compose.material3)
  implementation("androidx.compose.ui:ui-tooling-preview")
  debugImplementation("androidx.compose.ui:ui-tooling")
+ debugImplementation(libs.compose.ui.test.manifest)
+ androidTestImplementation(platform(libs.compose.bom))
+ androidTestImplementation(libs.compose.ui.test.junit4)
+ androidTestImplementation(libs.android.test.runner)
  implementation(libs.activity.compose)
  implementation(libs.room.runtime)
  implementation(libs.room.ktx)

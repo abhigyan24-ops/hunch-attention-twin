@@ -47,10 +47,9 @@ import kotlin.random.Random
  * MainActivity integration (inside setContent):
  *     DhyanTheme { DhyanPetOverlay { DhyanMainScreen() } }
  *
- * For task-aware presentation, collect the existing SettingsViewModel
- * activeDeclaredSession in DhyanMainScreen and pass (activeTask != null) while
- * wrapping its Scaffold. Simulator personas are not active tasks or meditation.
- * This file does not alter MainActivity or create a timer/session source.
+ * MainActivity binds isTaskActive to the existing fused declared session,
+ * including its start/expiry checks. Simulator personas are not active tasks
+ * or meditation. This overlay does not create a timer/session source.
  *
  * Observation applies to this Compose subtree. Native dialogs have their own
  * window and retain priority over this in-app pet.
