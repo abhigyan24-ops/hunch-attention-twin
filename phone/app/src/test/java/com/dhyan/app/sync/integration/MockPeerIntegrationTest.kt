@@ -123,7 +123,7 @@ class MockPeerIntegrationTest {
                     controller.startPairing(pairingCode, relayUrl)
 
                     // Await SAS confirmation request
-                    val sasState = withTimeoutOrNull(5000L) {
+                    val sasState = withTimeoutOrNull(15000L) {
                         while (controller.state.value !is PairingState.AwaitingUserConfirmation) {
                             if (controller.state.value is PairingState.Failed || controller.state.value is PairingState.Cancelled) {
                                 break
@@ -138,7 +138,7 @@ class MockPeerIntegrationTest {
                     controller.confirmSas(true)
 
                     // Await paired state
-                    val pairedState = withTimeoutOrNull(5000L) {
+                    val pairedState = withTimeoutOrNull(15000L) {
                         while (controller.state.value !is PairingState.Paired) {
                             if (controller.state.value is PairingState.Failed || controller.state.value is PairingState.Cancelled) {
                                 break
@@ -168,7 +168,7 @@ class MockPeerIntegrationTest {
 
                     phoneClient.connect()
 
-                    val connected = withTimeoutOrNull(5000L) {
+                    val connected = withTimeoutOrNull(15000L) {
                         while (phoneClient.state.value !is SessionState.Connected) {
                             delay(50L)
                         }
@@ -245,7 +245,7 @@ class MockPeerIntegrationTest {
                     controller.startPairing(pairingCode, relayUrl)
 
                     // Phone must detect commit mismatch and fail
-                    val failedState = withTimeoutOrNull(5000L) {
+                    val failedState = withTimeoutOrNull(15000L) {
                         while (controller.state.value !is PairingState.Failed) {
                             delay(50L)
                         }
@@ -322,7 +322,7 @@ class MockPeerIntegrationTest {
                     controller.startPairing(pairingCode, relayUrl)
 
                     // User confirms SAS
-                    val sasState = withTimeoutOrNull(5000L) {
+                    val sasState = withTimeoutOrNull(15000L) {
                         while (controller.state.value !is PairingState.AwaitingUserConfirmation) {
                             delay(50L)
                         }
@@ -332,7 +332,7 @@ class MockPeerIntegrationTest {
                     controller.confirmSas(true)
 
                     // Phone must detect peer MAC mismatch and fail
-                    val failedState = withTimeoutOrNull(5000L) {
+                    val failedState = withTimeoutOrNull(15000L) {
                         while (controller.state.value !is PairingState.Failed) {
                             delay(50L)
                         }

@@ -47,5 +47,39 @@ class FocusShieldTest {
         A11yCollector.doomscrollBrakeEnabled = false
         assertFalse(A11yCollector.doomscrollBrakeEnabled)
         A11yCollector.doomscrollBrakeEnabled = true
+
+        A11yCollector.bedtimeGuardianEnabled = true
+        assertTrue(A11yCollector.bedtimeGuardianEnabled)
+        A11yCollector.bedtimeGuardianEnabled = false
+        assertFalse(A11yCollector.bedtimeGuardianEnabled)
+        A11yCollector.bedtimeGuardianEnabled = true
+    }
+
+    @Test
+    fun testEssentialWhitelistContainsAuthAndUtilities() {
+        assertTrue(A11yCollector.ESSENTIAL_WHITELIST_PACKAGES.contains("com.google.android.apps.authenticator2"))
+        assertTrue(A11yCollector.ESSENTIAL_WHITELIST_PACKAGES.contains("com.authy.authy"))
+        assertTrue(A11yCollector.ESSENTIAL_WHITELIST_PACKAGES.contains("com.google.android.dialer"))
+        assertTrue(A11yCollector.ESSENTIAL_WHITELIST_PACKAGES.contains("com.google.android.calculator"))
+        assertTrue(A11yCollector.ESSENTIAL_WHITELIST_PACKAGES.contains("com.android.settings"))
+    }
+
+    @Test
+    fun testCustomAllowedPackages() {
+        val custom = setOf("com.slack", "com.notion.id")
+        A11yCollector.customAllowedPackages = custom
+        assertEquals(custom, A11yCollector.customAllowedPackages)
+        A11yCollector.customAllowedPackages = emptySet()
+    }
+
+    @Test
+    fun testStatsCounters() {
+        val initialShielded = A11yCollector.distractionsShieldedCount.get()
+        A11yCollector.distractionsShieldedCount.incrementAndGet()
+        assertEquals(initialShielded + 1, A11yCollector.distractionsShieldedCount.get())
+
+        val initialPrevented = A11yCollector.doomscrollsPreventedCount.get()
+        A11yCollector.doomscrollsPreventedCount.incrementAndGet()
+        assertEquals(initialPrevented + 1, A11yCollector.doomscrollsPreventedCount.get())
     }
 }

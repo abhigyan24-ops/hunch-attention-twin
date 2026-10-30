@@ -84,6 +84,33 @@ class A11yCollector : AccessibilityService() {
         /** User toggle for Doomscroll Brake haptic warnings */
         @Volatile var doomscrollBrakeEnabled: Boolean = true
 
+        /** User toggle for Late-Night Bedtime Guardian (11 PM - 6 AM) */
+        @Volatile var bedtimeGuardianEnabled: Boolean = true
+
+        /** Running count of blocked distractions and doomscroll loops today */
+        val distractionsShieldedCount = AtomicInteger(0)
+        val doomscrollsPreventedCount = AtomicInteger(0)
+
+        /** Essential utility apps that are NEVER restricted (2FA, Phone, Clock, Calculator) */
+        val ESSENTIAL_WHITELIST_PACKAGES = setOf(
+            "com.google.android.dialer",
+            "com.samsung.android.dialer",
+            "com.android.dialer",
+            "com.google.android.apps.authenticator2",
+            "com.authy.authy",
+            "com.azure.authenticator",
+            "com.x8bit.bitwarden",
+            "com.onepassword.android",
+            "com.google.android.calculator",
+            "com.sec.android.app.popupcalculator",
+            "com.google.android.deskclock",
+            "com.sec.android.app.clockpackage",
+            "com.android.settings"
+        )
+
+        /** User-defined whitelisted packages */
+        @Volatile var customAllowedPackages: Set<String> = emptySet()
+
         val RESTRICTED_APP_CATEGORIES = setOf(
             AppCategorizer.Cat.SOCIAL,
             AppCategorizer.Cat.ENTERTAINMENT,
@@ -187,11 +214,25 @@ class A11yCollector : AccessibilityService() {
                     if (activeSession != null && isDistractingSurface && focusShieldEnabled) {
                         if (now > mindfulPauseUntilMs) {
                             recentScrollTimestamps.clear()
+                            doomscrollsPreventedCount.incrementAndGet()
                             interceptDistraction(currentPkg, currentAppCat, activeSession, "doomscroll_detected")
                         }
-                    } else if (doomscrollBrakeEnabled && isDistractingSurface && recentScrollCount >= 12) {
-                        // Gentle Doomscroll Brake haptic pulse when scrolling without active session
-                        triggerDoomscrollHaptic()
+                    } else {
+                        // Bedtime Guardian Check (11 PM - 6 AM)
+                        val cal = java.util.Calendar.getInstance()
+                        val hour = cal.get(java.util.Calendar.HOUR_OF_DAY)
+                        val isLateNight = hour >= 23 || hour < 6
+
+                        if (bedtimeGuardianEnabled && isLateNight && isDistractingSurface && recentScrollCount >= 10) {
+                            if (now > mindfulPauseUntilMs) {
+                                recentScrollTimestamps.clear()
+                                doomscrollsPreventedCount.incrementAndGet()
+                                triggerBedtimeInterception(currentPkg, currentAppCat)
+                            }
+                        } else if (doomscrollBrakeEnabled && isDistractingSurface && recentScrollCount >= 12) {
+                            // Gentle Doomscroll Brake haptic pulse when scrolling without active session
+                            triggerDoomscrollHaptic()
+                        }
                     }
                 }
             }
@@ -201,11 +242,17 @@ class A11yCollector : AccessibilityService() {
     private fun checkAndEnforceFocusShield(pkg: String, appCat: String, surface: String, nowMs: Long) {
         if (!focusShieldEnabled) return
 
+        // Respect essential utilities and custom whitelist
+        if (pkg in ESSENTIAL_WHITELIST_PACKAGES || pkg in customAllowedPackages) {
+            return
+        }
+
         val activeSession = getActiveFocusSession(nowMs) ?: return
         val isRestricted = pkg in RESTRICTED_PACKAGES || appCat in RESTRICTED_APP_CATEGORIES
 
         if (isRestricted) {
             if (nowMs > mindfulPauseUntilMs) {
+                distractionsShieldedCount.incrementAndGet()
                 interceptDistraction(pkg, appCat, activeSession, "app_restricted")
             }
         }
@@ -254,6 +301,26 @@ class A11yCollector : AccessibilityService() {
             putExtra(FocusShieldActivity.EXTRA_REASON, reason)
             putExtra(FocusShieldActivity.EXTRA_TASK_NAME, activeSession.task.wire)
             putExtra(FocusShieldActivity.EXTRA_REMAINING_MIN, remainingMin)
+        }
+        startActivity(shieldIntent)
+    }
+
+    private fun triggerBedtimeInterception(pkg: String, appCat: String) {
+        performGlobalAction(GLOBAL_ACTION_HOME)
+        triggerDoomscrollHaptic()
+
+        val sync = runCatching { DhyanApplication.syncManager }.getOrNull()
+        sync?.contextFuser?.updatePhoneState(
+            phoneState = PhoneState.SCROLLING,
+            phoneAppCat = appCat
+        )
+
+        val shieldIntent = Intent(this, FocusShieldActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            putExtra(FocusShieldActivity.EXTRA_BLOCKED_APP, appCat)
+            putExtra(FocusShieldActivity.EXTRA_REASON, "bedtime_guardian")
+            putExtra(FocusShieldActivity.EXTRA_TASK_NAME, "Sleep")
+            putExtra(FocusShieldActivity.EXTRA_REMAINING_MIN, 0)
         }
         startActivity(shieldIntent)
     }

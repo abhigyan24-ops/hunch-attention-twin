@@ -5,16 +5,23 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -26,11 +33,12 @@ import com.dhyan.app.ui.components.PastelTone
 import com.dhyan.app.ui.components.StatusPillBadge
 import com.dhyan.app.ui.pet.DhyanPetCharacter
 import com.dhyan.app.ui.pet.PetEmotion
-import androidx.compose.ui.geometry.Offset
 import com.dhyan.app.ui.pet.toFacialParams
 import com.dhyan.app.ui.theme.DhyanTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class FocusShieldActivity : ComponentActivity() {
@@ -46,7 +54,7 @@ class FocusShieldActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        val blockedApp = intent.getStringExtra(EXTRA_BLOCKED_APP) ?: "Social Media"
+        val blockedApp = intent.getStringExtra(EXTRA_BLOCKED_APP) ?: "App"
         val reason = intent.getStringExtra(EXTRA_REASON) ?: "app_restricted"
         val taskName = intent.getStringExtra(EXTRA_TASK_NAME) ?: "Focus"
         val remainingMin = intent.getIntExtra(EXTRA_REMAINING_MIN, 25)
@@ -91,6 +99,69 @@ fun FocusShieldContent(
 ) {
     var showEndConfirm by remember { mutableStateOf(false) }
 
+    // Box Breathing State
+    var breathingActive by remember { mutableStateOf(false) }
+    var breathPhase by remember { mutableIntStateOf(0) } // 0: Inhale, 1: Hold, 2: Exhale, 3: Hold
+    var breathSeconds by remember { mutableIntStateOf(4) }
+    var completedCycles by remember { mutableIntStateOf(0) }
+
+    // Intentional 2.5s Press-and-Hold Friction State
+    var holdProgress by remember { mutableFloatStateOf(0f) }
+    var isHolding by remember { mutableStateOf(false) }
+
+    // Box Breathing loop
+    LaunchedEffect(breathingActive) {
+        if (!breathingActive) return@LaunchedEffect
+        while (isActive && breathingActive) {
+            for (sec in 4 downTo 1) {
+                breathSeconds = sec
+                delay(1000L)
+            }
+            breathPhase = (breathPhase + 1) % 4
+            if (breathPhase == 0) {
+                completedCycles++
+            }
+        }
+    }
+
+    // Intentional hold counter loop
+    LaunchedEffect(isHolding) {
+        if (!isHolding) {
+            holdProgress = 0f
+            return@LaunchedEffect
+        }
+        val startTime = System.currentTimeMillis()
+        while (isHolding) {
+            val elapsed = System.currentTimeMillis() - startTime
+            holdProgress = (elapsed / 2500f).coerceIn(0f, 1f)
+            if (holdProgress >= 1f) {
+                onMindfulPause()
+                break
+            }
+            delay(50L)
+        }
+    }
+
+    // Smooth Pet Breathing Scaling
+    val petScale by animateFloatAsState(
+        targetValue = if (!breathingActive) 1f else when (breathPhase) {
+            0 -> 1.32f // Inhale
+            1 -> 1.32f // Hold
+            2 -> 0.82f // Exhale
+            else -> 0.82f // Rest
+        },
+        animationSpec = tween(durationMillis = if (breathingActive) 3800 else 600),
+        label = "petScale"
+    )
+
+    val isBedtime = reason == "bedtime_guardian"
+
+    val currentEmotion = when {
+        isBedtime -> PetEmotion.SLEEPY
+        breathingActive -> PetEmotion.MEDITATING
+        else -> PetEmotion.CURIOUS
+    }
+
     if (showEndConfirm) {
         AlertDialog(
             onDismissRequest = { showEndConfirm = false },
@@ -125,25 +196,25 @@ fun FocusShieldContent(
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
 
-            // 1. Frosted Cloud Spirit Character Stage
+            // 1. Frosted Cloud Spirit Character Stage with Breathing Physics
             Box(
-                modifier = Modifier.size(120.dp),
+                modifier = Modifier.size(130.dp),
                 contentAlignment = Alignment.Center
             ) {
                 DhyanPetCharacter(
-                    emotion = PetEmotion.CURIOUS,
-                    facialParams = PetEmotion.CURIOUS.toFacialParams(false),
+                    emotion = currentEmotion,
+                    facialParams = currentEmotion.toFacialParams(false),
                     isBlinking = false,
-                    lookTarget = Offset(60f, 60f),
-                    petCenter = Offset(60f, 60f),
-                    scaleX = 1f,
-                    scaleY = 1f,
+                    lookTarget = Offset(65f, 65f),
+                    petCenter = Offset(65f, 65f),
+                    scaleX = petScale,
+                    scaleY = petScale,
                     speechBubble = null,
-                    modifier = Modifier.size(120.dp)
+                    modifier = Modifier.size(130.dp)
                 )
             }
 
@@ -152,34 +223,49 @@ fun FocusShieldContent(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = buildAnnotatedString {
-                        append("one. two.\n")
-                        pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                        append("pause."); pop()
-                    },
-                    style = MaterialTheme.typography.displayLarge,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
+                if (isBedtime) {
+                    Text(
+                        text = buildAnnotatedString {
+                            append("time to rest.\n")
+                            pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+                            append("goodnight."); pop()
+                        },
+                        style = MaterialTheme.typography.displayLarge,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                } else {
+                    Text(
+                        text = buildAnnotatedString {
+                            append("one. two.\n")
+                            pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+                            append("pause."); pop()
+                        },
+                        style = MaterialTheme.typography.displayLarge,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
             }
 
             // 3. Bento Shield Card
             PastelSquircleCard(
-                tone = PastelTone.SAGE,
+                tone = if (isBedtime) PastelTone.LAVENDER else PastelTone.SAGE,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                StatusPillBadge("Focus Shield · Active", active = true)
+                StatusPillBadge(
+                    text = if (isBedtime) "Bedtime Guardian · 11 PM - 6 AM" else "Focus Shield · Active",
+                    active = true
+                )
 
-                val title = if (reason == "doomscroll_detected") {
-                    "Doomscroll loop interrupted"
-                } else {
-                    "Attention protected"
+                val title = when (reason) {
+                    "bedtime_guardian" -> "Nighttime doomscroll detected"
+                    "doomscroll_detected" -> "Compulsive loop interrupted"
+                    else -> "Attention protected"
                 }
 
-                val body = if (reason == "doomscroll_detected") {
-                    "Rapid feed or reel scrolling detected on ${blockedApp.replaceFirstChar { it.uppercase() }}. Take a deep breath."
-                } else {
-                    "${blockedApp.replaceFirstChar { it.uppercase() }} is restricted while your ${taskName.replaceFirstChar { it.uppercase() }} session is in progress."
+                val body = when (reason) {
+                    "bedtime_guardian" -> "You have been scrolling late into the night. Close your screen, rest your eyes, and recharge for tomorrow."
+                    "doomscroll_detected" -> "Rapid feed or short-form scrolling detected on ${blockedApp.replaceFirstChar { it.uppercase() }}. Step back for a moment."
+                    else -> "${blockedApp.replaceFirstChar { it.uppercase() }} is restricted while your ${taskName.replaceFirstChar { it.uppercase() }} session is armed."
                 }
 
                 Text(title, style = MaterialTheme.typography.titleLarge)
@@ -193,22 +279,34 @@ fun FocusShieldContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text(
-                            text = "$remainingMin min",
-                            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold)
-                        )
-                        Text(
-                            text = "Remaining in ${taskName.lowercase()} session",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        if (!isBedtime) {
+                            Text(
+                                text = "$remainingMin min",
+                                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold)
+                            )
+                            Text(
+                                text = "Remaining in ${taskName.lowercase()} session",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            Text(
+                                text = "Rest Mode",
+                                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold)
+                            )
+                            Text(
+                                text = "Preserving circadian rhythm",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                     Surface(
                         shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.surface
                     ) {
                         Text(
-                            text = "🛡️ Shielded",
+                            text = if (isBedtime) "🌙 Bedtime" else "🛡️ Shielded",
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                             style = MaterialTheme.typography.labelMedium
                         )
@@ -216,9 +314,71 @@ fun FocusShieldContent(
                 }
             }
 
+            // 4. Interactive Box Breathing Reset Card
+            PastelSquircleCard(
+                tone = PastelTone.SKY,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "🫁 Box Breathing Reset",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Text(
+                            text = if (!breathingActive) {
+                                "Reset dopamine craving with a 16s guided breath"
+                            } else {
+                                when (breathPhase) {
+                                    0 -> "Inhale slowly (${breathSeconds}s)..."
+                                    1 -> "Hold gently (${breathSeconds}s)..."
+                                    2 -> "Exhale smoothly (${breathSeconds}s)..."
+                                    else -> "Rest before next breath (${breathSeconds}s)..."
+                                }
+                            },
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Button(
+                        onClick = {
+                            breathingActive = !breathingActive
+                            if (!breathingActive) {
+                                breathPhase = 0
+                                breathSeconds = 4
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (breathingActive) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = if (breathingActive) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    ) {
+                        Text(if (breathingActive) "Stop" else "Breathe")
+                    }
+                }
+
+                if (breathingActive) {
+                    LinearProgressIndicator(
+                        progress = { (4 - breathSeconds + 1) / 4f },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                    )
+                    Text(
+                        text = "Completed cycles: $completedCycles",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
             Spacer(Modifier.weight(1f))
 
-            // 4. Primary & Secondary Actions
+            // 5. Actions & Friction Controls
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -237,34 +397,57 @@ fun FocusShieldContent(
                     )
                 ) {
                     Text(
-                        text = "Return to Focus",
+                        text = if (isBedtime) "Put Phone Down & Sleep" else "Return to Focus",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                     )
                 }
 
-                // Mindful 1-Min Grace Period
-                OutlinedButton(
-                    onClick = onMindfulPause,
+                // Intentional 2.5s Friction Button ("Need this for work?")
+                Surface(
+                    shape = RoundedCornerShape(25.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp),
-                    shape = RoundedCornerShape(25.dp)
+                        .height(50.dp)
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onPress = {
+                                    isHolding = true
+                                    tryAwaitRelease()
+                                    isHolding = false
+                                }
+                            )
+                        }
                 ) {
-                    Text(
-                        text = "Take 1-Min Mindful Pause",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+                        if (holdProgress > 0f) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .fillMaxWidth(holdProgress)
+                                    .background(Color(0xFF7AD656).copy(alpha = 0.35f))
+                            )
+                        }
+                        Text(
+                            text = if (isHolding) "Hold to unlock 1-min pass (${(2.5f - holdProgress * 2.5f).coerceAtLeast(0.1f).toInt()}s)..." else "Hold for 2.5s to unlock intentional pass",
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                        )
+                    }
                 }
 
                 // Emergency Exit
-                TextButton(
-                    onClick = { showEndConfirm = true }
-                ) {
-                    Text(
-                        text = "End session early",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
+                if (!isBedtime) {
+                    TextButton(
+                        onClick = { showEndConfirm = true }
+                    ) {
+                        Text(
+                            text = "End session early",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
                 }
             }
         }

@@ -93,6 +93,22 @@ fun SettingsBottomSheet(viewModel: SettingsViewModel, onDismiss: () -> Unit) {
                     com.dhyan.app.collectors.A11yCollector.doomscrollBrakeEnabled = it
                 }
 
+                var bedtimeEnabled by remember { mutableStateOf(com.dhyan.app.collectors.A11yCollector.bedtimeGuardianEnabled) }
+                SettingSwitch(
+                    "Bedtime Doomscroll Guardian",
+                    "Detects late night scrolling in bed (11 PM - 6 AM) and gently guides you to sleep.",
+                    bedtimeEnabled
+                ) {
+                    bedtimeEnabled = it
+                    com.dhyan.app.collectors.A11yCollector.bedtimeGuardianEnabled = it
+                }
+
+                Text(
+                    "Essential apps (Phone, 2FA, Clock, Calculator) are never restricted.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
                 if (isA11yOn) {
                     Text("● Accessibility Interceptor Active · Zero screen text or URLs collected",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
