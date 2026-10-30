@@ -23,3 +23,9 @@ All proposals below are ASSUMED, not approvals. No product behavior has changed.
 7. **Delegation:** Referenced DHYAN_NEXT_PROMPTS.md section L is absent. No subagents were used. Signed DD-15 permits at most three disjoint streams; the S1–S4 plan is a scope proposal, not concurrent authorization beyond that limit.
 
 Windows input behavior, multi-monitor operation and product idle CPU remain UNKNOWN / not verified on target. M0 numeric results do not accept P-1 or replace owner testing.
+
+## Owner update and M1 interpretation
+
+Owner approved the proposed defaults in chat on this continuation: P-1–P-7, declared-focus suppression, approved-category-only watch evidence and gaps without dwell accumulation. Implementation scope extensions remain pending.
+
+New explicit interpretation pending review: qualify recent work at episode entry, then retain it through continuous distraction. This permits L4 at 20 minutes despite the 15-minute lookback. The pure policy currently uses this interpretation, with no runtime wiring. Do not mark M1 accepted until reviewed.

@@ -113,3 +113,25 @@ Physical hover/click-through, actual pointer drag, production CPU, cross-display
 ## Questions for owner / next step
 
 Review DECISIONS_pip-v2.md: P-1–P-7, pet-only preload/build-config scope, local break gate, declared-focus precedence, watch qualification and gap behavior. Use appended MANUAL_CHECKS for optional M0 A/B input checks. **STOP after M0** pending owner review; do not start M1 or merge/push this branch.
+
+## M1 progress — owner approval and ActivityWatch verification
+
+Owner approved P-1–P-7 defaults in chat, including declared-focus suppression, watch only in approved distraction categories, and short gaps preserving continuity without contributing dwell. This supersedes those pending entries in DECISIONS_pip-v2.md; preload scope and local break integration remain pending before M2/M3.
+
+Files added: laptop/src/pet/pipPolicy.ts and laptop/test/pip-policy.test.mjs. Pure DistractionAssessor, EscalationLadder and seeded BubblePolicy are implemented independently of runtime wiring. pipConfig is the single implemented policy parameter object; M0 JSON remains historical proposal material. Copy currently uses a shared eight-line pool available to each bubble level; level-specific copy refinement remains before visual integration. Numeric counters remain in memory; persistence is future adapter work.
+
+Assumption requiring review: recent work qualifies entry into a continuous episode and remains attached until reset/recovery. Requiring work in the last 15 minutes on every tick would make the requested 20-minute L4 unreachable. This interpretation is explicit in source and tested; do not treat it as an owner-signed rule yet. Optional leisure check-in remains disabled as documented at M0.
+
+Commands actually run:
+- npm run check:aw --prefix laptop: exit 0; required window and AFK bucket IDs found.
+- node laptop/scripts/live-aw-smoke.mjs: exit 0; categoryCounts={unknown:12}, stateChanges=0. This proves fresh adapter observations during the minute, not a known focus category or currently rendered app state.
+- npm run typecheck --prefix laptop: exit 0, tsc --noEmit.
+- node --test laptop/test/pip-policy.test.mjs: tests 8, pass 8, fail 0.
+- npm test --prefix laptop: tests 94, pass 94, fail 0, cancelled 0, skipped 0, todo 0; duration_ms 6249.2842.
+- npm run build --prefix laptop: exit 0; main 45 modules, preload 1, renderer 30; built in 810ms / 40ms / 2.32s.
+- G8 mutation: changed L1 threshold by 1ms; tests 8, pass 6, fail 2 (exit 1). Restored the original threshold immediately. Final rerun recorded below.
+
+Findings: ActivityWatch integration VERIFIED in main/laptopCore.ts and adapters/AwAdapter.ts; available live window/AFK feeds REPRODUCED. Unknown categorization REPRODUCED in the live smoke; no fabricated focus claim. Threshold regression REPRODUCED by mutation and restored. Runtime visual integration, product performance, real pointer interactions and multi-monitor behavior remain not verified on target.
+
+Next: review the episode-entry interpretation, complete M1 review, then M2 movement with its mandatory owner stop. No visible movement or reaction behavior was changed by this M1 foundation.
+Final restored rerun: tests 8, pass 8, fail 0, skipped 0; duration_ms 188.5393. git diff --check exit 0.
