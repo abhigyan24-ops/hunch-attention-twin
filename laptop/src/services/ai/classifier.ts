@@ -1,4 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
+import fs from 'node:fs';
+import path from 'node:path';
 import type {
   AlignmentKind,
   CascadeTier,
@@ -140,6 +142,40 @@ export async function tryTier1Ollama(
   }
 }
 
+function loadEnvKeys(): { gemini?: string; groq?: string } {
+  const result: { gemini?: string; groq?: string } = {
+    gemini: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY,
+    groq: process.env.GROQ_API_KEY
+  };
+  if (result.gemini && result.groq) return result;
+
+  const candidates = [
+    path.resolve(process.cwd(), '.env'),
+    path.resolve(process.cwd(), 'laptop', '.env'),
+    path.resolve(process.cwd(), '..', '.env')
+  ];
+
+  for (const file of candidates) {
+    try {
+      if (fs.existsSync(file)) {
+        const lines = fs.readFileSync(file, 'utf8').split('\n');
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('#') || !trimmed.includes('=')) continue;
+          const [k, ...rest] = trimmed.split('=');
+          const val = rest.join('=').trim().replace(/^['"]|['"]$/g, '');
+          if (k === 'GEMINI_API_KEY' && !result.gemini) result.gemini = val;
+          if (k === 'GROQ_API_KEY' && !result.groq) result.groq = val;
+        }
+      }
+    } catch {
+      // Ignore read errors
+    }
+    if (result.gemini && result.groq) break;
+  }
+  return result;
+}
+
 /**
  * Tier 2 — Gemini 2.5 Flash-Lite (@google/genai)
  * Secondary multimodal fallback. Supports text metadata and downscaled 480p JPEG buffers.
@@ -148,7 +184,8 @@ export async function tryTier2Gemini(
   input: ScreenSignalInput,
   options?: ClassifierOptions
 ): Promise<RawTierResult | null> {
-  const apiKey = options?.geminiApiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  const envKeys = loadEnvKeys();
+  const apiKey = options?.geminiApiKey !== undefined ? options.geminiApiKey : envKeys.gemini;
   if (!apiKey) return null;
 
   try {
@@ -169,23 +206,30 @@ export async function tryTier2Gemini(
     const timeoutMs = options?.timeoutMs?.gemini ?? 2500;
     const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs));
 
-    const generatePromise = ai.models
-      .generateContent({
-        model: 'gemini-2.5-flash-lite',
-        contents,
-        config: {
-          systemInstruction:
-            'You are the Dhyan AI perception classifier. Classify user activity against their focus goal. Output ONLY valid JSON: {"alignment":"PRODUCTIVE"|"NEUTRAL"|"DISTRACTED"|"ERROR_STUCK","confidence":0.90,"nudgeText":"under 35 chars","reason":"brief"}',
-          responseMimeType: 'application/json'
+    const candidateModels = ['gemini-2.5-flash-lite', 'gemini-3.5-flash-lite', 'gemini-2.5-flash'];
+    const generatePromise = (async () => {
+      for (const model of candidateModels) {
+        try {
+          const res = await ai.models.generateContent({
+            model,
+            contents,
+            config: {
+              systemInstruction:
+                'You are the Dhyan AI perception classifier. Classify user activity against their focus goal. Output ONLY valid JSON: {"alignment":"PRODUCTIVE"|"NEUTRAL"|"DISTRACTED"|"ERROR_STUCK","confidence":0.90,"nudgeText":"under 35 chars","reason":"brief"}',
+              responseMimeType: 'application/json'
+            }
+          });
+          const text = res.text;
+          if (!text) continue;
+          const parsed = parseJsonContent(text);
+          const validated = validateRawTierResult(parsed);
+          if (validated) return validated;
+        } catch {
+          // Fall through to next model candidate if version deprecated
         }
-      })
-      .then((res) => {
-        const text = res.text;
-        if (!text) return null;
-        const parsed = parseJsonContent(text);
-        return validateRawTierResult(parsed);
-      })
-      .catch(() => null);
+      }
+      return null;
+    })();
 
     const winner = await Promise.race([generatePromise, timeoutPromise]);
     return winner;
@@ -202,50 +246,57 @@ export async function tryTier3Groq(
   input: ScreenSignalInput,
   options?: ClassifierOptions
 ): Promise<RawTierResult | null> {
-  const apiKey = options?.groqApiKey || process.env.GROQ_API_KEY;
+  const envKeys = loadEnvKeys();
+  const apiKey = options?.groqApiKey !== undefined ? options.groqApiKey : envKeys.groq;
   if (!apiKey) return null;
 
   const timeoutMs = options?.timeoutMs?.groq ?? 1500;
   const promptText = `Goal: ${input.declaredGoal || 'Unspecified'}\nApp: ${input.app || 'Unknown'}\nTitle: ${input.title || ''}\nCategory: ${input.category || ''}\nVisible snippet: ${(input.visibleText || '').slice(0, 300)}`;
 
-  try {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      signal: AbortSignal.timeout(timeoutMs),
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You are the Dhyan AI perception classifier. Classify user screen activity against their focus goal. Output ONLY valid JSON: {"alignment":"PRODUCTIVE"|"NEUTRAL"|"DISTRACTED"|"ERROR_STUCK","confidence":0.88,"nudgeText":"under 35 chars","reason":"brief"}'
-          },
-          {
-            role: 'user',
-            content: promptText
-          }
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0.1
-      })
-    });
+  const candidateModels = ['llama-3.1-8b-instant', 'qwen/qwen3.8-27b', 'openai/gpt-oss-20b'];
 
-    if (!res.ok) return null;
-    const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    const content = data?.choices?.[0]?.message?.content;
-    if (!content) return null;
+  for (const model of candidateModels) {
+    try {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        signal: AbortSignal.timeout(timeoutMs),
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are the Dhyan AI perception classifier. Classify user screen activity against their focus goal. Output ONLY valid JSON: {"alignment":"PRODUCTIVE"|"NEUTRAL"|"DISTRACTED"|"ERROR_STUCK","confidence":0.88,"nudgeText":"under 35 chars","reason":"brief"}'
+            },
+            {
+              role: 'user',
+              content: promptText
+            }
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.1
+        })
+      });
 
-    const parsed = parseJsonContent(content);
-    return validateRawTierResult(parsed);
-  } catch {
-    return null;
+      if (!res.ok) continue;
+      const data = (await res.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
+      };
+      const content = data?.choices?.[0]?.message?.content;
+      if (!content) continue;
+
+      const parsed = parseJsonContent(content);
+      const validated = validateRawTierResult(parsed);
+      if (validated) return validated;
+    } catch {
+      break;
+    }
   }
+  return null;
 }
 
 /**

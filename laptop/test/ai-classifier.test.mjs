@@ -205,6 +205,8 @@ test('Tier 3 Groq Cloud Free Tier sub-150ms text fallback when Ollama is offline
     12,
     {
       ollamaEndpoint: 'http://127.0.0.1:9999', // offline port
+      geminiApiKey: '', // simulate no gemini
+      groqApiKey: '',   // simulate no groq
       timeoutMs: { ollama: 80 }
     }
   );
@@ -229,6 +231,8 @@ test('4-Tier Waterfall Order (Tier 1 -> Tier 2 -> Tier 3 -> Tier 4) sequence', a
     12,
     {
       ollamaEndpoint: 'http://127.0.0.1:9999',
+      geminiApiKey: '',
+      groqApiKey: '',
       timeoutMs: { ollama: 50, gemini: 50, groq: 50 }
     }
   );
@@ -248,6 +252,8 @@ test('4-Tier Waterfall Order (Tier 1 -> Tier 2 -> Tier 3 -> Tier 4) sequence', a
     12,
     {
       ollamaEndpoint: 'http://127.0.0.1:9999',
+      geminiApiKey: '',
+      groqApiKey: '',
       timeoutMs: { ollama: 50 }
     }
   );
