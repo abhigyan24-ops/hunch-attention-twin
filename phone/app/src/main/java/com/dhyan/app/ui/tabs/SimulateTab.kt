@@ -30,13 +30,13 @@ fun SimulateTab(viewModel: SimulateViewModel, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)) {
         PastelSquircleCard(tone = PastelTone.SAGE) {
-            StatusPillBadge("Synthetic sandbox")
+            StatusPillBadge("Twin Lab · Research Sandbox")
             Text(androidx.compose.ui.text.buildAnnotatedString {
                 append("one. two.\n")
                 pushStyle(androidx.compose.ui.text.SpanStyle(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold))
                 append("focus."); pop()
             }, style = MaterialTheme.typography.headlineLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Light))
-            Text("Explore an interruption before it happens.", style = MaterialTheme.typography.bodyLarge)
+            Text("Interactive attention dynamics and synthetic persona simulations.", style = MaterialTheme.typography.bodyLarge)
         }
         SimCard("A safe place to experiment") {
             Text("Synthetic personas · in-memory simulation. This does not change your live notifications.",
@@ -147,6 +147,7 @@ fun SimulateTab(viewModel: SimulateViewModel, modifier: Modifier = Modifier) {
                     state.simulationResult.updateCount, state.nEff, state.modelVersion, state.priorAlpha, state.priorBeta)
             }
         }
+        Spacer(Modifier.height(84.dp))
     }
 }
 

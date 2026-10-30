@@ -106,7 +106,7 @@ fun DhyanPetOverlay(
                     physicsState.vy = 0f
                 }
                 physicsState.step(dt, viewport.width, viewport.height, petSizePx,
-                    gravityEnabled = !taskActive && !minimized)
+                    gravityEnabled = false)
             }
             particleEmitter.update(dt)
         }
@@ -231,6 +231,8 @@ private fun SpiritInteractionLayer(
                     }.pointerInput(physics, viewport, petSizePx) {
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = true)
+                            val petRadius = petSizePx / 2f
+                            if (hypot(down.position.x - petRadius, down.position.y - petRadius) > petRadius) return@awaitEachGesture
                             val start = coordinates.rootPosition(down.position) ?: return@awaitEachGesture
                             down.consume()
                             behavior.touch(start, false)

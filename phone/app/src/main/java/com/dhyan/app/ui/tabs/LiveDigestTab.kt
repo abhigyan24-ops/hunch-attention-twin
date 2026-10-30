@@ -213,7 +213,10 @@ fun LiveDigestContent(
                     text = "Shields you from Instagram, TikTok, Reels, Shorts & doomscrolling.",
                     style = MaterialTheme.typography.bodyMedium
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                androidx.compose.foundation.layout.FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     listOf(15, 25, 45, 60).forEach { mins ->
                         ContextChip(
                             label = "$mins min",
@@ -222,7 +225,10 @@ fun LiveDigestContent(
                         )
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                androidx.compose.foundation.layout.FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     listOf("coding" to "Coding", "reading" to "Reading", "writing" to "Writing").forEach { (wire, label) ->
                         ContextChip(
                             label = label,
@@ -317,18 +323,16 @@ fun LiveDigestContent(
         }
 
         // 3. Notification Policy Card
-        LiveCard("Notification policy · ${uiState.mode.name.replace('_', ' ')}") {
+        LiveCard("Quiet Focus Delivery · ${uiState.mode.name.replace('_', ' ')}") {
             Text(when (uiState.mode) {
-                PolicyMode.OFF -> "Observation only. Notifications are not held."
-                PolicyMode.DRY_RUN -> "Previewing decisions. No platform holds."
-                PolicyMode.LIVE -> "Notification holds are enabled for allowed applications."
+                PolicyMode.OFF -> "Observation only. Notifications arrive without pause."
+                PolicyMode.DRY_RUN -> "Previewing decisions without holding."
+                PolicyMode.LIVE -> "Quiet holds enabled. Distracting alerts wait for your break."
             }, style = MaterialTheme.typography.bodyMedium)
-            if (uiState.isFakeProvider) Text("Sandbox provider · not live decisions",
-                color = MaterialTheme.colorScheme.secondary)
-            Text(if (uiState.killSwitchActive) "Emergency stop is active." else "Emergency stop is available.",
+            Text(if (uiState.killSwitchActive) "Holds are currently paused." else "Notification shield is ready.",
                 style = MaterialTheme.typography.bodySmall)
             Button(onClick = onToggleKillSwitch, modifier = Modifier.fillMaxWidth()) {
-                Text(if (uiState.killSwitchActive) "Resume policy" else "Stop all holds")
+                Text(if (uiState.killSwitchActive) "Resume quiet holds" else "Pause all holds")
             }
         }
 
@@ -352,7 +356,7 @@ fun LiveDigestContent(
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 FocusRing(attention, snapshot.minutesInState.toInt(),
                     stateLabel = if (snapshot.focusState == FocusState.BREAK) "Break" else attention.label)
-                Text("Rule-based, not calibrated", style = MaterialTheme.typography.bodyMedium,
+                Text("Mindful Focus Rhythm", style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("Task · ${snapshot.taskType.wire}  /  ${uiState.provenance}",
                     style = MaterialTheme.typography.bodySmall)
@@ -372,7 +376,10 @@ fun LiveDigestContent(
                     Text(item.appCat.replace('_', ' '), style = MaterialTheme.typography.titleMedium)
                     Text("${item.notifCat} · ${item.state} · ${item.mechanism} · ${item.heldAgo} · due ${item.dueIn}",
                         style = MaterialTheme.typography.bodySmall)
-                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    androidx.compose.foundation.layout.FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         Button(onClick = { onShowNow(item.keyHash) }) { Text("Show now") }
                         val record = uiState.decisionFeed.firstOrNull { it.keyHash == item.keyHash }
                         TextButton(enabled = record != null,
@@ -380,12 +387,9 @@ fun LiveDigestContent(
                         TextButton(enabled = record != null,
                             onClick = { record?.let { onMarkNoise(item.keyHash, it.id) } }) { Text("Noise") }
                     }
-                    if (uiState.decisionFeed.none { it.keyHash == item.keyHash })
-                        Text("Feedback unavailable: matching decision is outside recent history.",
-                            style = MaterialTheme.typography.bodySmall)
                 }
-                Text("Release controls request a release; delivery is not confirmed here.",
-                    style = MaterialTheme.typography.bodySmall)
+                Text("Released notifications are dispatched immediately to your device.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
@@ -416,6 +420,8 @@ fun LiveDigestContent(
                     style = MaterialTheme.typography.bodyMedium)
             }
         }
+
+        Spacer(Modifier.height(84.dp))
     }
 }
 

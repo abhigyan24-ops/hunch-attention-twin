@@ -217,7 +217,7 @@ fun FloatingCapsuleNavBar(selected: Int, onSelect: (Int) -> Unit, modifier: Modi
     Surface(modifier.widthIn(max = 480.dp).fillMaxWidth(), shape = RoundedCornerShape(36.dp),
         color = colors.surface, shadowElevation = 10.dp, border = BorderStroke(1.dp, colors.outlineVariant)) {
         Row(Modifier.padding(7.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            listOf("Simulate", "Live", "Insights").forEachIndexed { index, label ->
+            listOf("Focus", "Insights", "Lab").forEachIndexed { index, label ->
                 Column(Modifier.weight(1f).heightIn(min = 62.dp)
                     .background(if (selected == index) colors.primaryContainer else Color.Transparent, CircleShape)
                     .selectable(selected == index, role = Role.Tab, onClick = { onSelect(index) })
@@ -228,9 +228,9 @@ fun FloatingCapsuleNavBar(selected: Int, onSelect: (Int) -> Unit, modifier: Modi
                         when (index) {
                             0 -> { drawCircle(colors.onSurface, size.width * .38f, style = Stroke(stroke))
                                 drawCircle(colors.onSurface, size.width * .1f) }
-                            1 -> { drawRoundRect(colors.onSurface, cornerRadius = androidx.compose.ui.geometry.CornerRadius(5.dp.toPx()), style = Stroke(stroke))
+                            2 -> { drawRoundRect(colors.onSurface, cornerRadius = androidx.compose.ui.geometry.CornerRadius(5.dp.toPx()), style = Stroke(stroke))
                                 drawLine(colors.onSurface, Offset(size.width * .25f, size.height * .5f), Offset(size.width * .75f, size.height * .5f), stroke) }
-                            else -> repeat(3) { i ->
+                            1 -> repeat(3) { i ->
                                 drawLine(colors.onSurface, Offset(size.width * (i+1) / 4, size.height * .85f),
                                     Offset(size.width * (i+1) / 4, size.height * (.65f - i * .2f)), stroke, StrokeCap.Round)
                             }

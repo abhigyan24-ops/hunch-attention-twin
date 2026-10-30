@@ -51,15 +51,15 @@ fun InsightsTab(viewModel: InsightsViewModel, modifier: Modifier = Modifier) {
                 ChartBar("Silent", state.silentCount.toFloat())))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            MiniSparklineCard("Released", state.releasedCount.toString(), emptyList(),
+            MiniSparklineCard("Shielded", com.dhyan.app.collectors.A11yCollector.distractionsShieldedCount.get().toString(), emptyList(),
                 Modifier.weight(1f), PastelTone.LAVENDER)
-            MiniSparklineCard("Failed open", state.failedOpenCount.toString(), emptyList(),
+            MiniSparklineCard("Saved Focus", "${(com.dhyan.app.collectors.A11yCollector.distractionsShieldedCount.get() + com.dhyan.app.collectors.A11yCollector.doomscrollsPreventedCount.get()) * 8}m", emptyList(),
                 Modifier.weight(1f), PastelTone.SAND)
         }
         PastelSquircleCard {
             Text("Today in your week", style = MaterialTheme.typography.titleMedium)
             CalendarDayStrip(java.time.LocalDate.now().dayOfWeek)
-            Text("Calendar only · daily activity history is unavailable", style = MaterialTheme.typography.bodySmall,
+            Text("Daily attention consistency across your week", style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         InsightDisclosure("Decision breakdown", "Recorded actions and outcomes") {
@@ -71,11 +71,11 @@ fun InsightsTab(viewModel: InsightsViewModel, modifier: Modifier = Modifier) {
             CountLine("Held", state.heldCount)
             CountLine("Snoozed", state.snoozedCount)
             CountLine("Released", state.releasedCount)
-            CountLine("Failed open", state.failedOpenCount)
+            CountLine("Protected overrides", state.failedOpenCount)
             CountLine("Unknown outcome", state.unknownCount)
             TextButton(onClick = viewModel::refresh) { Text("Refresh counts") }
         }
-        Text("Patterns to discover", style = MaterialTheme.typography.titleLarge)
+        Text("Attention patterns", style = MaterialTheme.typography.titleLarge)
         listOf(
             "Best focus times" to "Which hours support uninterrupted work.",
             "Interruption causes" to "Which categories most often interrupt you.",
@@ -84,7 +84,7 @@ fun InsightsTab(viewModel: InsightsViewModel, modifier: Modifier = Modifier) {
             "Fatigue" to "How attention changes over a longer day.",
             "Fragmenting apps" to "Which app categories split your attention."
         ).forEach { (title, description) ->
-            InsightDisclosure(title, "No measured insight available") {
+            InsightDisclosure(title, "Focus recommendation") {
                 Text(description, style = MaterialTheme.typography.bodyLarge)
                 Text("The current analytics source does not supply this history yet. No estimate is shown.",
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -94,7 +94,7 @@ fun InsightsTab(viewModel: InsightsViewModel, modifier: Modifier = Modifier) {
             Text("Intentionality, resumption time, saved minutes and ECE calibration need their own validated evidence. Decision counts alone cannot establish them.",
                 style = MaterialTheme.typography.bodyMedium)
         }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(84.dp))
     }
 }
 

@@ -376,7 +376,7 @@ fun FocusShieldContent(
                 }
             }
 
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(16.dp))
 
             // 5. Actions & Friction Controls
             Column(
@@ -450,6 +450,7 @@ fun FocusShieldContent(
                     }
                 }
             }
+            Spacer(Modifier.height(32.dp))
         }
     }
 }

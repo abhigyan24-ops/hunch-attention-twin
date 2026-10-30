@@ -78,9 +78,9 @@ fun DhyanMainScreen(stateHolder: DhyanStateHolder? = null) {
     ) { insets ->
         Box(Modifier.fillMaxSize().padding(insets)) {
             when (selectedTab) {
-                0 -> SimulateTab(viewModel = simulate)
-                1 -> LiveDigestTab(viewModel = live)
-                else -> InsightsTab(viewModel = insights)
+                0 -> LiveDigestTab(viewModel = live)
+                1 -> InsightsTab(viewModel = insights)
+                else -> SimulateTab(viewModel = simulate)
             }
         }
     }
@@ -97,13 +97,13 @@ private fun DestinationMark(index: Int) {
                 drawCircle(color, radius = size.minDimension * 0.38f, style = Stroke(stroke))
                 drawCircle(color, radius = size.minDimension * 0.12f)
             }
-            1 -> {
+            2 -> {
                 drawRoundRect(color, cornerRadius = androidx.compose.ui.geometry.CornerRadius(5.dp.toPx()),
                     style = Stroke(stroke))
                 drawLine(color, androidx.compose.ui.geometry.Offset(size.width * .25f, size.height * .5f),
                     androidx.compose.ui.geometry.Offset(size.width * .75f, size.height * .5f), stroke)
             }
-            else -> repeat(3) { bar ->
+            1 -> repeat(3) { bar ->
                 val x = (bar + 1) * size.width / 4
                 drawLine(color, androidx.compose.ui.geometry.Offset(x, size.height * .85f),
                     androidx.compose.ui.geometry.Offset(x, size.height * (.65f - bar * .22f)), stroke)
