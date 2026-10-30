@@ -82,7 +82,7 @@ fun BayesianCurveCard(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(6.dp))
-                    .background(Color(0xFF0D1117))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Text(
@@ -100,7 +100,7 @@ fun BayesianCurveCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xFF161B22))
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                 .padding(10.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
