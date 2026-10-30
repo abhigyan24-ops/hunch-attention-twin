@@ -423,4 +423,116 @@ class RelayClientTest {
         assertEquals(1L, client.outboundCtr)
     }
 
+    @Test
+    fun counterStartsAtOneStrictlyIncreasingAndRejectsReplayAndZero() {
+        val client = RelayClient(
+            pk = pk,
+            sidHex = sidHex,
+            relayUrl = "ws://127.0.0.1:8080/ws",
+            transport = mockTransport,
+            scope = testScope,
+            getLastSeqAcked = { 0L },
+            secureRandomBytes = fixedRandomBytes
+        )
+        client.connect()
+        mockTransport.triggerOpen()
+
+        val phoneSn = fixedRandomBytes(16)
+        val laptopSn = ByteArray(16) { 5.toByte() }
+        val laptopSnBase64 = Base64.getEncoder().encodeToString(laptopSn)
+        val laptopMac = SyncCrypto.computeHelloMac(pk, "laptop", laptopSnBase64, 0L)
+        val laptopMacBase64 = Base64.getEncoder().encodeToString(laptopMac)
+
+        mockTransport.triggerMessage(
+            """{"v":1,"t":"hello","device":"laptop","sn":"$laptopSnBase64","proto":[1],"lastSeqAcked":0,"mac":"$laptopMacBase64"}"""
+        )
+        assertTrue(client.state.value is SessionState.Connected)
+
+        // 1. Outbound counters: starts at 1, strictly increasing
+        assertEquals(0L, client.outboundCtr)
+        assertTrue(client.sendPing(100L))
+        assertEquals(1L, client.outboundCtr)
+        assertTrue(client.sendPing(200L))
+        assertEquals(2L, client.outboundCtr)
+
+        val peerSessionKeys = SyncCrypto.deriveSessionKeys(pk, laptopSn, phoneSn)
+        var receivedCount = 0
+        client.onMessageReceived = { _, _, _, _ -> receivedCount++ }
+
+        val plain = """{"mid":"00000000-0000-4000-8000-000000000001","ts":1000,"b":{"t0":1000}}"""
+
+        // 2. Inbound ctr = 0 -> MUST be rejected (contract: ctr starts at 1, schema minimum 1)
+        val c0 = SyncCrypto.encryptFramePayload(peerSessionKeys.kL2P, "ping", "l2p", 0L, plain.toByteArray(StandardCharsets.UTF_8))
+        mockTransport.triggerMessage("""{"v":1,"t":"ping","d":"l2p","ctr":0,"c":"$c0"}""")
+        assertEquals(0, receivedCount)
+        assertTrue(client.rejectionCounts()["schema_invalid"] == 1L || client.rejectionCounts()["replay"] == 1L)
+
+        // 3. Inbound ctr = 1 -> accepted
+        val c1 = SyncCrypto.encryptFramePayload(peerSessionKeys.kL2P, "ping", "l2p", 1L, plain.toByteArray(StandardCharsets.UTF_8))
+        mockTransport.triggerMessage("""{"v":1,"t":"ping","d":"l2p","ctr":1,"c":"$c1"}""")
+        assertEquals(1, receivedCount)
+        assertEquals(1L, client.inboundCtr)
+
+        // 4. Inbound ctr = 1 again -> rejected (replay)
+        mockTransport.triggerMessage("""{"v":1,"t":"ping","d":"l2p","ctr":1,"c":"$c1"}""")
+        assertEquals(1, receivedCount)
+        assertEquals(1L, client.rejectionCounts()["replay"])
+
+        // 5. Inbound ctr = 3 -> accepted (strictly increasing)
+        val c3 = SyncCrypto.encryptFramePayload(peerSessionKeys.kL2P, "ping", "l2p", 3L, plain.toByteArray(StandardCharsets.UTF_8))
+        mockTransport.triggerMessage("""{"v":1,"t":"ping","d":"l2p","ctr":3,"c":"$c3"}""")
+        assertEquals(2, receivedCount)
+        assertEquals(3L, client.inboundCtr)
+
+        // 6. Inbound ctr = 2 -> rejected (ctr <= lastCtr)
+        val c2 = SyncCrypto.encryptFramePayload(peerSessionKeys.kL2P, "ping", "l2p", 2L, plain.toByteArray(StandardCharsets.UTF_8))
+        mockTransport.triggerMessage("""{"v":1,"t":"ping","d":"l2p","ctr":2,"c":"$c2"}""")
+        assertEquals(2, receivedCount)
+        assertEquals(2L, client.rejectionCounts()["replay"])
+    }
+
+    @Test
+    fun failureThenReconnect_resetsPeerHelloAcceptedAndAllowsFreshHandshake() {
+        val client = RelayClient(
+            pk = pk,
+            sidHex = sidHex,
+            relayUrl = "ws://127.0.0.1:8080/ws",
+            transport = mockTransport,
+            scope = testScope,
+            getLastSeqAcked = { 0L },
+            secureRandomBytes = fixedRandomBytes
+        )
+        client.connect()
+        mockTransport.triggerOpen()
+
+        val laptopSn1 = ByteArray(16) { 1 }
+        val laptopSn1Base64 = Base64.getEncoder().encodeToString(laptopSn1)
+        val laptopMac1 = SyncCrypto.computeHelloMac(pk, "laptop", laptopSn1Base64, 0L)
+        val laptopMac1Base64 = Base64.getEncoder().encodeToString(laptopMac1)
+
+        mockTransport.triggerMessage(
+            """{"v":1,"t":"hello","device":"laptop","sn":"$laptopSn1Base64","proto":[1],"lastSeqAcked":0,"mac":"$laptopMac1Base64"}"""
+        )
+        assertTrue(client.state.value is SessionState.Connected)
+
+        // Network loss occurs
+        mockTransport.triggerFailure(java.io.IOException("connection reset by peer"))
+
+        // Reconnect establishes new socket
+        mockTransport.isClosed = false
+        client.connect()
+        mockTransport.triggerOpen()
+
+        // Fresh hello from peer on new socket MUST succeed
+        val laptopSn2 = ByteArray(16) { 2 }
+        val laptopSn2Base64 = Base64.getEncoder().encodeToString(laptopSn2)
+        val laptopMac2 = SyncCrypto.computeHelloMac(pk, "laptop", laptopSn2Base64, 0L)
+        val laptopMac2Base64 = Base64.getEncoder().encodeToString(laptopMac2)
+
+        mockTransport.triggerMessage(
+            """{"v":1,"t":"hello","device":"laptop","sn":"$laptopSn2Base64","proto":[1],"lastSeqAcked":0,"mac":"$laptopMac2Base64"}"""
+        )
+        assertTrue("Expected client to reconnect after failure", client.state.value is SessionState.Connected)
+    }
+
 }

@@ -111,13 +111,60 @@ abstract class DhyanDatabase : RoomDatabase() {
          */
         val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. Create quarantine table for duplicate events
                 db.execSQL("""
-                    DELETE FROM events 
-                    WHERE id NOT IN (
-                        SELECT MAX(id) FROM events GROUP BY device_id, seq
+                    CREATE TABLE IF NOT EXISTS `events_quarantine` (
+                        `id` INTEGER PRIMARY KEY,
+                        `ts` INTEGER NOT NULL,
+                        `kind` TEXT NOT NULL,
+                        `app_cat` TEXT NOT NULL,
+                        `surface` TEXT NOT NULL,
+                        `duration_min` REAL NOT NULL,
+                        `sender_hash` TEXT,
+                        `notif_cat` TEXT,
+                        `scroll_count` INTEGER NOT NULL,
+                        `extras_json` TEXT,
+                        `event_id` TEXT,
+                        `seq` INTEGER NOT NULL,
+                        `device_id` TEXT NOT NULL,
+                        `settled_status` TEXT NOT NULL,
+                        `schema_version` TEXT NOT NULL,
+                        `quarantined_at` INTEGER NOT NULL,
+                        `quarantine_reason` TEXT NOT NULL
                     )
                 """.trimIndent())
 
+                // 2. Assign sequence numbers to legacy rows per device in id order
+                // so legacy rows sharing default seq=0 do NOT collide under unique (device_id, seq)
+                db.execSQL("""
+                    WITH numbered AS (
+                        SELECT id, ROW_NUMBER() OVER (PARTITION BY device_id ORDER BY id) as new_seq
+                        FROM events
+                    )
+                    UPDATE events
+                    SET seq = (SELECT new_seq FROM numbered WHERE numbered.id = events.id)
+                """.trimIndent())
+
+                // 3. Identify and quarantine exact duplicates (matching event_id)
+                db.execSQL("""
+                    INSERT INTO events_quarantine
+                    SELECT id, ts, kind, app_cat, surface, duration_min, sender_hash, notif_cat, scroll_count, extras_json, event_id, seq, device_id, settled_status, schema_version, CAST(strftime('%s', 'now') AS INTEGER) * 1000, 'duplicate_event_id'
+                    FROM events
+                    WHERE event_id IS NOT NULL AND event_id != ''
+                      AND id NOT IN (
+                          SELECT MIN(id) FROM events WHERE event_id IS NOT NULL AND event_id != '' GROUP BY event_id
+                      )
+                """.trimIndent())
+
+                db.execSQL("""
+                    DELETE FROM events
+                    WHERE event_id IS NOT NULL AND event_id != ''
+                      AND id NOT IN (
+                          SELECT MIN(id) FROM events WHERE event_id IS NOT NULL AND event_id != '' GROUP BY event_id
+                      )
+                """.trimIndent())
+
+                // 4. Create unique index and event_id index
                 db.execSQL("DROP INDEX IF EXISTS `index_events_device_id_seq_event_id`")
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_events_device_id_seq` ON `events` (`device_id`, `seq`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_events_event_id` ON `events` (`event_id`)")

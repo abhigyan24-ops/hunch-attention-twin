@@ -52,14 +52,34 @@ class KeystoreKeyWrapper(
         }
     }
 
+    private fun isStrongBoxException(t: Throwable): Boolean {
+        var current: Throwable? = t
+        while (current != null) {
+            val name = current::class.java.name
+            if (name == "android.security.keystore.StrongBoxUnavailableException" ||
+                (current is java.security.ProviderException && name.contains("StrongBox", ignoreCase = true))) {
+                return true
+            }
+            if (current is NoSuchMethodException && current.message?.contains("setIsStrongBoxBacked") == true) {
+                return true
+            }
+            current = current.cause
+        }
+        return false
+    }
+
     private fun ensureKeystoreKey() {
         try {
             // First attempt StrongBox hardware isolation (DD-8 & Spec 25.13)
             try {
                 generateKey(useStrongBox = true)
-            } catch (_: Exception) {
-                // StrongBoxUnavailableException or not supported: fallback to standard TEE
-                generateKey(useStrongBox = false)
+            } catch (e: Throwable) {
+                if (isStrongBoxException(e)) {
+                    // Specifically catch StrongBoxUnavailableException -> fallback to standard TEE
+                    generateKey(useStrongBox = false)
+                } else {
+                    throw e
+                }
             }
         } catch (_: Exception) {
             throw IllegalStateException("secure_storage_unavailable")

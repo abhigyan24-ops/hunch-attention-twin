@@ -381,6 +381,55 @@ export class MockPeer {
 }
 
 // Standalone CLI runner
-if (process.argv[1] && process.argv[1].endsWith('tools/mock-peer/index.mjs')) {
-  console.log('Mock Peer CLI ready');
+if (process.argv[1] && process.argv[1].replaceAll('\\', '/').endsWith('tools/mock-peer/index.mjs')) {
+  const args = process.argv.slice(2);
+  const getArg = (name, def = null) => {
+    const idx = args.indexOf(name);
+    return idx >= 0 && idx + 1 < args.length ? args[idx + 1] : def;
+  };
+  const hasFlag = (name) => args.includes(name);
+
+  const role = getArg('--role', 'laptop');
+  const relayUrl = getArg('--relay', 'ws://127.0.0.1:8080/ws');
+  const code = getArg('--code', '123456');
+  const autoConfirm = hasFlag('--auto-confirm');
+  const attack = getArg('--attack', null);
+
+  console.log(`[mock-peer] Initializing MockPeer role=${role} relay=${relayUrl} attack=${attack}`);
+  const peer = new MockPeer({ role, relayUrl });
+
+  try {
+    const pairResult = await peer.pair({ code, attack });
+    console.log(`[mock-peer] Paired successfully! SAS=${pairResult.sas} sid=${pairResult.sid.toString('hex').slice(0, 16)}...`);
+
+    if (autoConfirm) {
+      console.log('[mock-peer] Auto-confirm active. Connecting session room...');
+      await peer.connectSession({ sid: pairResult.sid, PK: pairResult.PK });
+      console.log('[mock-peer] Session connected. kL2P and kP2L derived.');
+
+      // If attack flag is specified for session:
+      if (attack === 'tamper') {
+        console.log('[mock-peer] Sending tampered frame...');
+        peer.sendFrame('ping', { t0: Date.now() }, { tamper: true });
+      } else if (attack === 'replay') {
+        console.log('[mock-peer] Sending replay frame with ctr=1 twice...');
+        peer.sendFrame('ping', { t0: Date.now() }, { ctr: 1 });
+        await new Promise(r => setTimeout(r, 100));
+        peer.sendFrame('ping', { t0: Date.now() }, { ctr: 1 });
+      } else if (attack === 'wrong_dir') {
+        console.log('[mock-peer] Sending frame with wrong direction d=p2l...');
+        peer.sendFrame('ping', { t0: Date.now() }, { d: 'p2l' });
+      } else {
+        // Send normal ping frame
+        peer.sendFrame('ping', { t0: Date.now() });
+      }
+
+      await new Promise(r => setTimeout(r, 500));
+    }
+  } catch (err) {
+    console.error(`[mock-peer] Failed/Attacked: ${err.message}`);
+    process.exitCode = 1;
+  } finally {
+    peer.close();
+  }
 }

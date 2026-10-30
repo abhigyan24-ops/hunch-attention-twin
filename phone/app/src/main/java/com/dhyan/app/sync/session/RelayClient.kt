@@ -83,10 +83,16 @@ open class RelayClient(
         }
 
         override fun onFailure(t: Throwable) {
+            peerHelloAccepted = false
+            sessionKeys = null
+            localSnBytes = null
             handleConnectionDrop(t.message ?: "Transport failure")
         }
 
         override fun onClosed(code: Int, reason: String) {
+            peerHelloAccepted = false
+            sessionKeys = null
+            localSnBytes = null
             if (code == 1000 || isIntentionalDisconnect) {
                 _state.value = SessionState.Disconnected
             } else {
@@ -283,7 +289,7 @@ open class RelayClient(
         if (d != "l2p") { reject("unauthorized"); return }
 
         val ctr = (map["ctr"] as? Number)?.toLong() ?: return
-        if (ctr <= inboundCtr) { reject("replay"); return }
+        if (ctr < 1L || ctr <= inboundCtr) { reject("replay"); return }
 
         val c = map["c"] as? String ?: return
         val decryptedBytes = try {

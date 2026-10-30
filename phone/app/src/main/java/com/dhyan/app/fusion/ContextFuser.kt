@@ -44,7 +44,18 @@ class ContextFuser(
             }
 
         override suspend fun collect(collector: kotlinx.coroutines.flow.FlowCollector<ContextSnapshot?>): Nothing {
-            _snapshot.collect(collector)
+            var lastEmitted: ContextSnapshot? = null
+            while (true) {
+                val current = synchronized(this@ContextFuser) {
+                    if (_snapshot.value != null) recompute()
+                    _snapshot.value
+                }
+                if (current != lastEmitted) {
+                    lastEmitted = current
+                    collector.emit(current)
+                }
+                kotlinx.coroutines.delay(200L)
+            }
         }
     }
 

@@ -106,7 +106,7 @@ class PairingController(
                 clearEphemeralContext()
             },
             onClose = {
-                if (_state.value !is PairingState.Paired && _state.value !is PairingState.Cancelled) {
+                if (_state.value !is PairingState.Paired && _state.value !is PairingState.Cancelled && _state.value !is PairingState.Failed) {
                     _state.value = PairingState.Failed("Relay disconnected prematurely")
                     clearEphemeralContext()
                 }

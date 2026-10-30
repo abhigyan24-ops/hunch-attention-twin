@@ -247,3 +247,73 @@ All reproduction tests were executed using `phone/gradlew.bat testDebugUnitTest`
   - `phone/app/src/test/java/com/dhyan/app/sync/**`
   - `phone/app/src/test/java/com/dhyan/app/fusion/**`
   - `phone/app/src/test/java/com/dhyan/app/twin/episodes/**`
+
+
+---
+
+## 6. Resolution Summary & Findings Verification Matrix
+
+| CX-6 Finding | Issue Description | Regression / Verification Test | Mutation Proof / Failure Mechanism | Status |
+|---|---|---|---|---|
+| **F1 / B1** | Second authenticated hello on same connection resets sequence counters | `com.dhyan.app.sync.session.RelayClientTest#secondHelloOnSameConnectionFailsClosedWith1008DuplicateHello` | Inverting `peerHelloAccepted` check to allow reconnect renegotiation without socket close caused test to fail with `AssertionError: Expected close 1008`. | **RESOLVED** |
+| **F2 / B2** | Phone could persist pairing before local human confirmation | `com.dhyan.app.sync.pairing.PairingControllerTest#persistsOnlyAfterBothLocalAndPeerConfirmation` | Commenting out `if (!localConfirmed) return` allowed `settingsDao` to write pairing key before user clicked Yes, failing test. | **RESOLVED** |
+| **F3 / B3** | Keystore fallback to static/constant key in production code | `com.dhyan.app.sync.crypto.KeystoreKeyWrapperTest#keystoreFailureThrowsWithoutFallback` | Removing throw and providing fake key failed assertion `assertThrows(IllegalStateException.class)`. StrongBox fallback catches `StrongBoxUnavailableException` specifically. | **RESOLVED** |
+| **F4 / B4a** | Non-canonical event payloads bypassed schema validation | `com.dhyan.app.sync.data.WireSchemasTest#nonCanonicalEventsMarkedTombstone` | Re-adding `event["kind"] == null` allowed flat non-canonical events to insert as valid instead of tombstone. | **RESOLVED** |
+| **F5 / B4b** | Migration 3->4 deleted legacy rows sharing `seq = 0` default | `com.dhyan.app.data.DhyanDatabaseMigrationTest#migration3To4_preservesAllLegacyRowsAndSequencesStrictly` | Using legacy `DELETE FROM events WHERE id NOT IN (SELECT MAX(id) GROUP BY device_id, seq)` dropped 999 of 1000 rows, failing test. | **RESOLVED** |
+| **F6 / B5a** | Command rejection did not emit negative `cmd_ack` with `schema_invalid` | `com.dhyan.app.sync.command.SyncCommandDispatcherTest#invalidSchemaEmitsRejectedCmdAck` | Omitting `sendCmdAck("rejected", "schema_invalid")` left outgoing ACK queue empty, failing test. | **RESOLVED** |
+| **F7 / B5b** | Command argument fallback defaulted instead of strict validation | `com.dhyan.app.sync.command.SyncCommandDispatcherTest#missingStrictArgumentFailsClosed` | Falling back `on = true` when `on` was missing caused test to assert true on invalid frame instead of rejecting. | **RESOLVED** |
+| **F8 / B5c** | Context snapshot StateFlow did not age out expired laptop context | `com.dhyan.app.fusion.ContextFuserTest#collectingSnapshotFlowWithFakeClockObservesOfflineAfter15s` | Omitting periodic polling in flow collection kept `flowing` snapshot cached past 15,000ms threshold without emission. | **RESOLVED** |
+| **F9** | Negative pickup updates applied to `SUPERSEDED` episodes | Confirmed in `docs/prompts/GROUNDING.md`: M5/episodes is out-of-scope for sync blockers. Excluded from edits; `CrossDeviceEpisodeTest` verifies behavior. | Negative update on superseded episodes would violate Spec 25.4 rule 2. Unaltered on `fix-sync-blockers`. | **CONFIRMED UNCHANGED** |
+| **F10** | Android 14+ Foreground Service type alignment | Statically verified against `developer.android.com/about/versions/14/changes/fgs-types-required`. | Declaring `specialUse` in manifest and passing `FOREGROUND_SERVICE_TYPE_SPECIAL_USE` in `startForeground` complies with API 34+ requirement. | **RESOLVED** |
+
+---
+
+## 7. Migration Safety & Duplicate Quarantining (Resolution of Item 1)
+
+In Schema 3, legacy `events` rows had `device_id = 'phone'` and `seq = 0`. An unconstrained grouping on `(device_id, seq)` caused all legacy events to collide and be dropped.
+The updated `MIGRATION_3_4`:
+1. Creates an unmanaged `events_quarantine` table.
+2. Identifies exact duplicates (`event_id` appearing multiple times for the same device) and copies duplicates into `events_quarantine`, then removes duplicate rows from `events`.
+3. Sequentially assigns strictly increasing `seq` (1..N) to all legacy rows partitioned by `device_id` in ascending `id` order:
+   ```sql
+   WITH ranked AS (
+       SELECT id, ROW_NUMBER() OVER (PARTITION BY device_id ORDER BY id ASC) as new_seq
+       FROM events
+   )
+   UPDATE events SET seq = (SELECT new_seq FROM ranked WHERE ranked.id = events.id);
+   ```
+4. Creates unique index `index_events_device_id_seq` on `events(device_id, seq)`.
+5. Tested with 1,000 legacy rows in `DhyanDatabaseMigrationTest.kt`: all 1,000 rows preserved, zero row loss, strict sequence ordering 1..1000.
+
+---
+
+## 8. Opt-In Mock-Peer Integration & Attack Results (Resolution of Item 4)
+
+Opt-in test suite `MockPeerIntegrationTest.kt` was run against `tools/mock-peer` and `tools/mock-relay`:
+- **Command:** `.\gradlew.bat testDebugUnitTest --tests "com.dhyan.app.sync.integration.MockPeerIntegrationTest"`
+- **Result:** `BUILD SUCCESSFUL in 1m 21s` (3 tests completed, 0 failed):
+  - `pairingAndSessionWithMockPeerAndMockRelay`: Full handshake, SAS match, key persistence, encrypted session frame ping/pong.
+  - `attackModeTamperCommitRejectedByPhone`: Laptop sends tampered commit; phone detects commitment mismatch, transitions to `Failed("Commitment mismatch")`, writes 0 keys.
+  - `attackModeBadConfirmMacRejectedByPhone`: Laptop sends corrupted confirmation MAC; phone detects peer confirmation mismatch, transitions to `Failed("Peer confirmation mismatch")`, writes 0 keys.
+- **Relay Daemon Purpose:** Background relay daemon on port 8080 was used during manual preflight checks and cross-device connection tests. For integration tests, ephemeral mock-relay instances are started on free dynamic ports to prevent port collision.
+
+---
+
+## 9. Implementation Status & Target Verification Ledger
+
+### Live Learning Runtime Status
+- **`EpisodeRuntime` (live online model learning) is NOT implemented in production.**
+- Events from collectors (`NotifCollector`, `A11yCollector`, `UsageCollector`, `ScreenReceiver`) are recorded to `EventDao` and dispatched to `ContextFuser` and `SyncManager`.
+- Model parameters are initialized from defaults and persisted via `ParamPersistence`, but automated continuous live background gradient/conjugate parameter updating (`EpisodeRuntime`) is absent from production runtime.
+
+### Target Hardware (Oppo Reno 14) Verification Ledger
+Per Grounding Protocol G4/G10, the following items have **NOT BEEN VERIFIED ON TARGET HARDWARE** during this session and must be marked `not verified on target`:
+1. **AndroidKeyStore hardware backing:** `StrongBox` vs TEE fallback on Reno 14 hardware (`not verified on target`).
+2. **Real over-the-air pairing:** 6-digit SAS user confirmation between physical phone and laptop (`not verified on target`).
+3. **WSS / TLS termination:** Production TLS certificate handling on device network (`not verified on target`).
+4. **ColorOS background survival:** ColorOS battery aggressive optimization survival past 30 minutes (`not verified on target`).
+
+---
+
+## 10. Review Request
+All 11 review correction items are fully completed. 350 phone unit & integration tests pass with 0 failures, and `npm run checks` passes. Ready for CX-6b review.

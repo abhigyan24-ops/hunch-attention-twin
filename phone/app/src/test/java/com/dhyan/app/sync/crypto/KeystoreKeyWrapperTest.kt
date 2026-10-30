@@ -43,4 +43,23 @@ class KeystoreKeyWrapperTest {
         val unwrapped = wrapper.unwrap(wrapped)
         assertArrayEquals(original, unwrapped)
     }
+
+    @Test
+    fun strongBoxExceptionCheckIsSpecific() {
+        val method = KeystoreKeyWrapper::class.java.getDeclaredMethod("isStrongBoxException", Throwable::class.java).apply {
+            isAccessible = true
+        }
+        val wrapper = KeystoreKeyWrapper()
+
+        // 1. Generic exceptions are NOT StrongBox exceptions
+        val genericEx = IllegalStateException("generic error")
+        assertFalse(method.invoke(wrapper, genericEx) as Boolean)
+
+        val ioEx = java.io.IOException("disk full")
+        assertFalse(method.invoke(wrapper, ioEx) as Boolean)
+
+        // 2. NoSuchMethodException on setIsStrongBoxBacked IS treated as StrongBox fallback
+        val noMethodEx = NoSuchMethodException("setIsStrongBoxBacked")
+        assertTrue(method.invoke(wrapper, noMethodEx) as Boolean)
+    }
 }

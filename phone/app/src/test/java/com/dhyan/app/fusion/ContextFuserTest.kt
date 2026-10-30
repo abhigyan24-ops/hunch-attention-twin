@@ -1,5 +1,6 @@
 package com.dhyan.app.fusion
 
+import com.dhyan.app.twin.model.ContextSnapshot
 import com.dhyan.app.twin.model.DeclaredSession
 import com.dhyan.app.twin.model.FocusState
 import com.dhyan.app.twin.model.LaptopState
@@ -10,6 +11,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
 class ContextFuserTest {
@@ -146,6 +149,35 @@ class ContextFuserTest {
         val agedSnap = fuser.snapshot.value
         assertNotNull(agedSnap)
         assertEquals(LaptopState.OFFLINE, agedSnap!!.laptopState)
+    }
+
+    @Test
+    fun collectingSnapshotFlowWithFakeClockObservesOfflineAfter15s() = runTest {
+        fuser.updatePhoneState(phoneState = PhoneState.IN_APP, baseConfidence = 0.9)
+        fuser.updateRelayConnectivity(true)
+        fuser.updateLaptopState(state = LaptopState.FLOWING, receivedAtMs = currentTimeMs)
+
+        val collectedSnapshots = mutableListOf<ContextSnapshot>()
+        val collectJob = backgroundScope.launch {
+            fuser.snapshot.collect { snap ->
+                if (snap != null) collectedSnapshots.add(snap)
+            }
+        }
+
+        // Initially FLOWING
+        testScheduler.advanceTimeBy(500L)
+        assertTrue(collectedSnapshots.isNotEmpty())
+        assertEquals(LaptopState.FLOWING, collectedSnapshots.last().laptopState)
+
+        // Advance fake clock past 15 seconds
+        currentTimeMs += 16_000L
+        testScheduler.advanceTimeBy(16_000L)
+
+        // Collector must now observe the aged transition to OFFLINE
+        assertTrue("Collector must have received updated snapshot", collectedSnapshots.size >= 2)
+        assertEquals(LaptopState.OFFLINE, collectedSnapshots.last().laptopState)
+
+        collectJob.cancel()
     }
 
 }
