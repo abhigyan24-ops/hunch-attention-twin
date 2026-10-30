@@ -250,9 +250,9 @@ function App() {
     const element = hitbox.current;
     if (!element) return;
     let dragging = false, lastX = 0, lastY = 0;
-    const down = (event: PointerEvent) => { if((event.target as Element).closest('.pip-actions'))return; dragging = true; lastX = event.screenX; lastY = event.screenY; element.setPointerCapture(event.pointerId); };
-    const move = (event: PointerEvent) => { if (!dragging) return; window.dhyan.movePet(event.screenX-lastX,event.screenY-lastY); lastX=event.screenX; lastY=event.screenY; };
-    const up = () => { dragging = false; window.dhyan.setIgnoreMouseEvents(true); };
+    const down = (event: PointerEvent) => { if((event.target as Element).closest('.pip-actions'))return; dragging = true; lastX = event.screenX; lastY = event.screenY; element.setPointerCapture(event.pointerId); window.dhyan.dragPetActive(true); };
+    const move = (event: PointerEvent) => { if (!dragging) return; window.dhyan.movePet(event.screenX-lastX,event.screenY-lastY);lastX=event.screenX; lastY=event.screenY; };
+    const up = () => { dragging = false; window.dhyan.dragPetActive(false); window.dhyan.setIgnoreMouseEvents(true); };
     element.addEventListener('pointerdown',down);
     element.addEventListener('pointermove',move);
     element.addEventListener('pointerup',up);
