@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { startMockIngest } from '../mock-ingest/server.mjs';
 import { DhyanVsCodeSensor } from '../../vscode-ext/src/extension.js';
+import { DhyanCompanionViewProvider } from '../../vscode-ext/src/companionProvider.js';
+import { DhyanInsightsPanel } from '../../vscode-ext/src/insightsPanel.js';
 import { validateIngest } from '../lib/contract-validate.mjs';
 import { scanObjectForPrivacyViolations } from '../privacy-scan.mjs';
 
@@ -113,4 +115,79 @@ test('vscode sensor connects, authenticates, and sends telemetry to mock-ingest'
 
   sensor.stop();
   await ingest.close();
+});
+
+test('vscode companion webview provider renders Frosted Pet, Dial, Presets, and dispatches messages', async () => {
+  const postedMessages = [];
+  let messageHandler = null;
+  const mockWebview = {
+    options: {},
+    html: '',
+    postMessage: (msg) => { postedMessages.push(msg); return Promise.resolve(true); },
+    onDidReceiveMessage: (cb) => { messageHandler = cb; return { dispose: () => {} }; },
+    asWebviewUri: (uri) => uri
+  };
+  const mockWebviewView = { webview: mockWebview };
+
+  let startedSession = null;
+  let insightsOpened = false;
+  const mockSensor = {
+    startSession: (preset, min) => { startedSession = { preset, min }; },
+    openInsights: () => { insightsOpened = true; }
+  };
+
+  const provider = new DhyanCompanionViewProvider({ fsPath: '/test/ext' }, mockSensor);
+  provider.resolveWebviewView(mockWebviewView);
+
+  // 1. Verify HTML layout contains core Bento & Pet components
+  assert.ok(mockWebview.html.includes('id="spirit-canvas"'), 'Expected Cloud Spirit canvas in HTML');
+  assert.ok(mockWebview.html.includes('id="dial-svg"'), 'Expected Semicircular Dial canvas in HTML');
+  assert.ok(mockWebview.html.includes('dhyan-squircle-btn'), 'Expected Preset Squircle chips');
+  assert.ok(mockWebview.html.includes('id="start-btn"'), 'Expected Start button CTA');
+  assert.ok(mockWebview.html.includes('var(--vscode-'), 'Expected adaptive VS Code CSS token integration');
+
+  // 2. Test emotion updates to webview
+  provider.updateEmotion('FOCUSED', 3, -2);
+  assert.equal(provider.currentEmotion, 'FOCUSED');
+  assert.deepEqual(postedMessages[postedMessages.length - 1], {
+    type: 'emotion',
+    emotion: 'FOCUSED',
+    eyeDx: 3,
+    eyeDy: -2
+  });
+
+  provider.updateFocusMinutes(25);
+  assert.deepEqual(postedMessages[postedMessages.length - 1], {
+    type: 'focusMinutes',
+    minutes: 25
+  });
+
+  // 3. Test inbound command handling from webview
+  assert.ok(typeof messageHandler === 'function');
+  messageHandler({ command: 'startSession', preset: 'Coding', minutes: 45 });
+  assert.deepEqual(startedSession, { preset: 'Coding', min: 45 });
+
+  messageHandler({ command: 'openInsights' });
+  assert.equal(insightsOpened, true);
+});
+
+test('vscode insights dashboard panel renders Flow telemetry and disposes cleanly', async () => {
+  let disposed = false;
+  const mockPanel = {
+    webview: { html: '' },
+    reveal: () => {},
+    onDidDispose: (cb) => { setTimeout(cb, 10); return { dispose: () => { disposed = true; } }; }
+  };
+
+  const mockSensor = {
+    editsInWindow: 42,
+    savesInWindow: 3,
+    currentState: 'flowing'
+  };
+
+  const panel = new DhyanInsightsPanel(mockPanel, { fsPath: '/test/ext' }, mockSensor);
+  assert.ok(mockPanel.webview.html.includes('Attention & Flow Analytics'), 'Expected header');
+  assert.ok(mockPanel.webview.html.includes('WEEKLY ATTENTION FLOW'), 'Expected weekly flow banner');
+  assert.ok(mockPanel.webview.html.includes('Active Window Telemetry'), 'Expected telemetry tile');
+  assert.ok(mockPanel.webview.html.includes('Spec §25.13 Zero-Content Privacy Verified'), 'Expected privacy invariant');
 });

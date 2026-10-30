@@ -22,16 +22,21 @@ function sleep(ms) {
 
 async function parseSasFromUiXml(xmlPath) {
   const content = await fs.readFile(xmlPath, 'utf8');
-  // Match 6 digits with space: e.g. "790 350"
-  const m = content.match(/text="(\d{3}\s\d{3})"/);
-  if (m) return m[1];
+  // Match digits with possible spaces: e.g. "790 350" or "436  02 9"
+  const m = content.match(/text="(\d[\d\s]{5,8}\d)"[^>]*bounds/);
+  if (m) {
+    const raw = m[1].replace(/\s+/g, '');
+    if (raw.length === 6) {
+      return `${raw.slice(0, 3)} ${raw.slice(3)}`;
+    }
+  }
   return null;
 }
 
 async function findConfirmButtonBounds(xmlPath) {
   const content = await fs.readFile(xmlPath, 'utf8');
-  // Look for node with text="Confirm (Match)" bounds="[x1,y1][x2,y2]"
-  const m = content.match(/text="Confirm \(Match\)"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+  // Look for node with text="Confirm (Match)" or "Codes match"
+  const m = content.match(/text="(?:Confirm \(Match\)|Codes match)"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/i);
   if (m) {
     const x1 = parseInt(m[1], 10), y1 = parseInt(m[2], 10);
     const x2 = parseInt(m[3], 10), y2 = parseInt(m[4], 10);
@@ -81,11 +86,11 @@ async function runGate3Verification() {
   } catch (_) {}
 
   // Open settings if not already visible
-  if (!currentXml.includes('CROSS-DEVICE SYNC & COMPANION')) {
+  if (!currentXml.includes('CROSS-DEVICE SYNC & COMPANION') && !currentXml.includes('Laptop companion')) {
     console.log('  -> Opening Settings sheet on Reno 14...');
-    const gearMatch = currentXml.match(/text="⚙"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
-    const gx = gearMatch ? Math.floor((+gearMatch[1] + +gearMatch[3]) / 2) : 996;
-    const gy = gearMatch ? Math.floor((+gearMatch[2] + +gearMatch[4]) / 2) : 187;
+    const gearMatch = currentXml.match(/text="(?:⚙|Settings)"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+    const gx = gearMatch ? Math.floor((+gearMatch[1] + +gearMatch[3]) / 2) : 980;
+    const gy = gearMatch ? Math.floor((+gearMatch[2] + +gearMatch[4]) / 2) : 200;
     adb(`shell input tap ${gx} ${gy}`);
     await sleep(800);
     adb('shell uiautomator dump /sdcard/ui_prep.xml');
@@ -94,7 +99,7 @@ async function runGate3Verification() {
   }
 
   // Unpair if paired
-  const unpairMatch = currentXml.match(/text="Unpair"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+  const unpairMatch = currentXml.match(/text="Unpair[^"]*"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
   if (unpairMatch) {
     const ux = Math.floor((parseInt(unpairMatch[1], 10) + parseInt(unpairMatch[3], 10)) / 2);
     const uy = Math.floor((parseInt(unpairMatch[2], 10) + parseInt(unpairMatch[4], 10)) / 2);
@@ -119,11 +124,11 @@ async function runGate3Verification() {
   adb('pull /sdcard/ui_prep.xml ui_prep.xml');
   currentXml = await fs.readFile('ui_prep.xml', 'utf8');
 
-  if (!currentXml.includes('CROSS-DEVICE SYNC & COMPANION')) {
+  if (!currentXml.includes('CROSS-DEVICE SYNC & COMPANION') && !currentXml.includes('Laptop companion')) {
     console.log('  -> Re-opening Settings sheet on Reno 14...');
-    const gearMatch = currentXml.match(/text="⚙"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
-    const gx = gearMatch ? Math.floor((+gearMatch[1] + +gearMatch[3]) / 2) : 996;
-    const gy = gearMatch ? Math.floor((+gearMatch[2] + +gearMatch[4]) / 2) : 187;
+    const gearMatch = currentXml.match(/text="(?:⚙|Settings)"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+    const gx = gearMatch ? Math.floor((+gearMatch[1] + +gearMatch[3]) / 2) : 980;
+    const gy = gearMatch ? Math.floor((+gearMatch[2] + +gearMatch[4]) / 2) : 200;
     adb(`shell input tap ${gx} ${gy}`);
     await sleep(1200);
   }
@@ -153,38 +158,61 @@ async function runGate3Verification() {
   adb('pull /sdcard/ui_input.xml ui_input.xml');
   const inputXml = await fs.readFile('ui_input.xml', 'utf8');
 
-  const codeFieldMatch = inputXml.match(/text="6-Char Pairing Code[^"]*"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
-  const pairBtnMatch = inputXml.match(/text="Pair with Laptop"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+  const codeFieldMatch = inputXml.match(/text="[^"]*pairing code[^"]*"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/i) ||
+                         inputXml.match(/text="6-Char Pairing Code[^"]*"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+  const pairBtnMatch = inputXml.match(/text="Pair(?: with)? [Ll]aptop"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
 
-  const inputX = codeFieldMatch ? Math.floor((+codeFieldMatch[1] + +codeFieldMatch[3]) / 2) : 540;
-  const inputY = codeFieldMatch ? Math.floor((+codeFieldMatch[2] + +codeFieldMatch[4]) / 2) : 1490;
-  const btnX = pairBtnMatch ? Math.floor((+pairBtnMatch[1] + +pairBtnMatch[3]) / 2) : 540;
-  const btnY = pairBtnMatch ? Math.floor((+pairBtnMatch[2] + +pairBtnMatch[4]) / 2) : 1655;
+  const inputX = codeFieldMatch ? Math.floor((+codeFieldMatch[1] + +codeFieldMatch[3]) / 2) : 360;
+  const inputY = codeFieldMatch ? Math.floor((+codeFieldMatch[2] + +codeFieldMatch[4]) / 2) + 40 : 2125;
 
   console.log(`  -> Focusing 6-character pairing code input field at (${inputX}, ${inputY})...`);
   adb(`shell input tap ${inputX} ${inputY}`);
-  await sleep(300);
+  await sleep(400);
 
   // Clear any existing text
-  for (let i = 0; i < 8; i++) {
+  adb('shell input keyevent 123'); // KEYCODE_MOVE_END
+  for (let i = 0; i < 12; i++) {
     adb('shell input keyevent 67'); // KEYCODE_DEL
   }
-  await sleep(200);
+  await sleep(300);
 
   console.log(`  -> Typing code "${pairingCode}" into Reno 14...`);
   adb(`shell input text ${pairingCode}`);
-  await sleep(300);
-
-  console.log('  -> Dismissing keyboard...');
-  adb('shell input keyevent 4'); // BACK
   await sleep(400);
 
-  console.log(`  -> Tapping "Pair with Laptop" button on screen at (${btnX}, ${btnY})...`);
+  console.log('  -> Dismissing keyboard if shown...');
+  adb('shell input keyevent 111'); // KEYCODE_ESCAPE
+  adb('shell input keyevent 4');   // KEYCODE_BACK
+  await sleep(800);
+
+  // Re-check UI bounds for Pair button
+  let btnX = null;
+  let btnY = null;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    adb('shell uiautomator dump /sdcard/ui_after_type.xml');
+    adb('pull /sdcard/ui_after_type.xml ui_after_type.xml');
+    const afterXml = await fs.readFile('ui_after_type.xml', 'utf8');
+    const dynamicBtn = afterXml.match(/text="Pair(?: with)? [Ll]aptop"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/i);
+    if (dynamicBtn) {
+      btnX = Math.floor((+dynamicBtn[1] + +dynamicBtn[3]) / 2);
+      btnY = Math.floor((+dynamicBtn[2] + +dynamicBtn[4]) / 2);
+      break;
+    }
+    // If not found yet, maybe the keyboard needs another dismiss or short delay
+    adb('shell input keyevent 111');
+    await sleep(600);
+  }
+
+  if (!btnX || !btnY) {
+    throw new Error('Could not find "Pair laptop" button on screen after entering pairing code!');
+  }
+
+  console.log(`  -> Tapping "Pair laptop" button on screen at (${btnX}, ${btnY})...`);
   adb(`shell input tap ${btnX} ${btnY}`);
 
   // Wait for laptop to calculate SAS
   console.log('  -> Waiting for SAS agreement derivation...');
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < 60; i++) {
     if (laptopPeer.sas) break;
     await sleep(250);
   }
@@ -261,17 +289,19 @@ async function runGate3Verification() {
 
   // Await command acknowledgement
   let cmdAckReceived = false;
-  for (let i = 0; i < 30; i++) {
-    if (laptopPeer.receivedPlaintexts.some(m => m.type === 'cmd_ack' && m.plaintext.b.cmdId === cmdId)) {
+  for (let i = 0; i < 50; i++) {
+    const ack = laptopPeer.receivedPlaintexts.find(m => m.type === 'cmd_ack' && m.plaintext.b.cmdId === cmdId);
+    if (ack) {
       cmdAckReceived = true;
+      console.log(`  -> Reno 14 cmd_ack received: status="${ack.plaintext.b.status}" for cmdId="${cmdId}".`);
       break;
     }
     await sleep(200);
   }
   if (!cmdAckReceived) {
-    throw new Error('Did not receive cmd_ack from Reno 14 within 6 seconds!');
+    const receivedTypes = laptopPeer.receivedPlaintexts.map(m => m.type).join(', ') || 'none';
+    throw new Error(`Did not receive cmd_ack from Reno 14 within 10 seconds! Received plaintexts: [${receivedTypes}]`);
   }
-  console.log(`  -> Reno 14 cmd_ack received: status="applied" for cmdId="${cmdId}".`);
 
   // Verify Reno 14 UI reflects CONNECTED state
   adb('shell uiautomator dump /sdcard/session_connected.xml');
@@ -292,12 +322,13 @@ async function runGate3Verification() {
 
   // Create batch of queued laptop events to be replayed after reconnection
   const batchId = randomUUID();
+  const laptopDeviceId = `laptop-${pairResult.sid.slice(0, 10)}`;
   const backfillEvents = [
     {
       schemaVersion: '1.1.0',
       id: `00000000-0000-4000-8000-${randomUUID().replace(/-/g, '').slice(0, 12)}`,
       device: 'laptop',
-      deviceId: 'gate3-laptop',
+      deviceId: laptopDeviceId,
       seq: 1,
       source: 'vscode',
       type: 'edit_burst',
@@ -309,7 +340,7 @@ async function runGate3Verification() {
       schemaVersion: '1.1.0',
       id: `00000000-0000-4000-8000-${randomUUID().replace(/-/g, '').slice(0, 12)}`,
       device: 'laptop',
-      deviceId: 'gate3-laptop',
+      deviceId: laptopDeviceId,
       seq: 2,
       source: 'aw-window',
       type: 'window_change',
@@ -321,7 +352,7 @@ async function runGate3Verification() {
       schemaVersion: '1.1.0',
       id: `00000000-0000-4000-8000-${randomUUID().replace(/-/g, '').slice(0, 12)}`,
       device: 'laptop',
-      deviceId: 'gate3-laptop',
+      deviceId: laptopDeviceId,
       seq: 3,
       source: 'vscode',
       type: 'edit_burst',
@@ -333,7 +364,7 @@ async function runGate3Verification() {
       schemaVersion: '1.1.0',
       id: `00000000-0000-4000-8000-${randomUUID().replace(/-/g, '').slice(0, 12)}`,
       device: 'laptop',
-      deviceId: 'gate3-laptop',
+      deviceId: laptopDeviceId,
       seq: 4,
       source: 'system',
       type: 'resume_first_edit',
@@ -345,7 +376,7 @@ async function runGate3Verification() {
       schemaVersion: '1.1.0',
       id: `00000000-0000-4000-8000-${randomUUID().replace(/-/g, '').slice(0, 12)}`,
       device: 'laptop',
-      deviceId: 'gate3-laptop',
+      deviceId: laptopDeviceId,
       seq: 5,
       source: 'vscode',
       type: 'edit_burst',

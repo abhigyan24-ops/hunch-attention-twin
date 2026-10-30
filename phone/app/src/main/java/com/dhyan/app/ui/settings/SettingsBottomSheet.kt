@@ -138,7 +138,7 @@ fun CrossDeviceSyncSection(viewModel: SettingsViewModel) {
         val sas = status as? SyncUiStatus.SasVerification
         if (sas != null) {
             Text("Compare this code on both devices", style = MaterialTheme.typography.titleSmall)
-            Text(sas.sasDigits.chunked(3).joinToString(" "), style = MaterialTheme.typography.headlineLarge)
+            Text(sas.sasDigits.replace(" ", "").chunked(3).joinToString(" "), style = MaterialTheme.typography.headlineLarge)
             Text("Confirm only if both codes match.", style = MaterialTheme.typography.bodyMedium)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = viewModel::rejectSas) { Text("Codes differ") }

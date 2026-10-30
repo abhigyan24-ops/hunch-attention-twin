@@ -234,6 +234,7 @@ export class MockPeer {
 
       this.ws.on('open', () => {
         this.connected = true;
+        this.helloResponded = true;
         // Send hello
         const snB64 = this.sessionNonce.toString('base64');
         const helloMac = computeHelloMac(this.pairingKey, this.role, snB64, this.lastSeqAcked);

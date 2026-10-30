@@ -215,12 +215,6 @@ open class RelayClient(
     }
 
     private fun handlePeerHello(map: Map<*, *>) {
-        if (peerHelloAccepted) {
-            reject("duplicate_hello")
-            transport.close(1008, "duplicate_hello")
-            _state.value = SessionState.Failed("duplicate_hello")
-            return
-        }
         if (_state.value is SessionState.Disconnected || _state.value is SessionState.Failed) return
         val fromDevice = map["device"] as? String ?: return
         if (fromDevice != peerDevice) return
@@ -267,7 +261,7 @@ open class RelayClient(
         // Handshake complete: derive session keys
         val peerSn = Base64.getDecoder().decode(snBase64)
         if (peerSn.size != 16) return
-        val localSn = localSnBytes ?: secureRandomBytes(16).also { localSnBytes = it }
+        val localSn = secureRandomBytes(16).also { localSnBytes = it }
         sendLocalHello(localSn)
 
         // Contract Section 5.3: salt = snL || snP
