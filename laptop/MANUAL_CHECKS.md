@@ -78,3 +78,27 @@ Automated evidence: `npm run check:s7`, including test/ingest.test.mjs, passes s
 ## 8L verification entry points
 
 Use GATE3_8L.md for exact laptop-side Gate3 steps1–9. Run `npm run check:s8l` at repository root for production-code local tests and synthetic peer interoperability. `scripts/privacy-check.mjs` calls the shared scanner while printing counts only; `scripts/verify-sync-coverage.mjs` adds missing-event coverage to the shared checker. The new8L UI, real phone pairing, cloudTLS and device attack harness are not verified on target. The owner-approved partial state mapping emits flowing/working, browsing or gaming/distracted, and away/break on change and at5second heartbeats. Stuck, idle_open and offline snapshots are suppressed; no unclassified/offline state is labelled focus. Event/command sync and authenticated ping/pong are independent of that mapping.
+
+## Pip v2 — M0 diagnostic checks (pending owner verification)
+
+These are isolated dummy-sprite prototypes, not the finished pet. Run from repository root in PowerShell:
+
+```powershell
+powershell -NoProfile -File laptop/test/pip-v2-spike/run-spike.ps1 -Option A -Interactive
+powershell -NoProfile -File laptop/test/pip-v2-spike/run-spike.ps1 -Option B -Interactive
+```
+
+Run separately. Each has a 60-second owner probe and a 90-second safety exit. Reports default to `$env:TEMP\dhyan-pip-v2-m0-results\option-A.json` / option-B.json. Keep a normal test window visible; the controlled underlay is not always-on-top and other windows may obscure it.
+
+1. Move the real pointer across transparent margins and the sprite. Record whether hover forwarding reaches the overlay while transparency remains click-through. Counters alone are not acceptance.
+2. Click the controlled underlay button through transparent areas; verify its visible count changes. Click inside the sprite: verify capture is confined to that hitbox. Test underlying app buttons as well, without recording their content.
+3. Drag/release the sprite, then click underneath again. Observe any lost drag, stuck capture, focus activation or taskbar obstruction. Do not infer success from the automated trajectory.
+4. Record OS/display scaling and observations manually. Do not record window titles, app/site names or user content. Elevated foreground windows may block forwarding due to UIPI; do not elevate this harness as a workaround.
+
+The automated M0 run did not execute these physical interactions. Multi-display handoff is not implemented in the prototype. Production CPU, fullscreen behavior and input safety remain not verified on target.
+
+### Future M2/M4 acceptance checklist — not implemented or executed at M0
+
+After approved movement implementation: drag across two monitors, test 125%/150% mixed DPI and taskbar on each side; throw/snap; restart and restore position; unplug the saved display; change resolution; sleep/wake and RDP; click-through/hover after every transition; renderer-hang watchdog; lock/reset/size/opacity; shortcut collision and tray Pause. Report fullscreen video and game behavior as observed, never assumed.
+
+After approved reactions implementation: trigger L1–L4 with the dev-only simulation, verify no motion while flowing or declared work, calm/reduced-motion/reduced-text modes, quiet hours, break, snooze, DND and dismissal suppression. Verify numeric local shown/accepted/dismissed counters by day/level, with no copy or source identifiers persisted. Exact product commands/menu locations must be documented when implemented. STOP after M2 for owner review before M3.
