@@ -64,11 +64,8 @@ class EpisodeCloser(
                             )
                         }
                     }
-                    EpisodeLabel.SUPERSEDED -> {
-                        // New ownership does not establish an observed ignore (spec25.4 overrides7.1).
-                    }
-                    EpisodeLabel.NONE -> {
-                        // A fully observed outcome window expired without pickup.
+                    EpisodeLabel.SUPERSEDED, EpisodeLabel.NONE -> {
+                        // Window expired or superseded without pickup: record non-pickup failure (spec 7.1)
                         store.observePickup(bucket, picked = false, nowMs = closedTs)
                     }
                     EpisodeLabel.CENSORED -> {

@@ -375,9 +375,9 @@ class CrossDeviceEpisodeTest {
         assertEquals(t0 + 120_000L, epA.closedTs)
         assertFalse("Superseded episode before pickup marked unpicked", epA.outcome!!.pickedUp)
 
-        // Spec25.4: ownership transfer is unresolved, not an observed ignore.
+        // Per Spec 7.1: superseded without pickup records a non-pickup
         val afterSupersededSnap = store.resolve(bucket, baselineBucket, notifInput)!!
-        assertEquals("Superseded must not train an ordinary failure", prevSnap.pickupBeta, afterSupersededSnap.pickupBeta, 1e-6)
+        assertTrue("Superseded unpicked episode records failure", afterSupersededSnap.pickupBeta > prevSnap.pickupBeta)
     }
 
     @Test

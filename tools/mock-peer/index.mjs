@@ -234,7 +234,6 @@ export class MockPeer {
 
       this.ws.on('open', () => {
         this.connected = true;
-        this.helloResponded = true;
         // Send hello
         const snB64 = this.sessionNonce.toString('base64');
         const helloMac = computeHelloMac(this.pairingKey, this.role, snB64, this.lastSeqAcked);
@@ -425,7 +424,7 @@ if (process.argv[1] && process.argv[1].replaceAll('\\', '/').endsWith('tools/moc
         peer.sendFrame('ping', { t0: Date.now() });
       }
 
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(r => setTimeout(r, 8000));
     }
   } catch (err) {
     console.error(`[mock-peer] Failed/Attacked: ${err.message}`);
