@@ -8,62 +8,58 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
-import javax.crypto.spec.SecretKeySpec
 
 /**
  * Android Keystore AES-256 GCM key wrapper for storing permanent pairing keys (PK, sid).
- * In local JVM test environments where "AndroidKeyStore" is unavailable, provides a
- * deterministic fallback so unit tests can execute cleanly without mocking Android.
+ * Uses hardware-backed StrongBox when available, falling back to standard TEE.
+ * If hardware keystore is unavailable or key is lost/invalidated, fails closed
+ * with an IllegalStateException, requiring re-pairing. Zero software fallback keys.
  */
 class KeystoreKeyWrapper(
-    private val keyAlias: String = "dhyan_sync_master_key",
-    private val isTestFallback: Boolean = false
-) {
+    private val keyAlias: String = "dhyan_sync_master_key"
+) : KeyWrapper {
     private val secureRandom = SecureRandom()
-    private var testFallbackKey: SecretKey? = null
 
-    init {
-        if (isTestFallback) {
-            // Explicit JVM-only injection; never selected by a production error.
-            val rawKey = ByteArray(32).also { secureRandom.nextBytes(it) }
-            testFallbackKey = SecretKeySpec(rawKey, "AES")
-        } else {
-            // Initialize lazily so a Keystore error can be shown by the pairing UI.
-        }
-    }
+    private fun generateKey(useStrongBox: Boolean) {
+        val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        if (!ks.containsAlias(keyAlias)) {
+            val keyGenClass = Class.forName("android.security.keystore.KeyGenParameterSpec\$Builder")
+            val purposes = 1 or 2 // PURPOSE_ENCRYPT | PURPOSE_DECRYPT
+            val builder = keyGenClass.getConstructor(String::class.java, Int::class.java)
+                .newInstance(keyAlias, purposes)
 
-    private fun isAndroidKeyStoreAvailable(): Boolean {
-        return try {
-            KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-            true
-        } catch (_: Exception) {
-            false
+            val blockModes = arrayOf("GCM")
+            keyGenClass.getMethod("setBlockModes", blockModes.javaClass).invoke(builder, blockModes)
+
+            val encPaddings = arrayOf("NoPadding")
+            keyGenClass.getMethod("setEncryptionPaddings", encPaddings.javaClass).invoke(builder, encPaddings)
+
+            keyGenClass.getMethod("setKeySize", Int::class.javaPrimitiveType).invoke(builder, 256)
+
+            if (useStrongBox) {
+                try {
+                    keyGenClass.getMethod("setIsStrongBoxBacked", Boolean::class.javaPrimitiveType)
+                        .invoke(builder, true)
+                } catch (_: Exception) {
+                    // Method not available on older API levels
+                }
+            }
+
+            val spec = keyGenClass.getMethod("build").invoke(builder)
+            val kg = KeyGenerator.getInstance("AES", "AndroidKeyStore")
+            kg.javaClass.getMethod("init", java.security.spec.AlgorithmParameterSpec::class.java).invoke(kg, spec)
+            kg.generateKey()
         }
     }
 
     private fun ensureKeystoreKey() {
         try {
-            val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-            if (!ks.containsAlias(keyAlias)) {
-                // KeyGenParameterSpec is in android.security.keystore
-                val keyGenClass = Class.forName("android.security.keystore.KeyGenParameterSpec\$Builder")
-                val purposes = 1 or 2 // PURPOSE_ENCRYPT | PURPOSE_DECRYPT
-                val builder = keyGenClass.getConstructor(String::class.java, Int::class.java)
-                    .newInstance(keyAlias, purposes)
-
-                val blockModes = arrayOf("GCM")
-                keyGenClass.getMethod("setBlockModes", blockModes.javaClass).invoke(builder, blockModes)
-
-                val encPaddings = arrayOf("NoPadding")
-                keyGenClass.getMethod("setEncryptionPaddings", encPaddings.javaClass).invoke(builder, encPaddings)
-
-                keyGenClass.getMethod("setKeySize", Int::class.javaPrimitiveType).invoke(builder, 256)
-
-                val spec = keyGenClass.getMethod("build").invoke(builder)
-
-                val kg = KeyGenerator.getInstance("AES", "AndroidKeyStore")
-                kg.javaClass.getMethod("init", java.security.spec.AlgorithmParameterSpec::class.java).invoke(kg, spec)
-                kg.generateKey()
+            // First attempt StrongBox hardware isolation (DD-8 & Spec 25.13)
+            try {
+                generateKey(useStrongBox = true)
+            } catch (_: Exception) {
+                // StrongBoxUnavailableException or not supported: fallback to standard TEE
+                generateKey(useStrongBox = false)
             }
         } catch (_: Exception) {
             throw IllegalStateException("secure_storage_unavailable")
@@ -71,19 +67,22 @@ class KeystoreKeyWrapper(
     }
 
     private fun getSecretKey(): SecretKey {
-        return testFallbackKey ?: run {
-            ensureKeystoreKey()
-            val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-            ks.getKey(keyAlias, null) as SecretKey
+        ensureKeystoreKey()
+        val ks = try {
+            KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        } catch (_: Exception) {
+            throw IllegalStateException("secure_storage_unavailable")
         }
+        val key = ks.getKey(keyAlias, null) as? SecretKey
+        return key ?: throw IllegalStateException("key_invalidated_repair_required")
     }
 
-    /**
-     * Encrypts plaintext bytes with AES-GCM-256.
-     * Returns Base64 encoded string: 12-byte IV || CiphertextWithTag.
-     */
-    fun wrap(plaintext: ByteArray): String {
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+    override fun wrap(plaintext: ByteArray): String {
+        val cipher = try {
+            Cipher.getInstance("AES/GCM/NoPadding")
+        } catch (_: Exception) {
+            throw IllegalStateException("secure_storage_unavailable")
+        }
         cipher.init(Cipher.ENCRYPT_MODE, getSecretKey())
         val iv = cipher.iv ?: ByteArray(12).also { secureRandom.nextBytes(it) }
         val ciphertext = cipher.doFinal(plaintext)
@@ -95,16 +94,17 @@ class KeystoreKeyWrapper(
         return Base64.getEncoder().encodeToString(combined)
     }
 
-    /**
-     * Decrypts wrapped Base64 string back into plaintext bytes.
-     */
-    fun unwrap(wrappedBase64: String): ByteArray {
+    override fun unwrap(wrappedBase64: String): ByteArray {
         val combined = Base64.getDecoder().decode(wrappedBase64)
         require(combined.size > 28) { "Invalid wrapped payload: too short" }
         val iv = combined.copyOfRange(0, 12)
         val ciphertext = combined.copyOfRange(12, combined.size)
 
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        val cipher = try {
+            Cipher.getInstance("AES/GCM/NoPadding")
+        } catch (_: Exception) {
+            throw IllegalStateException("secure_storage_unavailable")
+        }
         cipher.init(Cipher.DECRYPT_MODE, getSecretKey(), GCMParameterSpec(128, iv))
         return cipher.doFinal(ciphertext)
     }

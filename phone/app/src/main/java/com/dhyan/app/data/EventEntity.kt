@@ -15,7 +15,8 @@ import androidx.room.PrimaryKey
     indices = [
         Index(value = ["ts"]),
         Index(value = ["kind"]),
-        Index(value = ["device_id", "seq", "event_id"])
+        Index(value = ["device_id", "seq"], unique = true),
+        Index(value = ["event_id"])
     ]
 )
 data class EventEntity(

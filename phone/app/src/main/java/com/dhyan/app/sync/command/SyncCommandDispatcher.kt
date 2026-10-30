@@ -38,15 +38,22 @@ class SyncCommandDispatcher(
         } catch (_: Exception) {
             return@withLock false
         } ?: return@withLock false
-        if (!schemas.valid("command.schema.json", parsed)) return@withLock false
-
-        val cmdId = parsed["cmdId"] as String
-        val cmd = parsed["cmd"] as String
+        val rawCmdId = parsed["cmdId"] as? String
+        val cmd = parsed["cmd"] as? String ?: "unknown"
         val args = parsed["args"] as? Map<*, *> ?: emptyMap<String, Any?>()
         val issuedTs = (parsed["issuedTs"] as? Number)?.toLong() ?: 0L
         val exp = (parsed["exp"] as? Number)?.toLong() ?: 0L
-
         val now = timeProvider()
+
+        if (!schemas.valid("command.schema.json", parsed)) {
+            if (!rawCmdId.isNullOrBlank()) {
+                recordLog(rawCmdId, "laptop", cmd, "rejected", "schema_invalid", issuedTs, now)
+                sendCmdAck(rawCmdId, "rejected", "schema_invalid")
+                return@withLock true
+            }
+            return@withLock false
+        }
+        val cmdId = rawCmdId ?: return@withLock false
 
         // 1. Expiry check: exp - issuedTs <= 60s, local clock check
         if (now >= ClockOffset.adjustIncomingTs(exp) || exp < issuedTs || exp - issuedTs > 60_000L || now < ClockOffset.adjustIncomingTs(issuedTs)) {

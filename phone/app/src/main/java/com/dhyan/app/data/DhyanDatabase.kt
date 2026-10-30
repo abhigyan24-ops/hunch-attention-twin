@@ -20,7 +20,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SettingsEntity::class,
         CmdLogEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 abstract class DhyanDatabase : RoomDatabase() {
@@ -105,6 +105,25 @@ abstract class DhyanDatabase : RoomDatabase() {
          * Migration 2 → 3: Non-destructive addition of cmd_log table and canonical
          * sync envelope identity columns to events table (Stage 8P1, Schema 1.1.0).
          */
+        /**
+         * Migration 3 → 4: Deduplicate pre-existing rows non-destructively by keeping the
+         * highest `id` for each (device_id, seq), and apply a strict UNIQUE constraint on (device_id, seq).
+         */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    DELETE FROM events 
+                    WHERE id NOT IN (
+                        SELECT MAX(id) FROM events GROUP BY device_id, seq
+                    )
+                """.trimIndent())
+
+                db.execSQL("DROP INDEX IF EXISTS `index_events_device_id_seq_event_id`")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_events_device_id_seq` ON `events` (`device_id`, `seq`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_events_event_id` ON `events` (`event_id`)")
+            }
+        }
+
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // 1. Create cmd_log table
@@ -140,7 +159,7 @@ abstract class DhyanDatabase : RoomDatabase() {
                     DhyanDatabase::class.java,
                     "dhyan.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                     .also { INSTANCE = it }
             }

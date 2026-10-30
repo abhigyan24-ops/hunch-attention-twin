@@ -111,7 +111,7 @@ class SyncDataEngine(
                 val duplicate = !stagedIds.add(id) || eventDao.findByDeviceAndId(peer, id) != null
                 val type = (event["type"] as? String) ?: (event["kind"] as? String) ?: "unknown"
                 val reason = when {
-                    !schemas.event(event) && event["kind"] == null -> "schema_invalid"
+                    !schemas.event(event) -> "schema_invalid"
                     adjusted > timeProvider() + 300_000L -> "future_timestamp"
                     duplicate -> "duplicate"
                     else -> null

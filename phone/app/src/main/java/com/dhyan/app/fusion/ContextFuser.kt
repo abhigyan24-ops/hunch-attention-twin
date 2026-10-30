@@ -33,7 +33,20 @@ class ContextFuser(
 ) : SnapshotSource {
 
     private val _snapshot = MutableStateFlow<ContextSnapshot?>(null)
-    override val snapshot: StateFlow<ContextSnapshot?> = _snapshot.asStateFlow()
+    override val snapshot: StateFlow<ContextSnapshot?> = object : StateFlow<ContextSnapshot?> {
+        override val replayCache: List<ContextSnapshot?>
+            get() = listOf(value)
+
+        override val value: ContextSnapshot?
+            get() = synchronized(this@ContextFuser) {
+                if (_snapshot.value != null) recompute()
+                _snapshot.value
+            }
+
+        override suspend fun collect(collector: kotlinx.coroutines.flow.FlowCollector<ContextSnapshot?>): Nothing {
+            _snapshot.collect(collector)
+        }
+    }
 
     @Synchronized override fun currentSnapshot(): ContextSnapshot? {
         if (_snapshot.value != null) recompute()

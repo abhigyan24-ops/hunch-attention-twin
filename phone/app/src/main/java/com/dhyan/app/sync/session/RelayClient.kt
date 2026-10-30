@@ -51,6 +51,7 @@ open class RelayClient(
         private set
 
     private var localSnBytes: ByteArray? = null
+    private var peerHelloAccepted: Boolean = false
     private var reconnectAttempt: Int = 0
     private var reconnectJob: Job? = null
     private var isIntentionalDisconnect: Boolean = false
@@ -104,6 +105,7 @@ open class RelayClient(
         val current = generation
         sessionKeys = null
         localSnBytes = null
+        peerHelloAccepted = false
         lastPeerFrameMs = timeProvider()
         _state.value = SessionState.Connecting
         transport.connect(relayUrl, sidHex, device, object : SessionTransportListener {
@@ -207,6 +209,12 @@ open class RelayClient(
     }
 
     private fun handlePeerHello(map: Map<*, *>) {
+        if (peerHelloAccepted) {
+            reject("duplicate_hello")
+            transport.close(1008, "duplicate_hello")
+            _state.value = SessionState.Failed("duplicate_hello")
+            return
+        }
         if (_state.value is SessionState.Disconnected || _state.value is SessionState.Failed) return
         val fromDevice = map["device"] as? String ?: return
         if (fromDevice != peerDevice) return
@@ -253,13 +261,7 @@ open class RelayClient(
         // Handshake complete: derive session keys
         val peerSn = Base64.getDecoder().decode(snBase64)
         if (peerSn.size != 16) return
-        val localSn = if (_state.value is SessionState.Connected) {
-            secureRandomBytes(16).also { localSnBytes = it }
-        } else {
-            localSnBytes ?: secureRandomBytes(16).also { localSnBytes = it }
-        }
-        // The first hello may have been sent before the peer joined. Answer once,
-        // retaining this connection's original nonce; the state guard above prevents loops.
+        val localSn = localSnBytes ?: secureRandomBytes(16).also { localSnBytes = it }
         sendLocalHello(localSn)
 
         // Contract Section 5.3: salt = snL || snP
@@ -267,6 +269,7 @@ open class RelayClient(
         sessionKeys = keys
         outboundCtr = 0L
         inboundCtr = 0L
+        peerHelloAccepted = true
         reconnectAttempt = 0
         _state.value = SessionState.Connected(peerLastSeqAcked = lastSeq)
         lastPeerFrameMs = timeProvider()

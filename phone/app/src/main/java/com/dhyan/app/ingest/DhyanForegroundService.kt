@@ -103,17 +103,50 @@ class DhyanForegroundService : Service() {
     // ── Event stubs — Stage 4 replaces these with real Room writes ─────────
 
     private fun onUsageWindow(appCat: String, surface: String, durationMin: Double, ts: Long) {
-        EpisodeRuntime.instance?.let { runtime ->
-            val startTs = ts - (durationMin * 60_000).toLong()
-            runtime.onAppForeground(appCat, surface, startTs)
-            runtime.onAppBackground((durationMin * 60_000).toLong(), ts)
-        }
+        val durationMs = (durationMin * 60_000).toLong()
+        val startTs = ts - durationMs
 
+        // 1. Feed the fuser with live in-app state
+        com.dhyan.app.DhyanApplication.syncManager.contextFuser.updatePhoneState(
+            phoneState = com.dhyan.app.twin.model.PhoneState.IN_APP,
+            phoneAppCat = appCat
+        )
+
+        // 2. Record canonical usage events for outbound sync & Room persistence
+        val canonicalSurface = when (surface) {
+            "feed", "shorts", "watch", "chat", "editor" -> surface
+            else -> "other"
+        }
+        com.dhyan.app.DhyanApplication.syncManager.recordLocalEvent(
+            type = "app_foreground",
+            source = "usage",
+            payload = mapOf("pkg" to "unknown", "appCat" to appCat, "surface" to canonicalSurface),
+            ts = startTs
+        )
+        com.dhyan.app.DhyanApplication.syncManager.recordLocalEvent(
+            type = "app_background",
+            source = "usage",
+            payload = mapOf("pkg" to "unknown", "durationMs" to durationMs),
+            ts = ts
+        )
+
+        // 3. Feed EpisodeRuntime
+        EpisodeRuntime.instance?.let { runtime ->
+            runtime.onAppForeground(appCat, surface, startTs)
+            runtime.onAppBackground(durationMs, ts)
+        }
     }
 
     private fun onScreenEvent(kind: String, ts: Long) {
         if (kind in setOf("screen_on", "screen_off", "pickup", "unlock")) {
             com.dhyan.app.DhyanApplication.syncManager.recordLocalEvent(kind, "screen", emptyMap(), ts)
+
+            val pState = when (kind) {
+                "screen_off" -> com.dhyan.app.twin.model.PhoneState.SCREEN_OFF
+                "screen_on", "unlock", "pickup" -> com.dhyan.app.twin.model.PhoneState.IN_APP
+                else -> com.dhyan.app.twin.model.PhoneState.SCREEN_OFF
+            }
+            com.dhyan.app.DhyanApplication.syncManager.contextFuser.updatePhoneState(phoneState = pState)
         }
         EpisodeRuntime.instance?.let { runtime ->
             when (kind) {
@@ -122,7 +155,6 @@ class DhyanForegroundService : Service() {
                 "pickup"     -> runtime.onPickup(ts)
             }
         }
-
     }
 
     // ── Notification helpers ────────────────────────────────────────────────

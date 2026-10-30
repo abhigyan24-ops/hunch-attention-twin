@@ -101,5 +101,35 @@ class SyncDataEngineTest {
         assertEquals(event["id"], output["id"])
         assertEquals(100_000L, (output["ts"] as Number).toLong())
     }
-}
 
+
+    @Test
+    fun inboundLegacyFlatEventWithoutCanonicalEnvelopeMustBeRejectedAsSchemaInvalid() = runTest {
+        val dao = MemoryDao()
+        val client = Client()
+        val engine = SyncDataEngine(dao, client, timeProvider = { 100_000L })
+
+        // Non-canonical event: uses top-level 'kind' instead of canonical envelope (missing type, source, synthetic, payload)
+        val legacyFlatEvent = mapOf(
+            "schemaVersion" to "1.1.0",
+            "id" to "00000000-0000-4000-8000-000000000001",
+            "deviceId" to "laptop",
+            "device" to "laptop",
+            "seq" to 1L,
+            "ts" to 100_000L,
+            "kind" to "window_change",
+            "appCat" to "coding",
+            "surface" to "ide"
+        )
+
+        engine.processInboundBatch(1L, listOf(legacyFlatEvent))
+
+        // Strict contract: Non-canonical events must NOT be settled as 'valid'.
+        // They must be marked as 'tombstone' with reason 'schema_invalid'.
+        assertEquals(1, dao.rows.size)
+        assertEquals("tombstone", dao.rows[0].settledStatus)
+        val marker = JsonReader.parse(dao.rows[0].extrasJson!!) as Map<*, *>
+        assertEquals("schema_invalid", marker["reason"])
+    }
+
+}

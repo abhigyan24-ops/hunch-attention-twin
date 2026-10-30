@@ -2,7 +2,8 @@ package com.dhyan.app.sync.pairing
 
 import com.dhyan.app.data.SettingsDao
 import com.dhyan.app.data.SettingsEntity
-import com.dhyan.app.sync.crypto.KeystoreKeyWrapper
+import com.dhyan.app.sync.crypto.KeyWrapper
+import com.dhyan.app.sync.crypto.TestKeyWrapper
 import com.dhyan.app.sync.crypto.SyncCrypto
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -27,8 +28,11 @@ class PairingControllerTest {
 
     private val settingsStore = mutableMapOf<String, SettingsEntity>()
 
+    val setRecordLog = mutableListOf<SettingsEntity>()
+
     private val fakeSettingsDao = object : SettingsDao {
         override suspend fun set(setting: SettingsEntity) {
+            setRecordLog.add(setting)
             settingsStore[setting.key] = setting
         }
 
@@ -41,7 +45,7 @@ class PairingControllerTest {
         }
     }
 
-    private val keyWrapper = KeystoreKeyWrapper(isTestFallback = true)
+    private val keyWrapper: KeyWrapper = TestKeyWrapper()
 
     private class MockRendezvousTransport : RendezvousTransport {
         var connectedUrl: String? = null
@@ -135,7 +139,7 @@ class PairingControllerTest {
         val macLBase64 = Base64.getEncoder().encodeToString(macL)
         mockTransport.receive("{\"v\":1,\"t\":\"pair_confirm\",\"device\":\"laptop\",\"mac\":\"$macLBase64\"}")
 
-        testScheduler.advanceUntilIdle()
+        testScheduler.runCurrent()
 
         // 6. Final state: Paired
         val finalState = controller.state.value
@@ -192,6 +196,7 @@ class PairingControllerTest {
         // User clicks "No" (rejects SAS)
         controller.confirmSas(false)
 
+        println("DEBUG_STATE: " + controller.state.value)
         assertTrue(controller.state.value is PairingState.Cancelled)
         assertTrue(mockTransport.sentMessages.any { it.contains("pair_cancel") })
     }
@@ -233,6 +238,7 @@ class PairingControllerTest {
         mockTransport.receive(confirm)
         testScheduler.runCurrent()
         assertTrue(settingsStore.isEmpty())
+        println("DEBUG_STATE: " + controller.state.value)
         assertTrue(controller.state.value is PairingState.Cancelled)
     }
 
@@ -248,4 +254,118 @@ class PairingControllerTest {
         testScheduler.runCurrent()
         assertTrue(settingsStore.isEmpty())
     }
+
+
+    
+
+    @Test
+    fun peerConfirmBeforeLocalYes_persistsOnlyAfterLocalYes_andWritesZeroBefore() = testScope.runTest {
+        setRecordLog.clear()
+        val kpL = SyncCrypto.generateP256KeyPair()
+        val pkLBytes = SyncCrypto.encodePublicKeyUncompressed(kpL.public as ECPublicKey)
+        val nL = ByteArray(16) { 1 }
+        val commitL = SyncCrypto.computePairCommit(pkLBytes, nL)
+        val commitBase64 = Base64.getEncoder().encodeToString(commitL)
+
+        controller.startPairing("234567", "ws://127.0.0.1:47820")
+        mockTransport.receive("""{"v":1,"t":"pair_offer","device":"laptop","commit":"$commitBase64"}""")
+
+        val joinMsg = mockTransport.sentMessages.first { it.contains("pair_join") }
+        val joinMap = com.dhyan.app.personas.json.JsonReader.parse(joinMsg) as Map<*, *>
+        val pkPBytes = Base64.getDecoder().decode(joinMap["pk"] as String)
+        val nPBytes = Base64.getDecoder().decode(joinMap["n"] as String)
+
+        val pkLBase64 = Base64.getEncoder().encodeToString(pkLBytes)
+        val nLBase64 = Base64.getEncoder().encodeToString(nL)
+        mockTransport.receive("""{"v":1,"t":"pair_reveal","device":"laptop","pk":"$pkLBase64","n":"$nLBase64"}""")
+        assertTrue(controller.state.value is PairingState.AwaitingUserConfirmation)
+
+        // Peer sends pair_confirm BEFORE local user confirms
+        val secretL = SyncCrypto.computeECDH(kpL.private as ECPrivateKey, SyncCrypto.decodePublicKeyUncompressed(pkPBytes))
+        val tL = SyncCrypto.computeTranscriptHash(pkLBytes, pkPBytes, nL, nPBytes)
+        val macL = SyncCrypto.computePairConfirmMac(secretL, tL, "laptop")
+        val macLBase64 = Base64.getEncoder().encodeToString(macL)
+        mockTransport.receive("""{"v":1,"t":"pair_confirm","device":"laptop","mac":"$macLBase64"}""")
+
+        testScheduler.runCurrent()
+
+        // Zero writes before local human confirmation!
+        assertEquals("Expected 0 writes before local Yes", 0, setRecordLog.size)
+        assertTrue(controller.state.value is PairingState.AwaitingUserConfirmation)
+
+        // Now local user confirms SAS
+        controller.confirmSas(true)
+        testScheduler.runCurrent()
+
+        // After local Yes, credentials are persisted (pk and roomId)
+        assertEquals(2, setRecordLog.size)
+        assertTrue(controller.state.value is PairingState.Paired)
+    }
+
+    @Test
+    fun localNo_discardsContextAndWritesZero() = testScope.runTest {
+        setRecordLog.clear()
+        val kpL = SyncCrypto.generateP256KeyPair()
+        val pkLBytes = SyncCrypto.encodePublicKeyUncompressed(kpL.public as ECPublicKey)
+        val nL = ByteArray(16) { 1 }
+        val commitL = SyncCrypto.computePairCommit(pkLBytes, nL)
+        val commitBase64 = Base64.getEncoder().encodeToString(commitL)
+
+        controller.startPairing("234567", "ws://127.0.0.1:47820")
+        mockTransport.receive("""{"v":1,"t":"pair_offer","device":"laptop","commit":"$commitBase64"}""")
+
+        val pkLBase64 = Base64.getEncoder().encodeToString(pkLBytes)
+        val nLBase64 = Base64.getEncoder().encodeToString(nL)
+        mockTransport.receive("""{"v":1,"t":"pair_reveal","device":"laptop","pk":"$pkLBase64","n":"$nLBase64"}""")
+        assertTrue(controller.state.value is PairingState.AwaitingUserConfirmation)
+
+        // Local user rejects SAS (presses No)
+        controller.confirmSas(false)
+        testScheduler.runCurrent()
+
+        assertTrue(controller.state.value is PairingState.Cancelled)
+        assertEquals(0, setRecordLog.size)
+        assertTrue(mockTransport.sentMessages.any { it.contains("pair_cancel") })
+    }
+
+    @Test
+    fun wrongMac_failsProtocolAndWritesZero() = testScope.runTest {
+        setRecordLog.clear()
+        val kpL = SyncCrypto.generateP256KeyPair()
+        val pkLBytes = SyncCrypto.encodePublicKeyUncompressed(kpL.public as ECPublicKey)
+        val nL = ByteArray(16) { 1 }
+        val commitL = SyncCrypto.computePairCommit(pkLBytes, nL)
+        val commitBase64 = Base64.getEncoder().encodeToString(commitL)
+
+        controller.startPairing("234567", "ws://127.0.0.1:47820")
+        mockTransport.receive("""{"v":1,"t":"pair_offer","device":"laptop","commit":"$commitBase64"}""")
+
+        val pkLBase64 = Base64.getEncoder().encodeToString(pkLBytes)
+        val nLBase64 = Base64.getEncoder().encodeToString(nL)
+        mockTransport.receive("""{"v":1,"t":"pair_reveal","device":"laptop","pk":"$pkLBase64","n":"$nLBase64"}""")
+
+        // Peer delivers invalid MAC
+        val badMac = Base64.getEncoder().encodeToString(ByteArray(32) { 0xFF.toByte() })
+        mockTransport.receive("""{"v":1,"t":"pair_confirm","device":"laptop","mac":"$badMac"}""")
+        testScheduler.runCurrent()
+
+        assertTrue(controller.state.value is PairingState.Failed)
+        assertEquals(0, setRecordLog.size)
+    }
+
+    @Test
+    fun pairingTimeout_failsAndWritesZero() = testScope.runTest {
+        setRecordLog.clear()
+        controller.startPairing("234567", "ws://127.0.0.1:47820")
+        assertTrue(controller.state.value is PairingState.WaitingForLaptopOffer)
+
+        // Advance past 300s timeout
+        testScheduler.advanceTimeBy(300_001L)
+        testScheduler.runCurrent()
+
+        assertTrue(controller.state.value is PairingState.Failed)
+        assertEquals("pairing_expired", (controller.state.value as PairingState.Failed).error)
+        assertEquals(0, setRecordLog.size)
+    }
+
 }

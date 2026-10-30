@@ -230,4 +230,33 @@ class SyncCommandDispatcherTest {
         val parsed = JsonReader.parse(heldListJson) as Map<*, *>
         assertEquals(1, (parsed["total"] as Number).toInt())
     }
+
+
+    @Test
+    fun malformedCommandArgsMustSendRejectedCmdAckWithSchemaInvalid() = runTest {
+        val phoneControl = MockPhoneControl()
+        val dao = MockCmdLogDao()
+        val client = TestableRelayClient()
+        val dispatcher = SyncCommandDispatcher(phoneControl, dao, client, timeProvider = { 10_000L })
+
+        // kill_switch missing required 'on' argument in args
+        val malformedJson = """{
+            "v": 1,
+            "cmdId": "00000000-0000-4000-8000-000000000001",
+            "cmd": "kill_switch",
+            "args": {},
+            "issuedTs": 10000,
+            "exp": 20000
+        }"""
+
+        val processed = dispatcher.handleInboundCommand(malformedJson)
+        assertTrue(processed)
+        assertEquals(1, client.sentFrames.size)
+        val (type, bodyJson) = client.sentFrames.first()
+        assertEquals("cmd_ack", type)
+        val ack = com.dhyan.app.personas.json.JsonReader.parse(bodyJson) as Map<*, *>
+        assertEquals("rejected", ack["status"])
+        assertEquals("schema_invalid", ack["reason"])
+    }
+
 }

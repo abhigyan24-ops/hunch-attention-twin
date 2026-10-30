@@ -126,4 +126,26 @@ class ContextFuserTest {
         assertTrue(fuser.isLaptopStale())
         assertFalse(fuser.isRelayConnected())
     }
+
+
+    @Test
+    fun advancingClockPast15sWithoutManualRecomputeLeavesDirectSnapshotStale() {
+        fuser.updatePhoneState(phoneState = PhoneState.IN_APP, baseConfidence = 0.9)
+        fuser.updateRelayConnectivity(true)
+        fuser.updateLaptopState(state = LaptopState.FLOWING, receivedAtMs = currentTimeMs)
+
+        // Snapshot is now FLOWING
+        val initialSnap = fuser.snapshot.value
+        assertNotNull(initialSnap)
+        assertEquals(LaptopState.FLOWING, initialSnap!!.laptopState)
+
+        // Advance clock by 20 seconds (past 15s stale threshold) without calling recompute
+        currentTimeMs += 20_000L
+
+        // F7 probe: direct snapshot read must age out stale laptop state automatically
+        val agedSnap = fuser.snapshot.value
+        assertNotNull(agedSnap)
+        assertEquals(LaptopState.OFFLINE, agedSnap!!.laptopState)
+    }
+
 }

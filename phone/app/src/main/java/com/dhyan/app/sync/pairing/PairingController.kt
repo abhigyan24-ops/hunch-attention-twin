@@ -4,6 +4,7 @@ import com.dhyan.app.data.SettingsDao
 import com.dhyan.app.data.SettingsEntity
 import com.dhyan.app.personas.json.JsonReader
 import com.dhyan.app.sync.crypto.KeystoreKeyWrapper
+import com.dhyan.app.sync.crypto.KeyWrapper
 import com.dhyan.app.sync.crypto.SyncCrypto
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,7 +22,7 @@ import java.util.Base64
 
 class PairingController(
     private val settingsDao: SettingsDao,
-    private val keyWrapper: KeystoreKeyWrapper,
+    private val keyWrapper: KeyWrapper,
     private val transport: RendezvousTransport,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default)
 ) {

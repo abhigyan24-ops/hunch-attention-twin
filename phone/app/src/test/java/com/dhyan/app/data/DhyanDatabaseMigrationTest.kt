@@ -40,6 +40,41 @@ class DhyanDatabaseMigrationTest {
     }
 
     @Test
+    fun migration_3_4_executesDeduplicationAndUniqueIndexDdl() {
+        val executedSql = mutableListOf<String>()
+
+        val dummyDb = Proxy.newProxyInstance(
+            SupportSQLiteDatabase::class.java.classLoader,
+            arrayOf(SupportSQLiteDatabase::class.java)
+        ) { _, method, args ->
+            if (method.name == "execSQL" && args != null && args.isNotEmpty()) {
+                executedSql.add(args[0] as String)
+            }
+            null
+        } as SupportSQLiteDatabase
+
+        DhyanDatabase.MIGRATION_3_4.migrate(dummyDb)
+
+        // 1. Verify deduplication statement keeping highest id for each (device_id, seq)
+        assertTrue(executedSql.any {
+            it.contains("DELETE FROM events") && it.contains("MAX(id)") && it.contains("GROUP BY device_id, seq")
+        })
+
+        // 2. Verify dropping non-unique index
+        assertTrue(executedSql.any { it.contains("DROP INDEX IF EXISTS `index_events_device_id_seq_event_id`") })
+
+        // 3. Verify creating strict UNIQUE index on (device_id, seq)
+        assertTrue(executedSql.any {
+            it.contains("CREATE UNIQUE INDEX IF NOT EXISTS `index_events_device_id_seq` ON `events` (`device_id`, `seq`)")
+        })
+
+        // 4. Verify creating index on event_id
+        assertTrue(executedSql.any {
+            it.contains("CREATE INDEX IF NOT EXISTS `index_events_event_id` ON `events` (`event_id`)")
+        })
+    }
+
+    @Test
     fun testVectorsResourceIsAccessibleInClasspath() {
         val text = SyncTestVectorsLoader.readText()
         assertNotNull("test-vectors.json must be loaded", text)

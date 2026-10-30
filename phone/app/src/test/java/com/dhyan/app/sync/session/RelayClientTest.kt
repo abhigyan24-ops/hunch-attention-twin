@@ -18,7 +18,7 @@ import java.util.Base64
 
 class RelayClientTest {
     @Test
-    fun duplicateHelloCannotResetCountersOrReuseNonce() {
+    fun duplicateHelloFailsClosedWith1008AndDoesNotResetCounters() {
         val client = RelayClient(pk, sidHex, "ws://127.0.0.1:8080/ws", mockTransport, testScope,
             secureRandomBytes = fixedRandomBytes)
         client.connect()
@@ -28,11 +28,42 @@ class RelayClientTest {
         val hello = """{"v":1,"t":"hello","device":"laptop","sn":"$nonce","proto":[1],"lastSeqAcked":0,"mac":"$mac"}"""
         mockTransport.triggerMessage(hello)
         assertTrue(client.sendPing(1))
-        mockTransport.triggerMessage(hello)
         assertEquals(1L, client.outboundCtr)
-        assertTrue(client.sendPing(2))
-        assertEquals(2L, client.outboundCtr)
-        assertEquals(2, mockTransport.sentMessages.count { (JsonReader.parse(it) as Map<*, *>)["t"] == "hello" })
+
+        // Delivering duplicate hello must fail closed with code 1008 and preserve outboundCtr
+        mockTransport.triggerMessage(hello)
+        assertTrue(mockTransport.isClosed)
+        assertEquals(1008, mockTransport.lastClosedCode)
+        assertEquals("duplicate_hello", mockTransport.lastClosedReason)
+        assertEquals(1L, client.outboundCtr)
+    }
+
+    @Test
+    fun concurrentSendSerializesCountersWithoutGapsOrDups() = kotlinx.coroutines.test.runTest {
+        val client = RelayClient(pk, sidHex, "ws://127.0.0.1:8080/ws", mockTransport, this,
+            secureRandomBytes = fixedRandomBytes)
+        client.connect()
+        mockTransport.triggerOpen()
+        val nonce = Base64.getEncoder().encodeToString(ByteArray(16) { 5 })
+        val mac = Base64.getEncoder().encodeToString(SyncCrypto.computeHelloMac(pk, "laptop", nonce, 0))
+        val hello = """{"v":1,"t":"hello","device":"laptop","sn":"$nonce","proto":[1],"lastSeqAcked":0,"mac":"$mac"}"""
+        mockTransport.triggerMessage(hello)
+        assertTrue(client.state.value is SessionState.Connected)
+
+        val threads = (1..20).map { i ->
+            kotlin.concurrent.thread {
+                client.sendEncrypted("ping", """{"t0":$i}""")
+            }
+        }
+        threads.forEach { it.join() }
+        assertEquals(20L, client.outboundCtr)
+
+        val encryptedFrames = mockTransport.sentMessages
+            .mapNotNull { runCatching { com.dhyan.app.personas.json.JsonReader.parse(it) as Map<*, *> }.getOrNull() }
+            .filter { it["t"] == "ping" }
+        assertEquals(20, encryptedFrames.size)
+        val counters = encryptedFrames.map { (it["ctr"] as Number).toLong() }.sorted()
+        assertEquals((1L..20L).toList(), counters)
     }
 
     private class MockSessionTransport : SessionTransport {
@@ -343,4 +374,53 @@ class RelayClientTest {
         assertNotNull(pongBody["t1"])
         assertNotNull(pongBody["t2"])
     }
+
+
+    @Test
+    fun secondHelloOnSameConnectionFailsClosedWith1008DuplicateHello() {
+        val client = RelayClient(
+            pk = pk,
+            sidHex = sidHex,
+            relayUrl = "ws://127.0.0.1:8080/ws",
+            transport = mockTransport,
+            scope = testScope,
+            getLastSeqAcked = { 0L },
+            secureRandomBytes = fixedRandomBytes
+        )
+        client.connect()
+        mockTransport.triggerOpen()
+
+        val laptopSn1 = ByteArray(16) { 1 }
+        val laptopSn1Base64 = Base64.getEncoder().encodeToString(laptopSn1)
+        val laptopMac1 = SyncCrypto.computeHelloMac(pk, "laptop", laptopSn1Base64, 0L)
+        val laptopMac1Base64 = Base64.getEncoder().encodeToString(laptopMac1)
+
+        mockTransport.triggerMessage(
+            """{"v":1,"t":"hello","device":"laptop","sn":"$laptopSn1Base64","proto":[1],"lastSeqAcked":0,"mac":"$laptopMac1Base64"}"""
+        )
+        assertTrue(client.state.value is SessionState.Connected)
+        assertEquals(0L, client.outboundCtr)
+
+        // Outbound ping increments ctr to 1
+        assertTrue(client.sendPing(100L))
+        assertEquals(1L, client.outboundCtr)
+
+        // Peer delivers a SECOND hello on the established connection with a new nonce
+        val laptopSn2 = ByteArray(16) { 2 }
+        val laptopSn2Base64 = Base64.getEncoder().encodeToString(laptopSn2)
+        val laptopMac2 = SyncCrypto.computeHelloMac(pk, "laptop", laptopSn2Base64, 0L)
+        val laptopMac2Base64 = Base64.getEncoder().encodeToString(laptopMac2)
+
+        mockTransport.triggerMessage(
+            """{"v":1,"t":"hello","device":"laptop","sn":"$laptopSn2Base64","proto":[1],"lastSeqAcked":0,"mac":"$laptopMac2Base64"}"""
+        )
+
+        // Contract & F1: Mid-stream renegotiation on the same socket is prohibited.
+        // Must fail closed with 1008 duplicate_hello, close transport, and must NOT reset outboundCtr to 0.
+        assertTrue("Expected transport to be closed on duplicate hello", mockTransport.isClosed)
+        assertEquals(1008, mockTransport.lastClosedCode)
+        assertEquals("duplicate_hello", mockTransport.lastClosedReason)
+        assertEquals(1L, client.outboundCtr)
+    }
+
 }

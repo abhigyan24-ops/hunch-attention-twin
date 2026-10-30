@@ -15,6 +15,7 @@ import com.dhyan.app.data.SettingsEntity
 import com.dhyan.app.fusion.ContextFuser
 import com.dhyan.app.personas.json.JsonReader
 import com.dhyan.app.sync.command.SyncCommandDispatcher
+import com.dhyan.app.sync.crypto.KeyWrapper
 import com.dhyan.app.sync.crypto.KeystoreKeyWrapper
 import com.dhyan.app.sync.data.InboundEventListener
 import com.dhyan.app.sync.data.SyncDataEngine
@@ -63,7 +64,7 @@ class SyncManager(
     val contextFuser: ContextFuser = ContextFuser(),
     private val rendezvousTransportProvider: () -> RendezvousTransport = { OkHttpRendezvousTransport() },
     private val sessionTransportProvider: () -> SessionTransport = { OkHttpSessionTransport() },
-    private val keyWrapper: KeystoreKeyWrapper = KeystoreKeyWrapper(),
+    private val keyWrapper: KeyWrapper = KeystoreKeyWrapper(),
     private val actuationEventBus: ActuationEventBus = SharedActuationEventBus,
     private val heldItemsView: HeldItemsView = RoomHeldItemsView(db.heldNotifDao())
 ) {
