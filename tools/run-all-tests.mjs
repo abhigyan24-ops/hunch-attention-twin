@@ -24,7 +24,14 @@ async function main() {
 
   const results = [];
 
-  // 1. Laptop Application & Frosted Pet Tests
+  // 1. Android Phone App & Daylight UI Unit Tests
+  const gradlewCmd = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
+  results.push({
+    name: 'Phone App & Daylight UI Unit Tests (404 Tests)',
+    passed: run('Phone App Unit Tests', `cd phone && ${gradlewCmd} testDebugUnitTest`)
+  });
+
+  // 2. Laptop Application & Frosted Pet Tests
   results.push({
     name: 'Laptop App & Pet State Machine Tests (86 Tests)',
     passed: run('Laptop App & Pet State Machine', 'npm --prefix laptop test')
