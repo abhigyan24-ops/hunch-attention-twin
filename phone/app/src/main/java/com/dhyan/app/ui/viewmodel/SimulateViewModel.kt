@@ -47,6 +47,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.util.concurrent.ConcurrentHashMap
 
+data class AbductionReplayState(
+    val isExpanded: Boolean = false,
+    val abductedShockU: String = "U = (ε_attend=+0.32, ε_excursion=+0.15, ε_resume=+0.21)",
+    val shockAttend: Double = 0.32,
+    val shockExcursion: Double = 0.15,
+    val shockResume: Double = 0.21,
+    val counterfactualSavingsMin: Double = 14.5
+)
+
 data class SimulateUiState(
     val selectedPersona: PersonaProfile = UiPersonaCatalog.RAHUL,
     val isTrained: Boolean = false,
@@ -78,7 +87,18 @@ data class SimulateUiState(
     val isFailOpen: Boolean = false,
     val reasonCode: String = "cost_selected",
     val priorAlpha: Double = 3.0,
-    val priorBeta: Double = 4.0
+    val priorBeta: Double = 4.0,
+    // Upgraded Attention Twin Causal Features
+    val y1ExcursionMin: Double = 12.5,
+    val y1ResumeMin: Double = 6.2,
+    val y1TotalLostMin: Double = 18.7,
+    val y0ExcursionMin: Double = 0.0,
+    val y0ResumeMin: Double = 0.0,
+    val y0TotalLostMin: Double = 0.5,
+    val netFocusSavedMin: Double = 18.2,
+    val ciLowMin: Double = 8.4,
+    val ciHighMin: Double = 26.8,
+    val abductionReplay: AbductionReplayState = AbductionReplayState()
 )
 
 class SimulateViewModel : ViewModel() {
@@ -158,7 +178,17 @@ class SimulateViewModel : ViewModel() {
             priorBeta = initialOutcome.priorBeta,
             fatigueIndex = fIndex,
             fatigueBand = fBand,
-            hourBand = hBand
+            hourBand = hBand,
+            y1ExcursionMin = initialOutcome.y1ExcursionMin,
+            y1ResumeMin = initialOutcome.y1ResumeMin,
+            y1TotalLostMin = initialOutcome.y1TotalLostMin,
+            y0ExcursionMin = initialOutcome.y0ExcursionMin,
+            y0ResumeMin = initialOutcome.y0ResumeMin,
+            y0TotalLostMin = initialOutcome.y0TotalLostMin,
+            netFocusSavedMin = initialOutcome.netFocusSavedMin,
+            ciLowMin = initialOutcome.ciLowMin,
+            ciHighMin = initialOutcome.ciHighMin,
+            abductionReplay = initialOutcome.abductionReplay
         )
     }
 
@@ -254,6 +284,12 @@ class SimulateViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(isTwinLabExpanded = expanded)
     }
 
+    fun toggleAbductionDrawer(expanded: Boolean) {
+        _uiState.value = _uiState.value.copy(
+            abductionReplay = _uiState.value.abductionReplay.copy(isExpanded = expanded)
+        )
+    }
+
     private fun recompute(storeOverride: InMemoryParamStore? = null) {
         val s = _uiState.value
         val name = s.selectedPersona.name.split(" ")[0]
@@ -287,7 +323,17 @@ class SimulateViewModel : ViewModel() {
             isFailOpen = outcome.isFailOpen,
             reasonCode = outcome.reasonCode,
             priorAlpha = outcome.priorAlpha,
-            priorBeta = outcome.priorBeta
+            priorBeta = outcome.priorBeta,
+            y1ExcursionMin = outcome.y1ExcursionMin,
+            y1ResumeMin = outcome.y1ResumeMin,
+            y1TotalLostMin = outcome.y1TotalLostMin,
+            y0ExcursionMin = outcome.y0ExcursionMin,
+            y0ResumeMin = outcome.y0ResumeMin,
+            y0TotalLostMin = outcome.y0TotalLostMin,
+            netFocusSavedMin = outcome.netFocusSavedMin,
+            ciLowMin = outcome.ciLowMin,
+            ciHighMin = outcome.ciHighMin,
+            abductionReplay = outcome.abductionReplay
         )
     }
 
@@ -300,7 +346,17 @@ class SimulateViewModel : ViewModel() {
         val isFailOpen: Boolean,
         val reasonCode: String,
         val priorAlpha: Double,
-        val priorBeta: Double
+        val priorBeta: Double,
+        val y1ExcursionMin: Double,
+        val y1ResumeMin: Double,
+        val y1TotalLostMin: Double,
+        val y0ExcursionMin: Double,
+        val y0ResumeMin: Double,
+        val y0TotalLostMin: Double,
+        val netFocusSavedMin: Double,
+        val ciLowMin: Double,
+        val ciHighMin: Double,
+        val abductionReplay: AbductionReplayState
     )
 
     private fun runTwinSimulation(
@@ -433,6 +489,34 @@ class SimulateViewModel : ViewModel() {
                     updateCount = if (isTrained) 140 else 0
                 )
 
+                val expectedLostShow = r.show.mean
+                val expectedLostSuppress = r.suppress.mean
+                val rawExcursion = kotlin.math.exp(simResult.lognormMu + 0.5 * simResult.lognormSigma * simResult.lognormSigma)
+                val catMultiplier = when (category) {
+                    "social" -> 1.2
+                    "shopping" -> 0.9
+                    "communication" -> 0.6
+                    else -> 0.4
+                }
+                val y1Excursion = (rawExcursion * catMultiplier).coerceIn(1.0, 45.0)
+                val y1Resume = ((expectedLostShow - y1Excursion).coerceAtLeast(0.5) * (1.0 + (hoursWorked / 10.0) * 0.4)).coerceIn(0.5, 20.0)
+                val y1Total = y1Excursion + y1Resume
+                val y0Total = expectedLostSuppress.coerceIn(0.0, 5.0)
+                val netSaved = (y1Total - y0Total).coerceAtLeast(0.0)
+
+                val epsAttend = (urgency - 0.5) * 0.8
+                val epsExcursion = (simResult.lognormMu - 2.2) * 0.5
+                val epsResume = ((hoursWorked - 4.0) / 6.0) * 0.4
+                val shockStr = String.format(java.util.Locale.US, "U = (ε_attend=%+.2f, ε_excursion=%+.2f, ε_resume=%+.2f)", epsAttend, epsExcursion, epsResume)
+                val abduction = AbductionReplayState(
+                    isExpanded = false,
+                    abductedShockU = shockStr,
+                    shockAttend = epsAttend,
+                    shockExcursion = epsExcursion,
+                    shockResume = epsResume,
+                    counterfactualSavingsMin = netSaved
+                )
+
                 TwinRunOutcome(
                     simResult = simResult,
                     evidenceStrength = r.evidenceStrength,
@@ -442,7 +526,17 @@ class SimulateViewModel : ViewModel() {
                     isFailOpen = decision.failedOpen,
                     reasonCode = decision.reasonCode,
                     priorAlpha = priorAlpha,
-                    priorBeta = priorBeta
+                    priorBeta = priorBeta,
+                    y1ExcursionMin = y1Excursion,
+                    y1ResumeMin = y1Resume,
+                    y1TotalLostMin = y1Total,
+                    y0ExcursionMin = 0.0,
+                    y0ResumeMin = 0.0,
+                    y0TotalLostMin = y0Total,
+                    netFocusSavedMin = netSaved,
+                    ciLowMin = r.deltaL80SimIntervalLow,
+                    ciHighMin = r.deltaL80SimIntervalHigh,
+                    abductionReplay = abduction
                 )
             }
             is SimOutcome.NotReady -> {
@@ -463,6 +557,15 @@ class SimulateViewModel : ViewModel() {
                     updateCount = 0
                 )
 
+                val abduction = AbductionReplayState(
+                    isExpanded = false,
+                    abductedShockU = "U = (uncalibrated)",
+                    shockAttend = 0.0,
+                    shockExcursion = 0.0,
+                    shockResume = 0.0,
+                    counterfactualSavingsMin = 0.0
+                )
+
                 TwinRunOutcome(
                     simResult = simResult,
                     evidenceStrength = 0.0,
@@ -472,7 +575,17 @@ class SimulateViewModel : ViewModel() {
                     isFailOpen = true,
                     reasonCode = "not_ready",
                     priorAlpha = priorAlpha,
-                    priorBeta = priorBeta
+                    priorBeta = priorBeta,
+                    y1ExcursionMin = 0.0,
+                    y1ResumeMin = 0.0,
+                    y1TotalLostMin = 0.0,
+                    y0ExcursionMin = 0.0,
+                    y0ResumeMin = 0.0,
+                    y0TotalLostMin = 0.0,
+                    netFocusSavedMin = 0.0,
+                    ciLowMin = 0.0,
+                    ciHighMin = 0.0,
+                    abductionReplay = abduction
                 )
             }
         }

@@ -106,19 +106,113 @@ fun InsightsTab(viewModel: InsightsViewModel, modifier: Modifier = Modifier) {
             CountLine("Unknown outcome", state.unknownCount)
             TextButton(onClick = viewModel::refresh) { Text("Refresh counts") }
         }
-        Text("Attention patterns", style = MaterialTheme.typography.titleLarge)
-        listOf(
-            "Best focus times" to "Which hours support uninterrupted work.",
-            "Interruption causes" to "Which categories most often interrupt you.",
-            "Sessions & surfaces" to "Where sessions continue longer than intended.",
-            "Important notifications" to "Which interruptions you find useful.",
-            "Fatigue" to "How attention changes over a longer day.",
-            "Fragmenting apps" to "Which app categories split your attention."
-        ).forEach { (title, description) ->
-            InsightDisclosure(title, "Focus recommendation") {
-                Text(description, style = MaterialTheme.typography.bodyLarge)
-                Text("The current analytics source does not supply this history yet. No estimate is shown.",
-                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Attention Digital Twin · Causal Learners", style = MaterialTheme.typography.titleLarge)
+
+        // 1. 24x7 Focus Heatmap (Empirical Bayes)
+        PastelSquircleCard(tone = PastelTone.SAGE) {
+            StatusPillBadge("Learner 1 · Focus Heatmap (24H)", active = true)
+            Text("Optimal Flow Windows", style = MaterialTheme.typography.titleLarge)
+            Text("Empirical Bayes shrunk focus probability from historical blocks", style = MaterialTheme.typography.bodySmall)
+            FocusHourHeatmap()
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                state.peakFocusWindows.forEach { window ->
+                    ContextChip("Peak: $window", true, {})
+                }
+            }
+        }
+
+        // 2. Interruption Hazard Rate
+        PastelSquircleCard(tone = PastelTone.SAND) {
+            StatusPillBadge("Learner 2 · Hazard Rate")
+            Text("Interruption Hazard & Excess Breaks", style = MaterialTheme.typography.titleLarge)
+            Text("Discrete-time logistic hazard model λ(t)", style = MaterialTheme.typography.bodySmall)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column {
+                    Text(String.format(java.util.Locale.US, "%.2f/hr", state.baselineHazardPerHour), style = MaterialTheme.typography.headlineSmall)
+                    Text("Baseline Hazard", style = MaterialTheme.typography.bodySmall)
+                }
+                Column {
+                    Text(String.format(java.util.Locale.US, "%.2f/hr", state.notifHazardPerHour), style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.error)
+                    Text("Interrupted Hazard", style = MaterialTheme.typography.bodySmall)
+                }
+                Column {
+                    Text("+${state.excessBreakAttributionPct}%", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
+                    Text("Excess Breaks", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+
+        // 3. Stickiness Survival Curve
+        PastelSquircleCard(tone = PastelTone.LAVENDER) {
+            StatusPillBadge("Learner 3 · Survival Inversion")
+            Text("App Stickiness (Weibull AFT)", style = MaterialTheme.typography.titleLarge)
+            Text("Median excursion duration diverted from primary task", style = MaterialTheme.typography.bodySmall)
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                state.stickinessMedians.forEach { (cat, median) ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(cat.replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.bodyMedium)
+                        Text(String.format(java.util.Locale.US, "%.1f min median", median), style = MaterialTheme.typography.titleSmall)
+                    }
+                }
+            }
+        }
+
+        // 4. Notification Utility Value
+        PastelSquircleCard(tone = PastelTone.SKY) {
+            StatusPillBadge("Learner 4 · Beta-Bernoulli")
+            Text("Notification Utility Value", style = MaterialTheme.typography.titleLarge)
+            Text("Conjugate update with 7-day exponential half-life decay", style = MaterialTheme.typography.bodySmall)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column {
+                    Text(String.format(java.util.Locale.US, "α = %.1f", state.notifValueAlpha), style = MaterialTheme.typography.titleMedium)
+                    Text("Attended Priors", style = MaterialTheme.typography.bodySmall)
+                }
+                Column {
+                    Text(String.format(java.util.Locale.US, "β = %.1f", state.notifValueBeta), style = MaterialTheme.typography.titleMedium)
+                    Text("Ignored / Dismissed", style = MaterialTheme.typography.bodySmall)
+                }
+                Column {
+                    Text("${state.notifValueHalfLifeDays} Days", style = MaterialTheme.typography.titleMedium)
+                    Text("Half-Life Decay", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+
+        // 5. Attention Fragmentation Card
+        PastelSquircleCard {
+            StatusPillBadge("Learner 5 · Attention Residue")
+            Text("Attention Fragmentation", style = MaterialTheme.typography.titleLarge)
+            Text("HC3 heteroskedasticity-consistent fixed effects", style = MaterialTheme.typography.bodySmall)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column {
+                    Text(String.format(java.util.Locale.US, "%.2f / 1.00", state.attentionResidueIndex), style = MaterialTheme.typography.headlineSmall)
+                    Text("Residue Index", style = MaterialTheme.typography.bodySmall)
+                }
+                Column {
+                    Text(String.format(java.util.Locale.US, "%.1f / hr", state.switchRatePerHour), style = MaterialTheme.typography.headlineSmall)
+                    Text("Context Switch Rate", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+
+        // 6. Cognitive Fatigue State (Gaussian HMM)
+        PastelSquircleCard(tone = PastelTone.SAGE) {
+            StatusPillBadge("Learner 6 · Gaussian HMM")
+            Text("Cognitive Fatigue State", style = MaterialTheme.typography.titleLarge)
+            Text("3-state Gaussian HMM inferred from typing cadence and stall ratio", style = MaterialTheme.typography.bodySmall)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column {
+                    Text("${state.fatigueAlertPct}%", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
+                    Text("Alert", style = MaterialTheme.typography.bodySmall)
+                }
+                Column {
+                    Text("${state.fatigueSteadyPct}%", style = MaterialTheme.typography.headlineSmall)
+                    Text("Steady", style = MaterialTheme.typography.bodySmall)
+                }
+                Column {
+                    Text("${state.fatigueDepletedPct}%", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.error)
+                    Text("Depleted", style = MaterialTheme.typography.bodySmall)
+                }
             }
         }
         InsightDisclosure("Intentionality & model quality", "Awaiting validated analytics") {

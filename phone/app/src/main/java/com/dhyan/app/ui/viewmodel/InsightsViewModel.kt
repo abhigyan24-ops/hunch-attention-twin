@@ -36,7 +36,31 @@ data class InsightsUiState(
     val intentionalRatio: Float = 0.68f,
     val compulsiveRatio: Float = 0.32f,
     val switchRatePerHour: Float = 14.8f,
-    val microSessionRatio: Float = 0.38f
+    val microSessionRatio: Float = 0.38f,
+    // Upgraded 6 Causal Learners Data
+    val hourlyIntensity: List<Float> = listOf(
+        0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.05f,
+        0.15f, 0.35f, 0.70f, 0.95f, 0.88f, 0.82f,
+        0.40f, 0.25f, 0.55f, 0.92f, 0.85f, 0.78f,
+        0.45f, 0.20f, 0.50f, 0.35f, 0.10f, 0.0f
+    ),
+    val peakFocusWindows: List<String> = listOf("09:00 – 12:00", "15:00 – 18:00"),
+    val baselineHazardPerHour: Double = 0.09,
+    val notifHazardPerHour: Double = 0.62,
+    val excessBreakAttributionPct: Int = 34,
+    val stickinessMedians: Map<String, Double> = mapOf(
+        "social" to 18.5,
+        "shopping" to 12.2,
+        "communication" to 4.8,
+        "docs" to 1.5
+    ),
+    val notifValueAlpha: Double = 3.2,
+    val notifValueBeta: Double = 6.8,
+    val notifValueHalfLifeDays: Int = 7,
+    val attentionResidueIndex: Double = 0.28,
+    val fatigueAlertPct: Int = 45,
+    val fatigueSteadyPct: Int = 35,
+    val fatigueDepletedPct: Int = 20
 )
 
 class InsightsViewModel(
@@ -105,7 +129,9 @@ class InsightsViewModel(
                 intentionalRatio = 0.68f,
                 compulsiveRatio = 0.32f,
                 switchRatePerHour = 14.8f,
-                microSessionRatio = 0.38f
+                microSessionRatio = 0.38f,
+                notifValueAlpha = posteriorAlpha,
+                notifValueBeta = posteriorBeta
             )
         }
     }

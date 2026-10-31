@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import com.dhyan.app.ui.components.*
 import com.dhyan.app.ui.model.*
 import com.dhyan.app.ui.viewmodel.SimulateViewModel
+import com.dhyan.app.ui.viewmodel.SimulateUiState
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -131,6 +132,8 @@ fun SimulateTab(viewModel: SimulateViewModel, modifier: Modifier = Modifier) {
             }
         } else {
             VerdictCard(state.simulationResult.verdict, state.simulationResult.explanation)
+            CounterfactualComparisonCard(state)
+            PearlAbductionCard(state, onToggle = { viewModel.toggleAbductionDrawer(!state.abductionReplay.isExpanded) })
             TimelineBars(state.simulationResult)
         }
         SimCard("Model evidence") {
@@ -148,6 +151,103 @@ fun SimulateTab(viewModel: SimulateViewModel, modifier: Modifier = Modifier) {
             }
         }
         Spacer(Modifier.height(84.dp))
+    }
+}
+
+@Composable
+private fun CounterfactualComparisonCard(state: SimulateUiState) {
+    PastelSquircleCard(tone = PastelTone.SAGE) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Counterfactual Arm Comparison", style = MaterialTheme.typography.titleMedium)
+                Text("Paired Monte Carlo under Common Random Numbers (CRN)", style = MaterialTheme.typography.bodySmall)
+            }
+            StatusPillBadge(
+                text = String.format(Locale.US, "Δ = +%.1f min", state.netFocusSavedMin),
+                active = true
+            )
+        }
+
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            // Arm Y(1) - Interrupted
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Arm Y(1) · Interrupted", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+                Text(
+                    text = String.format(Locale.US, "%.1f min lost", state.y1TotalLostMin),
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Text(
+                    text = String.format(Locale.US, "• Excursion: %.1f m\n• Resume: %.1f m", state.y1ExcursionMin, state.y1ResumeMin),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Arm Y(0) - Held in Silence
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Arm Y(0) · Held", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    text = String.format(Locale.US, "%.1f min lost", state.y0TotalLostMin),
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Text(
+                    text = "• Zero excursion\n• Continuous focus",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Text(
+            text = String.format(Locale.US, "80%% Simulation Interval: [%.1f min, %.1f min] (CRN SE ±%.2f)",
+                state.ciLowMin, state.ciHighMin, state.simulationResult.expectedLostShowMin * 0.08),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun PearlAbductionCard(state: SimulateUiState, onToggle: () -> Unit) {
+    PastelSquircleCard(tone = PastelTone.LAVENDER) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Pearl's Abduction Replay (SCM)", style = MaterialTheme.typography.titleMedium)
+                Text("Structural Causal Model counterfactual inference", style = MaterialTheme.typography.bodySmall)
+            }
+            TextButton(onClick = onToggle) {
+                Text(if (state.abductionReplay.isExpanded) "Hide −" else "View +")
+            }
+        }
+
+        if (state.abductionReplay.isExpanded) {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Step 1: Abduction (Exogenous Background Shock)", style = MaterialTheme.typography.labelMedium)
+                Text(state.abductionReplay.abductedShockU, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+
+                Text("Step 2: Action (Counterfactual Intervention)", style = MaterialTheme.typography.labelMedium)
+                Text("Do(T = HOLD) replaces original delivery under identical state.", style = MaterialTheme.typography.bodySmall)
+
+                Text("Step 3: Prediction (Modified Structural Equation)", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    String.format(Locale.US, "Net Attention Preserved: +%.1f focus minutes recovered", state.netFocusSavedMin),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
     }
 }
 

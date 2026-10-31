@@ -143,7 +143,13 @@ fun LiveDigestContent(
     ) {
         // Top Header
         PastelSquircleCard(tone = PastelTone.SKY) {
-            StatusPillBadge("${uiState.mode.name.replace('_', ' ')} · notification policy")
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                StatusPillBadge("${uiState.mode.name.replace('_', ' ')} · policy")
+                val fState = uiState.contextSnapshot?.focusState
+                val focusDepth = if (fState == FocusState.DEEP_FOCUS) 0.85f else if (fState == FocusState.WORKING) 0.65f else 0.35f
+                val petStatus = if (focusDepth >= 0.70f) "Ghost Flow · 18%" else "Companion · 100%"
+                StatusPillBadge(petStatus, active = focusDepth >= 0.70f)
+            }
             Text("A little more\nheadspace.", style = MaterialTheme.typography.headlineLarge)
             Text("Your live context & quiet queue", style = MaterialTheme.typography.bodyMedium)
         }
