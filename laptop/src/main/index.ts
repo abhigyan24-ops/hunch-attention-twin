@@ -4,6 +4,7 @@ import {loadIngestToken} from '../ingest/tokenStore';
 import {IngestServer} from '../ingest/IngestServer';
 import {FeedRouter} from '../ingest/FeedRouter';
 import {saveAllowedExtensionIds} from './settings';
+import {SidecarManager} from './sidecar';
 import {app,BrowserWindow,ipcMain,powerMonitor,dialog,Tray,Menu,nativeImage,safeStorage,clipboard,screen,globalShortcut} from 'electron';
 import {readFileSync,mkdirSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -26,6 +27,7 @@ let lastIgnore:boolean|null=null;
 let core:Awaited<ReturnType<typeof startLaptopCore>>|undefined,bridge:PetBridge|undefined;
 let ingest:IngestServer|undefined,feeds:FeedRouter|undefined,ingestToken:string|null=null,ingestMessage='Extension ingest not started';
 let sync:SyncCoordinator|undefined;
+let sidecar:SidecarManager|undefined;
 let paused=false,history:UiSnapshot['focus']={minutes:null,provenance:'observed',label:'No data: persisted focus snapshots are not available'},historyAt=0,historyRead:Promise<void>|null=null;
 if(!app.isPackaged){const devProfile=join(app.getPath('appData'),'Dhyan-PipV2-Isolated');mkdirSync(devProfile,{recursive:true});app.setPath('userData',devProfile);}
 const ownsLock=app.requestSingleInstanceLock();if(!ownsLock)app.quit();
@@ -57,15 +59,17 @@ ipcMain.handle('pet-action',async(event,action:unknown)=>{
  if(action==='snooze15')petReaction.snoozeUntil=now+15*60000;
  else if(action==='snooze60')petReaction.snoozeUntil=now+60*60000;
  else if(action==='break15')petReaction.breakUntil=now+15*60000;
- else if(action==='dismiss')petReaction.feedback('dismissed',now);
- else if(action==='back'){petReaction.feedback('accepted',now);petPosition?.dock();}
- else if(action==='focus25'){const result=await declare({task:'unknown',plannedMin:25,strict:false});if(result.ok){petReaction.feedback('accepted',now);petPosition?.dock();}return result.ok;}
+ else if(action==='dismiss'){petReaction.feedback('dismissed',now);void sidecar?.sendFeedback('dismissed');}
+ else if(action==='back'){petReaction.feedback('accepted',now);void sidecar?.sendFeedback('accepted');petPosition?.dock();}
+ else if(action==='focus25'){const result=await declare({task:'unknown',plannedMin:25,strict:false});if(result.ok){petReaction.feedback('accepted',now);void sidecar?.sendFeedback('accepted');petPosition?.dock();}return result.ok;}
  else if(action==='toggleCalm')petReaction.calm=!petReaction.calm;
  else if(action==='toggleDnd')petReaction.dnd=!petReaction.dnd;
  else if(action==='resetPosition')petPosition?.reset();
  else return false;
  updateTray();return true;
 });
+ipcMain.handle('twin-state',async(event)=>{if(!trusted(event))throw Error('unauthorized');return sidecar?.fetchTwinState()??null;});
+ipcMain.handle('twin-feedback',async(event,action:unknown,stage:unknown)=>{if(!trusted(event)||typeof action!=='string'||(action!=='accepted'&&action!=='dismissed'))return false;void sidecar?.sendFeedback(action,typeof stage==='number'?stage:2);return true;});
 function ingestSnapshot(){const offline={connected:false,online:false,lastSeenTs:null,lastHeartbeatTs:null};return {available:Boolean(ingest),port:core?.settings.ingest.port??47821,message:ingestMessage,vscode:feeds?.vscode.status()??offline,browser:feeds?.browser.status()??offline,invalid:ingest?.diagnostics['ingest.invalid']??0};}
 const rendererFileUrl=new URL('../renderer/index.html',import.meta.url).href;
 function trustedUrl(url:string){return isTrustedUiUrl(url,rendererFileUrl,process.env.ELECTRON_RENDERER_URL);}
@@ -94,8 +98,8 @@ ipcMain.handle('sync-confirm',(event,matches:unknown,confirmationId:unknown)=>tr
 ipcMain.handle('sync-unpair',async event=>trusted(event)&&sync?sync.unpair().catch(()=>false):false);
 ipcMain.handle('sync-command',(event,cmd:unknown,args:unknown)=>{if(!trusted(event)||!sync||typeof cmd!=='string'||!args||typeof args!=='object'||Array.isArray(args))return false;return sync.sendCommand(cmd,args as Record<string,unknown>);});
 app.on('second-instance',openPanel);
-app.whenReady().then(async()=>{if(!ownsLock)return;try{core=await startLaptopCore(app.getPath('userData'),SCHEMA_VERSION,()=>powerMonitor.getSystemIdleTime());bridge=new PetBridge(core.pipeline);petReaction=new PetReactionController(core.pipeline);if(!app.isPackaged&&process.env.DHYAN_DEV_PET_LEVEL){const level=Number(process.env.DHYAN_DEV_PET_LEVEL);if([1,2,3,4].includes(level))petReaction.simulate(level as 1|2|3|4);}feeds=new FeedRouter(core.pipeline);sync=new SyncCoordinator({directory:app.getPath('userData'),deviceId:core.settings.deviceId,schemaVersion:SCHEMA_VERSION,store:core.store,bus:bridge.bus,storage:safeStorage,development:!app.isPackaged,stateMappingApproved:true});await sync.start();
+app.whenReady().then(async()=>{if(!ownsLock)return;try{core=await startLaptopCore(app.getPath('userData'),SCHEMA_VERSION,()=>powerMonitor.getSystemIdleTime());try{sidecar=new SidecarManager(join(app.getAppPath(),'..'));void sidecar.start();core.pipeline.onEvent(event=>sidecar?.queueEvent(event));}catch{}bridge=new PetBridge(core.pipeline);petReaction=new PetReactionController(core.pipeline);if(!app.isPackaged&&process.env.DHYAN_DEV_PET_LEVEL){const level=Number(process.env.DHYAN_DEV_PET_LEVEL);if([1,2,3,4].includes(level))petReaction.simulate(level as 1|2|3|4);}feeds=new FeedRouter(core.pipeline);sync=new SyncCoordinator({directory:app.getPath('userData'),deviceId:core.settings.deviceId,schemaVersion:SCHEMA_VERSION,store:core.store,bus:bridge.bus,storage:safeStorage,development:!app.isPackaged,stateMappingApproved:true});await sync.start();
 try{ingestToken=await loadIngestToken(app.getPath('userData'),safeStorage);ingest=await IngestServer.start({port:core.settings.ingest.port,token:ingestToken,allowedExtensionIds:core.settings.ingest.allowedExtensionIds,onMessage:(client,message)=>{feeds!.accept(client,message);},onConnection:(client,connected)=>feeds!.connection(client,connected)});ingestMessage='Local ingest is ready';}catch{ingestMessage='Extension ingest unavailable: secure storage or local port needs attention';}}catch{dialog.showErrorBox('Dhyan storage unavailable','Local storage needs recovery. Collection is paused.');}createPet();lastIgnore=true;hitboxTimer=setInterval(updatePetHitbox,16);if(petWindow){petPosition=new PetPositionController(app.getPath('userData'),petWindow);void petPosition.load();screen.on('display-removed',()=>petPosition?.restore());screen.on('display-metrics-changed',()=>petPosition?.restore());globalShortcut.register('Control+Alt+P',()=>{paused=true;petWindow?.hide();updateTray();});}createTray();app.on('activate',openPanel);});
-let closing=false,closed=false;app.on('before-quit',event=>{if(!core||closed)return;event.preventDefault();if(closing)return;closing=true;bridge?.stop();petReaction?.stop();void (async()=>{await ingest?.close();await sync?.stop();await settingsWrite;await core!.stop();})().then(()=>{if(core?.store.health.paused)dialog.showErrorBox('Dhyan storage unavailable','Recent events may remain only in memory.');}).catch(()=>dialog.showErrorBox('Dhyan storage unavailable','Some recent events could not be flushed.')).finally(()=>{closed=true;tray?.destroy();app.quit();});});
+let closing=false,closed=false;app.on('before-quit',event=>{if(!core||closed)return;event.preventDefault();if(closing)return;closing=true;bridge?.stop();petReaction?.stop();void (async()=>{await ingest?.close();await sync?.stop();await settingsWrite;await core!.stop();await sidecar?.stop();})().then(()=>{if(core?.store.health.paused)dialog.showErrorBox('Dhyan storage unavailable','Recent events may remain only in memory.');}).catch(()=>dialog.showErrorBox('Dhyan storage unavailable','Some recent events could not be flushed.')).finally(()=>{closed=true;tray?.destroy();app.quit();});});
 app.on('window-all-closed',()=>{/* Tray owns lifecycle; closing the panel never stops collection. */});
 app.on('will-quit',()=>{if(hitboxTimer)clearInterval(hitboxTimer);globalShortcut.unregisterAll();});

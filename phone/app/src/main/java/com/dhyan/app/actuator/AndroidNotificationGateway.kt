@@ -2,7 +2,9 @@ package com.dhyan.app.actuator
 
 import android.app.NotificationManager
 import android.content.Context
+import android.os.Build
 import android.service.notification.NotificationListenerService
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Production implementation. The ONLY file in the codebase that may call
@@ -20,6 +22,7 @@ class AndroidNotificationGateway(private val context: Context) : NotificationGat
 
     companion object {
         @Volatile var listenerService: NotificationListenerService? = null
+        val platformKeys = ConcurrentHashMap<String, String>()
     }
 
     override fun cancel(
@@ -36,8 +39,12 @@ class AndroidNotificationGateway(private val context: Context) : NotificationGat
         val listener = listenerService
         if (listener != null) {
             try {
-                // If the active notification key matches, snoozeNotification can be used
-                listener.snoozeNotification(keyHash, snoozeDurationMs)
+                val realKey = platformKeys[keyHash] ?: platformKeys[platformId.toString()] ?: keyHash
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    listener.snoozeNotification(realKey, snoozeDurationMs)
+                } else {
+                    nm.cancel(platformId)
+                }
             } catch (_: Exception) {
                 // Fallback to cancel and schedule release
                 nm.cancel(platformId)

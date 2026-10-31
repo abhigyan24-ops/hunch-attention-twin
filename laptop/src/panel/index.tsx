@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { PipCompanion } from '../pet/PipCompanion';
 import { CloudSpiritCanvas, type SpiritEmotion } from '../pet/CloudSpiritCanvas';
 import { nextBubble, type BubbleState } from '../pet/bubbles';
+import { SimulateTab } from './SimulateTab';
+import { InsightsTab } from './InsightsTab';
 import type { DhyanUi, UiSnapshot } from '../shared/ui';
 import './style.css';
 
@@ -349,7 +351,7 @@ function App() {
             title="Focus Session Timer"
           >
             <span style={{ fontSize: '14px' }}>⏱</span>
-            <span>Timer</span>
+            <span>Simulate</span>
           </button>
           <button
             className={`dhyan-rail-btn ${activeTab === 'insights' ? 'active' : ''}`}
@@ -357,7 +359,7 @@ function App() {
             title="Attention Analytics"
           >
             <span style={{ fontSize: '14px' }}>▦</span>
-            <span>Stats</span>
+            <span>Insights</span>
           </button>
           <button
             className={`dhyan-rail-btn ${activeTab === 'settings' ? 'active' : ''}`}
@@ -376,7 +378,7 @@ function App() {
 
         {/* Zone 2: Center Hero Stage */}
         <main className="dhyan-stage">
-          {activeTab !== 'settings' ? (
+          {activeTab === 'live' && (
             <>
               {/* Interactive Frosted Cloud Spirit Companion Stage Card */}
               <div className="dhyan-bento-card dhyan-spirit-hero-card">
@@ -451,7 +453,13 @@ function App() {
                 </button>
               </div>
             </>
-          ) : (
+          )}
+
+          {activeTab === 'simulate' && <SimulateTab />}
+
+          {activeTab === 'insights' && <InsightsTab />}
+
+          {activeTab === 'settings' && (
             /* Settings & Synchronization Bento Card */
             <div className="dhyan-bento-card">
               <div className="dhyan-editorial-title">Settings & Sync</div>

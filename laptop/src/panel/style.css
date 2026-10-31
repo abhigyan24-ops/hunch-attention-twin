@@ -665,3 +665,99 @@ body {
 .dhyan-input:focus, .dhyan-select:focus, .dhyan-textarea:focus {
   border-color: var(--dhyan-mint-accent);
 }
+
+/* --------------------------------------------------------------------------
+   What-If & Causal Twin Insights Bento System
+   -------------------------------------------------------------------------- */
+.dhyan-cf-hero {
+  background: linear-gradient(135deg, var(--dhyan-mint-bg) 0%, var(--dhyan-card) 100%);
+  border: 1px solid var(--dhyan-mint-accent);
+  border-radius: var(--dhyan-radius-md);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.dhyan-cf-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.dhyan-cf-stat {
+  background: var(--dhyan-card);
+  border: 1px solid var(--dhyan-border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  text-align: center;
+}
+
+.dhyan-cf-stat span {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--dhyan-text-muted);
+}
+
+.dhyan-cf-stat strong {
+  display: block;
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--dhyan-mint-text);
+  margin-top: 4px;
+}
+
+.dhyan-learner-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.dhyan-learner-card {
+  background: var(--dhyan-card);
+  border: 1px solid var(--dhyan-border);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: var(--dhyan-shadow);
+}
+
+.dhyan-learner-card h4 {
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dhyan-learner-card p {
+  font-size: 12px;
+  color: var(--dhyan-text-muted);
+  line-height: 1.4;
+}
+
+.dhyan-badge-pill {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: var(--dhyan-radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--dhyan-mint-bg);
+  color: var(--dhyan-mint-text);
+  margin-top: 8px;
+}
+
+.dhyan-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 16px 0;
+}
+
+.dhyan-slider {
+  flex: 1;
+  accent-color: var(--dhyan-mint-accent);
+  cursor: pointer;
+}

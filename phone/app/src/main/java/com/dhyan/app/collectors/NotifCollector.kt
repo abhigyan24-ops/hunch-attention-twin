@@ -114,6 +114,7 @@ class NotifCollector : NotificationListenerService() {
         val provider = decisionProvider ?: return
         val logStore = decisionLogStore ?: return
         val keyHash = computeKeyHash(sbn, norm.senderHash)
+        sbn.key?.let { AndroidNotificationGateway.platformKeys[keyHash] = it }
 
         val facts = NotificationFacts(
             keyHash = keyHash,
@@ -162,7 +163,7 @@ class NotifCollector : NotificationListenerService() {
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
-        // Track removal event if needed
+        sbn?.key?.let { AndroidNotificationGateway.platformKeys.values.remove(it) }
     }
 
     override fun onListenerConnected() {

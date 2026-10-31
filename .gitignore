@@ -12,3 +12,10 @@ local.properties
 !.env.example
 *.log
 tools/dataset/out/*.raw
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+*.db
+*.db-shm
+*.db-wal
