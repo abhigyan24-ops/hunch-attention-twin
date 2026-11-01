@@ -18,6 +18,9 @@ import { EndpointDiscovery } from './link/endpoint.ts';
 import { EngineClient } from './link/client.ts';
 import { DhyanStatusBar } from './ui/statusBar.ts';
 import { getOrCreateSalt } from './privacy/hash.ts';
+import { ResumeTracker, type ResumeLoadContext } from './aggregate/resumeTracker.ts';
+import { ResumeManager } from './features/resume.ts';
+import { ResumeTreeDataProvider } from './ui/trees.ts';
 
 // Re-export core classes for backward-compatibility with tests & external callers
 export { PrivacyGate } from './privacy/gate.ts';
@@ -27,6 +30,9 @@ export { RealClock, FakeClock } from './clock.ts';
 export { WindowAggregator } from './aggregate/window.ts';
 export { TaskContextTracker } from './aggregate/taskContext.ts';
 export { BreakDetector } from './aggregate/breaks.ts';
+export { ResumeTracker } from './aggregate/resumeTracker.ts';
+export { ResumeManager } from './features/resume.ts';
+export { ResumeTreeDataProvider } from './ui/trees.ts';
 export { classifyEdit, isTrackedScheme } from './aggregate/classify.ts';
 export { RhythmTracker } from './aggregate/rhythm.ts';
 export { EditorSensor } from './sensors/editor.ts';
@@ -45,6 +51,9 @@ let currentCapabilities: ExtensionCapabilities | null = null;
 let aggregator: WindowAggregator | null = null;
 let taskContextTracker: TaskContextTracker | null = null;
 let breakDetector: BreakDetector | null = null;
+let resumeTracker: ResumeTracker | null = null;
+let resumeManager: ResumeManager | null = null;
+let resumeTreeProvider: ResumeTreeDataProvider | null = null;
 let tickTimer: ReturnType<typeof setInterval> | null = null;
 let breakTickTimer: ReturnType<typeof setInterval> | null = null;
 let leaseTimer: ReturnType<typeof setTimeout> | null = null;
@@ -80,6 +89,11 @@ export function activate(
   engineClient: EngineClient;
   statusBar: DhyanStatusBar | null;
   inMemoryEvents: Record<string, unknown>[];
+  taskContextTracker?: TaskContextTracker | null;
+  breakDetector?: BreakDetector | null;
+  resumeTracker?: ResumeTracker | null;
+  resumeManager?: ResumeManager | null;
+  resumeTreeProvider?: ResumeTreeDataProvider | null;
 } {
   const clock = injectedClock ?? new RealClock();
 
@@ -156,6 +170,45 @@ export function activate(
   taskContextTracker = new TaskContextTracker(clock, placeholderSalt);
   breakDetector = new BreakDetector(clock);
 
+  // Phase 4: Resume Tracker & Feature Manager
+  resumeTracker = new ResumeTracker(clock);
+  resumeManager = new ResumeManager({
+    vscodeApi,
+    workspaceState: context?.workspaceState,
+    privacyFilter,
+    resumeTracker,
+    statusBar,
+    onSnapshotChanged: () => resumeTreeProvider?.refresh()
+  });
+  resumeTreeProvider = new ResumeTreeDataProvider(vscodeApi, resumeManager);
+  if (vscodeApi?.window?.registerTreeDataProvider) {
+    try {
+      context.subscriptions.push(
+        vscodeApi.window.registerTreeDataProvider('dhyan.resume', resumeTreeProvider)
+      );
+    } catch {}
+  }
+
+  // Helpers to read current context
+  const getCurrentTaskKey = (): string => {
+    if (taskContextTracker && gitSensor) {
+      const workspacePath = gitSensor.getWorkspacePath() ?? '';
+      const branchName = gitSensor.getBranchName() ?? '';
+      return taskContextTracker.computeTaskKey(workspacePath, branchName);
+    }
+    return '0000000000000000';
+  };
+
+  const getCurrentLoad = (): ResumeLoadContext => {
+    return {
+      dirtyDocs: 0,
+      openTabs: 0,
+      debugPaused: false,
+      uncommitted: gitSensor?.getUncommittedCount() ?? 0,
+      taskType: taskContextTracker?.computeTaskType() ?? 'idle'
+    };
+  };
+
   // Asynchronously upgrade to the real per-install salt
   if (context?.secrets) {
     getOrCreateSalt(context.secrets as any).then((salt) => {
@@ -180,9 +233,46 @@ export function activate(
     editorSensor = new EditorSensor({
       aggregator,
       privacyFilter,
-      vscode: vscodeApi
+      vscode: vscodeApi,
+      onEdit: (kind) => {
+        resumeManager?.recordActivity();
+        if (resumeTracker && outbox) {
+          const taskKey = getCurrentTaskKey();
+          const resumeEvent = resumeTracker.onEdit(kind, taskKey);
+          if (resumeEvent) {
+            const sanitized = PrivacyGate.sanitize(resumeEvent);
+            if (sanitized) {
+              outbox.enqueue(sanitized);
+              engineClient?.flushImmediate();
+            }
+          }
+        }
+      },
+      onActivity: () => {
+        resumeManager?.recordActivity();
+      }
     });
-    windowSensor = new WindowSensor(vscodeApi, aggregator, clock);
+    windowSensor = new WindowSensor(vscodeApi, aggregator, clock, (focused) => {
+      const taskKey = getCurrentTaskKey();
+      if (!focused) {
+        // Blur: capture snapshot and record blur timestamp
+        resumeTracker?.onBlur();
+        resumeManager?.captureSnapshot(taskKey);
+      } else {
+        // Focus regained: check resume assist candidate
+        const config = vscodeApi?.workspace?.getConfiguration?.('dhyan');
+        const minAwayMinutes = Number(config?.get('minAwayMinutes', 3)) || 3;
+        const assistProbability = Number(config?.get('assistProbability', 0.8)) ?? 0.8;
+        const load = getCurrentLoad();
+        const candidate = resumeTracker?.onFocus({ taskKey, load }, minAwayMinutes, assistProbability);
+        if (candidate && candidate.assist) {
+          const snapshot = resumeManager?.getSnapshot();
+          if (snapshot) {
+            statusBar?.setResume(snapshot.fileName, snapshot.line + 1);
+          }
+        }
+      }
+    });
     diagSensor = new DiagnosticsSensor(vscodeApi, aggregator, clock);
     debugSensor = new DebugSensor(vscodeApi, aggregator);
 
@@ -200,12 +290,22 @@ export function activate(
     terminalSensor = new TerminalSensor(vscodeApi, clock, taskContextTracker, outbox!);
   }
 
-  // Break-detector coarse tick (every 2s) for save_green and idle_after_save
+  // Break-detector & Censoring coarse tick (every 2s)
   breakTickTimer = setInterval(() => {
     if (breakDetector) {
       const brk = breakDetector.tick(clock.now());
       if (brk) {
         emitBreak(brk.kind, brk.confidence);
+      }
+    }
+    if (resumeTracker && outbox) {
+      const censored = resumeTracker.tick();
+      if (censored) {
+        const sanitized = PrivacyGate.sanitize(censored);
+        if (sanitized) {
+          outbox.enqueue(sanitized);
+          engineClient?.flushImmediate();
+        }
       }
     }
   }, 2000);
@@ -303,11 +403,18 @@ export function activate(
     }
   });
 
+  registerCmd('dhyan.resume', async () => {
+    return await resumeManager?.executeResume();
+  });
+
+  registerCmd('dhyan.park', async () => {
+    const taskKey = getCurrentTaskKey();
+    await resumeManager?.executePark(taskKey);
+  });
+
   const standardCommands = [
     'dhyan.startSession',
     'dhyan.endSession',
-    'dhyan.park',
-    'dhyan.resume',
     'dhyan.openDigest',
     'dhyan.connect',
     'dhyan.forgetToday',
@@ -330,7 +437,12 @@ export function activate(
     outbox,
     engineClient,
     statusBar,
-    inMemoryEvents
+    inMemoryEvents,
+    taskContextTracker,
+    breakDetector,
+    resumeTracker,
+    resumeManager,
+    resumeTreeProvider
   };
 }
 
@@ -358,6 +470,10 @@ export function deactivate(): void {
   if (statusBar) {
     statusBar.dispose();
     statusBar = null;
+  }
+  if (resumeManager) {
+    resumeManager.dispose();
+    resumeManager = null;
   }
   if (editorSensor) {
     editorSensor.dispose();
@@ -396,5 +512,7 @@ export function deactivate(): void {
   aggregator = null;
   taskContextTracker = null;
   breakDetector = null;
+  resumeTracker = null;
+  resumeTreeProvider = null;
   currentCapabilities = null;
 }

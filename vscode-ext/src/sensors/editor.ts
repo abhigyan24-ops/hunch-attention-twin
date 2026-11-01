@@ -6,16 +6,22 @@ export interface EditorAdapterOptions {
   aggregator: WindowAggregator;
   privacyFilter: PrivacyFilter;
   vscode: any;
+  onEdit?: (kind: string, ins: number, del: number) => void;
+  onActivity?: () => void;
 }
 
 export class EditorSensor {
   private aggregator: WindowAggregator;
   private privacyFilter: PrivacyFilter;
+  private onEditCallback?: (kind: string, ins: number, del: number) => void;
+  private onActivityCallback?: () => void;
   private disposables: { dispose(): void }[] = [];
 
   constructor(options: EditorAdapterOptions) {
     this.aggregator = options.aggregator;
     this.privacyFilter = options.privacyFilter;
+    this.onEditCallback = options.onEdit;
+    this.onActivityCallback = options.onActivity;
     this.setup(options.vscode);
   }
 
@@ -39,6 +45,7 @@ export class EditorSensor {
           if (!isTrackedScheme(e.textEditor.document.uri?.scheme)) return;
           if (this.privacyFilter.isExcluded(e.textEditor.document)) return;
           this.aggregator.onCursorMove();
+          this.onActivityCallback?.();
         })
       );
     }
@@ -51,6 +58,7 @@ export class EditorSensor {
           if (!isTrackedScheme(e.textEditor.document.uri?.scheme)) return;
           if (this.privacyFilter.isExcluded(e.textEditor.document)) return;
           this.aggregator.onScroll();
+          this.onActivityCallback?.();
         })
       );
     }
@@ -62,6 +70,7 @@ export class EditorSensor {
           if (!isTrackedScheme(doc?.uri?.scheme)) return;
           if (this.privacyFilter.isExcluded(doc)) return;
           this.aggregator.onSave();
+          this.onActivityCallback?.();
         })
       );
     }
@@ -74,6 +83,7 @@ export class EditorSensor {
           if (!isTrackedScheme(editor.document.uri?.scheme)) return;
           if (this.privacyFilter.isExcluded(editor.document)) return;
           this.aggregator.onFileSwitch(editor.document.languageId);
+          this.onActivityCallback?.();
         })
       );
     }
@@ -123,6 +133,8 @@ export class EditorSensor {
     });
 
     this.aggregator.onEdit(kind, ins, del, Date.now());
+    this.onEditCallback?.(kind, ins, del);
+    this.onActivityCallback?.();
   }
 
   dispose(): void {

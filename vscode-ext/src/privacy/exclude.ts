@@ -82,8 +82,9 @@ export class PrivacyFilter {
     try {
       const regexStr = '^' + glob
         .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-        .replace(/\*\*/g, '.*')
+        .replace(/\*\*/g, '___GLOB_STAR___')
         .replace(/\*/g, '[^/]*')
+        .replace(/___GLOB_STAR___/g, '.*')
         .replace(/\?/g, '.') + '$';
       const re = new RegExp(regexStr, 'i');
       return re.test(pathStr) || pathStr.endsWith(glob.replace(/^\*/, ''));

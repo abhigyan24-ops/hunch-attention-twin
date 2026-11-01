@@ -2,7 +2,7 @@
 
 ## Status Overview
 - Current Mode: **MODE A** (Existing `vscode-ext/` found)
-- Current Step: **PHASE 3 COMPLETE** (Waiting for user confirmation to begin Phase 4)
+- Current Step: **PHASE 4 COMPLETE** (Waiting for user confirmation to begin Phase 5)
 
 ---
 
@@ -42,12 +42,12 @@
 - [x] Implement `src/aggregate/taskContext.ts` (`taskKey` HMAC + 60s windowed `taskType`)
 - [x] Implement `src/aggregate/breaks.ts` (`ed_break` detector with confidence scores)
 
-### [ ] Phase 4: Resume Assist, Snapshotting, and Censored Resumption Tracker
-- [ ] Implement `src/aggregate/resumeTracker.ts` (resumption tracking, 30-min censoring cutoff)
-- [ ] Implement randomized assist decision logic with propensity logging (`p = clamp(assistProbability, 0.05, 0.95)`)
-- [ ] Implement `src/features/resume.ts` (snapshots on blur >= 20s or idle >= 60s in `workspaceState`)
-- [ ] Implement `dhyan.resume` and `dhyan.park` commands (`ctrl+alt+p`, `ctrl+alt+r`)
-- [ ] Implement status bar resume card and "Where I Left Off" tree view
+### [x] Phase 4: Resume Assist, Snapshotting, and Censored Resumption Tracker
+- [x] Implement `src/aggregate/resumeTracker.ts` (resumption tracking, 30-min censoring cutoff)
+- [x] Implement randomized assist decision logic with propensity logging (`p = clamp(assistProbability, 0.05, 0.95)`)
+- [x] Implement `src/features/resume.ts` (snapshots on blur >= 20s or idle >= 60s in `workspaceState`)
+- [x] Implement `dhyan.resume` and `dhyan.park` commands (`ctrl+alt+p`, `ctrl+alt+r`)
+- [x] Implement status bar resume card and "Where I Left Off" tree view
 
 ### [ ] Phase 5: Sessions, Ratings, Views, Nudges, and State Leases
 - [ ] Implement `src/features/session.ts` (`dhyan.startSession`, `dhyan.endSession` with 1-5 ratings)

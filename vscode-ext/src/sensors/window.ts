@@ -4,13 +4,19 @@ import type { Clock } from '../clock.ts';
 export class WindowSensor {
   private disposables: { dispose(): void }[] = [];
 
-  constructor(vscode: any, aggregator: WindowAggregator, clock: Clock) {
+  constructor(
+    vscode: any,
+    aggregator: WindowAggregator,
+    clock: Clock,
+    onWindowStateChange?: (focused: boolean, active: boolean) => void
+  ) {
     if (vscode?.window?.onDidChangeWindowState) {
       this.disposables.push(
         vscode.window.onDidChangeWindowState((state: any) => {
           const focused = Boolean(state?.focused);
           const active = Boolean(state?.active ?? focused);
           aggregator.onWindow(focused, active, clock.mono());
+          onWindowStateChange?.(focused, active);
         })
       );
     }

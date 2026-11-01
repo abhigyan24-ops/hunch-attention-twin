@@ -27,6 +27,7 @@ export class DhyanStatusBar {
   setWaiting(): void {
     this.currentMode = 'waiting';
     if (this.item) {
+      this.item.command = 'dhyan.today';
       this.item.text = '$(plug) Dhyan: waiting for desktop app';
       this.item.tooltip = 'Dhyan: Desktop application offline or disconnected';
     }
@@ -35,6 +36,7 @@ export class DhyanStatusBar {
   setPaused(): void {
     this.currentMode = 'paused';
     if (this.item) {
+      this.item.command = 'dhyan.today';
       this.item.text = '$(debug-pause) Dhyan paused';
       this.item.tooltip = 'Dhyan attention tracking is paused';
     }
@@ -43,6 +45,7 @@ export class DhyanStatusBar {
   setFocused(minutes: number, heldCount: number): void {
     this.currentMode = 'focused';
     if (this.item) {
+      this.item.command = 'dhyan.today';
       this.item.text = `$(eye) Dhyan · Deep focus ${minutes}m · ${heldCount} held`;
       this.item.tooltip = 'Dhyan: In deep focus flow';
     }
@@ -51,6 +54,7 @@ export class DhyanStatusBar {
   setResume(file: string, line: number): void {
     this.currentMode = 'resume';
     if (this.item) {
+      this.item.command = 'dhyan.resume';
       this.item.text = `$(history) Resume: ${file}:${line}`;
       this.item.tooltip = `Click to resume where you left off at ${file}:${line}`;
     }
