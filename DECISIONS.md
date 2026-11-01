@@ -9,3 +9,5 @@
 - **WINDOW FILTERING:** Edit counting strictly restricted to URI schemes `'file'` and `'untitled'`, discarding `'output'`, `'git'`, `'vscode-userdata'`, and `'comment'`.
 - **PROMPT OVERRIDE PRECEDENCE:** In accordance with Master Prompt Source of Truth rule 3, Master Prompt HARD RULES and SPEC DIGEST override any ambiguous wording in prior design notes.
 - **HOT-PATH METRICS:** `EditorSensor` extracts only `.text.length` and `.rangeLength` without string building or awaits; measured 0.00063ms avg per edit against the 0.05ms budget.
+- **OUTBOX SPILL STRATEGY:** Spills oldest 500 events to `outbox_spill.jsonl` at 5000 memory threshold and enforces 5MB disk cap by retaining the newer half of lines.
+- **SAFE WEBSOCKET TEARDOWN:** `EngineClient` calls `ws.terminate()` on CONNECTING sockets to prevent unhandled "WebSocket was closed before the connection was established" exceptions.

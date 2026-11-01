@@ -2,7 +2,7 @@
 
 ## Status Overview
 - Current Mode: **MODE A** (Existing `vscode-ext/` found)
-- Current Step: **PHASE 1 COMPLETE** (Waiting for user confirmation to begin Phase 2)
+- Current Step: **PHASE 2 COMPLETE** (Waiting for user confirmation to begin Phase 3)
 
 ---
 
@@ -28,13 +28,13 @@
 - [x] 10-second timer wiring in `extension.ts` flushing through `PrivacyGate.sanitize`
 - [x] Add performance test (10,000 rapid edits, average handler latency < 0.05ms)
 
-### [ ] Phase 2: Engine Link, Endpoint Discovery, Outbox, Mock Engine
-- [ ] Implement `src/link/protocol.ts` (TypeScript types + schema validation for engine messages)
-- [ ] Implement `src/link/outbox.ts` (in-memory ring buffer 5000, JSONL spill 5MB, ack replay)
-- [ ] Implement `src/link/endpoint.ts` (`~/.dhyan/endpoint.json` watcher + URI handler)
-- [ ] Implement `src/link/client.ts` (WebSocket client to `ws://127.0.0.1:<port>/ext` with Bearer auth)
-- [ ] Implement `test/mock-engine` (mock WebSocket server for protocol testing)
-- [ ] Implement status bar states with quiet offline handling
+### [x] Phase 2: Engine Link, Endpoint Discovery, Outbox, Mock Engine
+- [x] Implement `src/link/protocol.ts` (TypeScript types + schema validation for engine messages)
+- [x] Implement `src/link/outbox.ts` (in-memory ring buffer 5000, JSONL spill 5MB, ack replay)
+- [x] Implement `src/link/endpoint.ts` (`~/.dhyan/endpoint.json` watcher + URI handler)
+- [x] Implement `src/link/client.ts` (WebSocket client to `ws://127.0.0.1:<port>/ext` with Bearer auth)
+- [x] Implement `test/mock-engine` (mock WebSocket server for protocol testing)
+- [x] Implement status bar states with quiet offline handling
 
 ### [ ] Phase 3: Task Context and Natural Break Detector
 - [ ] Implement `src/sensors/git.ts` (extract workspace root + branch name via `vscode.git` API)
