@@ -4,14 +4,20 @@ import { PrivacyFilter } from './privacy/exclude.ts';
 import { PrivacyGate } from './privacy/gate.ts';
 import { RealClock, type Clock } from './clock.ts';
 import { WindowAggregator } from './aggregate/window.ts';
+import { TaskContextTracker } from './aggregate/taskContext.ts';
+import { BreakDetector } from './aggregate/breaks.ts';
 import { EditorSensor } from './sensors/editor.ts';
 import { WindowSensor } from './sensors/window.ts';
 import { DiagnosticsSensor } from './sensors/diagnostics.ts';
 import { DebugSensor } from './sensors/debug.ts';
+import { GitSensor } from './sensors/git.ts';
+import { TasksSensor } from './sensors/tasks.ts';
+import { TerminalSensor } from './sensors/terminal.ts';
 import { Outbox } from './link/outbox.ts';
 import { EndpointDiscovery } from './link/endpoint.ts';
 import { EngineClient } from './link/client.ts';
 import { DhyanStatusBar } from './ui/statusBar.ts';
+import { getOrCreateSalt } from './privacy/hash.ts';
 
 // Re-export core classes for backward-compatibility with tests & external callers
 export { PrivacyGate } from './privacy/gate.ts';
@@ -19,9 +25,14 @@ export { PrivacyFilter } from './privacy/exclude.ts';
 export { probeCapabilities } from './capabilities.ts';
 export { RealClock, FakeClock } from './clock.ts';
 export { WindowAggregator } from './aggregate/window.ts';
+export { TaskContextTracker } from './aggregate/taskContext.ts';
+export { BreakDetector } from './aggregate/breaks.ts';
 export { classifyEdit, isTrackedScheme } from './aggregate/classify.ts';
 export { RhythmTracker } from './aggregate/rhythm.ts';
 export { EditorSensor } from './sensors/editor.ts';
+export { GitSensor } from './sensors/git.ts';
+export { TasksSensor } from './sensors/tasks.ts';
+export { TerminalSensor } from './sensors/terminal.ts';
 export { Outbox } from './link/outbox.ts';
 export { EndpointDiscovery } from './link/endpoint.ts';
 export { EngineClient } from './link/client.ts';
@@ -32,7 +43,10 @@ let privacyFilter: PrivacyFilter | null = null;
 let diagOutputChannel: vscodeTypes.OutputChannel | null = null;
 let currentCapabilities: ExtensionCapabilities | null = null;
 let aggregator: WindowAggregator | null = null;
+let taskContextTracker: TaskContextTracker | null = null;
+let breakDetector: BreakDetector | null = null;
 let tickTimer: ReturnType<typeof setInterval> | null = null;
+let breakTickTimer: ReturnType<typeof setInterval> | null = null;
 let leaseTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Sensors
@@ -40,6 +54,9 @@ let editorSensor: EditorSensor | null = null;
 let windowSensor: WindowSensor | null = null;
 let diagSensor: DiagnosticsSensor | null = null;
 let debugSensor: DebugSensor | null = null;
+let gitSensor: GitSensor | null = null;
+let tasksSensor: TasksSensor | null = null;
+let terminalSensor: TerminalSensor | null = null;
 
 // Link & UI
 let outbox: Outbox | null = null;
@@ -134,7 +151,31 @@ export function activate(
   // 6. Initialize Aggregator
   aggregator = new WindowAggregator(clock);
 
-  // 7. Initialize Sensors
+  // 7a. Initialize TaskContextTracker + BreakDetector (salt from secrets, async)
+  const placeholderSalt = '0'.repeat(64);
+  taskContextTracker = new TaskContextTracker(clock, placeholderSalt);
+  breakDetector = new BreakDetector(clock);
+
+  // Asynchronously upgrade to the real per-install salt
+  if (context?.secrets) {
+    getOrCreateSalt(context.secrets as any).then((salt) => {
+      taskContextTracker = new TaskContextTracker(clock, salt);
+    }).catch(() => {
+      // secrets unavailable — continue with placeholder salt
+    });
+  }
+
+  // Helper: sanitize + enqueue + flush an ed_break event
+  const emitBreak = (kind: string, confidence: number): void => {
+    const raw = { type: 'ed_break', ts: clock.now(), mono: clock.mono(), kind, confidence };
+    const sanitized = PrivacyGate.sanitize(raw);
+    if (sanitized && outbox) {
+      outbox.enqueue(sanitized);
+      engineClient?.flushImmediate();
+    }
+  };
+
+  // 7b. Initialize Sensors
   if (vscodeApi) {
     editorSensor = new EditorSensor({
       aggregator,
@@ -144,11 +185,44 @@ export function activate(
     windowSensor = new WindowSensor(vscodeApi, aggregator, clock);
     diagSensor = new DiagnosticsSensor(vscodeApi, aggregator, clock);
     debugSensor = new DebugSensor(vscodeApi, aggregator);
+
+    // Phase 3: Git, Tasks, Terminal sensors
+    gitSensor = new GitSensor(vscodeApi, breakDetector, taskContextTracker);
+    tasksSensor = new TasksSensor(
+      vscodeApi,
+      clock,
+      breakDetector,
+      taskContextTracker,
+      outbox!,
+      () => engineClient?.flushImmediate(),
+      emitBreak
+    );
+    terminalSensor = new TerminalSensor(vscodeApi, clock, taskContextTracker, outbox!);
   }
+
+  // Break-detector coarse tick (every 2s) for save_green and idle_after_save
+  breakTickTimer = setInterval(() => {
+    if (breakDetector) {
+      const brk = breakDetector.tick(clock.now());
+      if (brk) {
+        emitBreak(brk.kind, brk.confidence);
+      }
+    }
+  }, 2000);
 
   // 8. 10-Second Periodic Tick Timer
   tickTimer = setInterval(() => {
     if (aggregator && outbox) {
+      // Update aggregator context from TaskContextTracker + GitSensor
+      if (taskContextTracker && gitSensor) {
+        const workspacePath = gitSensor.getWorkspacePath() ?? '';
+        const branchName = gitSensor.getBranchName() ?? '';
+        const taskKey = taskContextTracker.computeTaskKey(workspacePath, branchName);
+        const taskType = taskContextTracker.computeTaskType();
+        const uncommitted = gitSensor.getUncommittedCount();
+        aggregator.setContext({ taskKey, taskType, uncommitted });
+      }
+
       const summary = aggregator.tick(clock);
       if (summary) {
         const sanitized = PrivacyGate.sanitize(summary);
@@ -265,6 +339,10 @@ export function deactivate(): void {
     clearInterval(tickTimer);
     tickTimer = null;
   }
+  if (breakTickTimer) {
+    clearInterval(breakTickTimer);
+    breakTickTimer = null;
+  }
   if (leaseTimer) {
     clearTimeout(leaseTimer);
     leaseTimer = null;
@@ -297,6 +375,18 @@ export function deactivate(): void {
     debugSensor.dispose();
     debugSensor = null;
   }
+  if (gitSensor) {
+    gitSensor.dispose();
+    gitSensor = null;
+  }
+  if (tasksSensor) {
+    tasksSensor.dispose();
+    tasksSensor = null;
+  }
+  if (terminalSensor) {
+    terminalSensor.dispose();
+    terminalSensor = null;
+  }
   if (diagOutputChannel) {
     diagOutputChannel.dispose();
     diagOutputChannel = null;
@@ -304,5 +394,7 @@ export function deactivate(): void {
   outbox = null;
   privacyFilter = null;
   aggregator = null;
+  taskContextTracker = null;
+  breakDetector = null;
   currentCapabilities = null;
 }

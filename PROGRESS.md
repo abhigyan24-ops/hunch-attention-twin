@@ -2,7 +2,7 @@
 
 ## Status Overview
 - Current Mode: **MODE A** (Existing `vscode-ext/` found)
-- Current Step: **PHASE 2 COMPLETE** (Waiting for user confirmation to begin Phase 3)
+- Current Step: **PHASE 3 COMPLETE** (Waiting for user confirmation to begin Phase 4)
 
 ---
 
@@ -36,11 +36,11 @@
 - [x] Implement `test/mock-engine` (mock WebSocket server for protocol testing)
 - [x] Implement status bar states with quiet offline handling
 
-### [ ] Phase 3: Task Context and Natural Break Detector
-- [ ] Implement `src/sensors/git.ts` (extract workspace root + branch name via `vscode.git` API)
-- [ ] Implement `src/sensors/tasks.ts` and `terminal.ts` (track tasks and command categories)
-- [ ] Implement `src/aggregate/taskContext.ts` (`taskKey` HMAC + 60s windowed `taskType`)
-- [ ] Implement `src/aggregate/breaks.ts` (`ed_break` detector with confidence scores)
+### [x] Phase 3: Task Context and Natural Break Detector
+- [x] Implement `src/sensors/git.ts` (extract workspace root + branch name via `vscode.git` API)
+- [x] Implement `src/sensors/tasks.ts` and `terminal.ts` (track tasks and command categories)
+- [x] Implement `src/aggregate/taskContext.ts` (`taskKey` HMAC + 60s windowed `taskType`)
+- [x] Implement `src/aggregate/breaks.ts` (`ed_break` detector with confidence scores)
 
 ### [ ] Phase 4: Resume Assist, Snapshotting, and Censored Resumption Tracker
 - [ ] Implement `src/aggregate/resumeTracker.ts` (resumption tracking, 30-min censoring cutoff)
