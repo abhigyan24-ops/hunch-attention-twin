@@ -2,7 +2,7 @@
 
 ## Status Overview
 - Current Mode: **MODE A** (Existing `vscode-ext/` found)
-- Current Step: **PHASE 0 COMPLETE** (Waiting for user confirmation to begin Phase 1)
+- Current Step: **PHASE 1 COMPLETE** (Waiting for user confirmation to begin Phase 2)
 
 ---
 
@@ -20,13 +20,13 @@
 - [x] Write no-leak unit test (`test/unit/no-leak.test.ts`) with property-style coverage over all schemas
 - [x] Wire minimal `activate`/`deactivate` registering `dhyan.pause` and `dhyan.diagnostics`
 
-### [ ] Phase 1: Sensors, Edit Classifier, 10s Summaries, Rhythm Stats
-- [ ] Implement `src/aggregate/classify.ts` (pure 6-way change classifier: typing/paste/bulk/external/undo/redo)
-- [ ] Implement `src/aggregate/rhythm.ts` (200-gap ring buffer, p50, p90, longPauseRatio)
-- [ ] Implement `src/aggregate/window.ts` (`Aggregator` with 10s tick producing `ed_summary`)
-- [ ] Implement thin sensor adapters: `src/sensors/editor.ts`, `window.ts`, `diagnostics.ts`, `debug.ts`
-- [ ] 10-second timer wiring in `extension.ts` flushing through `PrivacyGate.sanitize`
-- [ ] Add performance test (10,000 rapid edits, average handler latency < 0.05ms)
+### [x] Phase 1: Sensors, Edit Classifier, 10s Summaries, Rhythm Stats
+- [x] Implement `src/aggregate/classify.ts` (pure 6-way change classifier: typing/paste/bulk/external/undo/redo)
+- [x] Implement `src/aggregate/rhythm.ts` (200-gap ring buffer, p50, p90, longPauseRatio)
+- [x] Implement `src/aggregate/window.ts` (`Aggregator` with 10s tick producing `ed_summary`)
+- [x] Implement thin sensor adapters: `src/sensors/editor.ts`, `window.ts`, `diagnostics.ts`, `debug.ts`
+- [x] 10-second timer wiring in `extension.ts` flushing through `PrivacyGate.sanitize`
+- [x] Add performance test (10,000 rapid edits, average handler latency < 0.05ms)
 
 ### [ ] Phase 2: Engine Link, Endpoint Discovery, Outbox, Mock Engine
 - [ ] Implement `src/link/protocol.ts` (TypeScript types + schema validation for engine messages)
