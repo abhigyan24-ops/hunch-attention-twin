@@ -2,19 +2,28 @@
   "name": "dhyan-vscode",
   "displayName": "Dhyan VS Code Sensor & Attention Companion",
   "type": "module",
-  "description": "Privacy-preserving telemetry sensor and companion pet for Dhyan (counts and categories only, zero document text)",
+  "description": "Privacy-preserving telemetry sensor, resume assist, and quiet actuator for the Dhyan attention digital twin",
   "version": "1.0.0",
   "publisher": "dhyan",
   "engines": {
-    "vscode": "^1.80.0"
+    "vscode": "^1.93.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Programming Languages"
   ],
   "activationEvents": [
     "onStartupFinished"
   ],
-  "main": "./src/extension.js",
+  "main": "./dist/extension.js",
+  "scripts": {
+    "compile": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "lint": "tsc --noEmit",
+    "test:unit": "mocha --node-option=experimental-strip-types \"test/unit/**/*.test.ts\"",
+    "test:integration": "mocha --node-option=experimental-strip-types \"test/integration/**/*.test.ts\"",
+    "package": "vsce package --no-dependencies"
+  },
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -31,25 +40,58 @@
           "type": "webview",
           "id": "dhyan.companion",
           "name": "Dhyan Companion"
+        },
+        {
+          "id": "dhyan.today",
+          "name": "Today"
+        },
+        {
+          "id": "dhyan.resume",
+          "name": "Where I Left Off"
+        },
+        {
+          "id": "dhyan.digest",
+          "name": "Held for You"
         }
       ]
     },
-    "configuration": {
-      "title": "Dhyan Sensor",
-      "properties": {
-        "dhyan.ingestPort": {
-          "type": "number",
-          "default": 47821,
-          "description": "Port of the local Dhyan ingest server (127.0.0.1)"
-        },
-        "dhyan.token": {
-          "type": "string",
-          "default": "",
-          "description": "Authentication token shown in the Dhyan laptop app"
-        }
-      }
-    },
     "commands": [
+      {
+        "command": "dhyan.pause",
+        "title": "Dhyan: Pause Tracking"
+      },
+      {
+        "command": "dhyan.startSession",
+        "title": "Dhyan: Start Focus Session"
+      },
+      {
+        "command": "dhyan.endSession",
+        "title": "Dhyan: End Focus Session"
+      },
+      {
+        "command": "dhyan.park",
+        "title": "Dhyan: Park Intention / Note"
+      },
+      {
+        "command": "dhyan.resume",
+        "title": "Dhyan: Resume Interrupted Task"
+      },
+      {
+        "command": "dhyan.openDigest",
+        "title": "Dhyan: Open Held Items Digest"
+      },
+      {
+        "command": "dhyan.connect",
+        "title": "Dhyan: Connect to Desktop Engine"
+      },
+      {
+        "command": "dhyan.diagnostics",
+        "title": "Dhyan: Show Diagnostics"
+      },
+      {
+        "command": "dhyan.forgetToday",
+        "title": "Dhyan: Forget Today's History"
+      },
       {
         "command": "dhyan.openInsights",
         "title": "Dhyan: Open Insights Dashboard"
@@ -66,6 +108,114 @@
         "command": "dhyan.showStatus",
         "title": "Dhyan: Show Sensor Status"
       }
-    ]
+    ],
+    "keybindings": [
+      {
+        "command": "dhyan.park",
+        "key": "ctrl+alt+p",
+        "mac": "cmd+alt+p"
+      },
+      {
+        "command": "dhyan.resume",
+        "key": "ctrl+alt+r",
+        "mac": "cmd+alt+r"
+      }
+    ],
+    "configuration": {
+      "title": "Dhyan Sensor & Twin",
+      "properties": {
+        "dhyan.endpointFile": {
+          "type": "string",
+          "default": "~/.dhyan/endpoint.json",
+          "description": "Path to local endpoint credentials file"
+        },
+        "dhyan.ingestPort": {
+          "type": "number",
+          "default": 47821,
+          "description": "Port of the local Dhyan ingest server (127.0.0.1)"
+        },
+        "dhyan.token": {
+          "type": "string",
+          "default": "",
+          "description": "Authentication token shown in the Dhyan laptop app"
+        },
+        "dhyan.assistProbability": {
+          "type": "number",
+          "default": 0.8,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Propensity for resume assist intervention experiment"
+        },
+        "dhyan.minAwayMinutes": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "description": "Minimum away minutes before showing resume assist"
+        },
+        "dhyan.autoRestore": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically restore editor cursor and open files on resume"
+        },
+        "dhyan.nudges.maxPerHour": {
+          "type": "number",
+          "default": 4,
+          "description": "Maximum nudges permitted per hour"
+        },
+        "dhyan.nudges.toast": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow toast notifications for nudges"
+        },
+        "dhyan.digest.toastAtBreak": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow toast notifications for digest at natural breaks"
+        },
+        "dhyan.exclude.languages": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "List of language IDs excluded from telemetry tracking"
+        },
+        "dhyan.exclude.globs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Glob patterns of files excluded from telemetry tracking"
+        },
+        "dhyan.exclude.workspaces": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Workspace paths excluded from telemetry tracking"
+        },
+        "dhyan.diagnostics.verbose": {
+          "type": "boolean",
+          "default": false,
+          "description": "Log verbose numeric summaries to output channel"
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.18.12",
+    "@types/vscode": "^1.93.0",
+    "@types/ws": "^8.18.1",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1",
+    "esbuild": "^0.25.11",
+    "mocha": "^11.1.0",
+    "typescript": "^5.9.3"
   }
 }
