@@ -20,7 +20,10 @@ import { DhyanStatusBar } from './ui/statusBar.ts';
 import { getOrCreateSalt } from './privacy/hash.ts';
 import { ResumeTracker, type ResumeLoadContext } from './aggregate/resumeTracker.ts';
 import { ResumeManager } from './features/resume.ts';
-import { ResumeTreeDataProvider } from './ui/trees.ts';
+import { SessionManager } from './features/session.ts';
+import { NudgeManager } from './features/nudge.ts';
+import { DigestManager } from './features/digest.ts';
+import { ResumeTreeDataProvider, TodayTreeDataProvider, DigestTreeDataProvider } from './ui/trees.ts';
 
 // Re-export core classes for backward-compatibility with tests & external callers
 export { PrivacyGate } from './privacy/gate.ts';
@@ -32,7 +35,10 @@ export { TaskContextTracker } from './aggregate/taskContext.ts';
 export { BreakDetector } from './aggregate/breaks.ts';
 export { ResumeTracker } from './aggregate/resumeTracker.ts';
 export { ResumeManager } from './features/resume.ts';
-export { ResumeTreeDataProvider } from './ui/trees.ts';
+export { SessionManager } from './features/session.ts';
+export { NudgeManager } from './features/nudge.ts';
+export { DigestManager } from './features/digest.ts';
+export { ResumeTreeDataProvider, TodayTreeDataProvider, DigestTreeDataProvider } from './ui/trees.ts';
 export { classifyEdit, isTrackedScheme } from './aggregate/classify.ts';
 export { RhythmTracker } from './aggregate/rhythm.ts';
 export { EditorSensor } from './sensors/editor.ts';
@@ -53,7 +59,12 @@ let taskContextTracker: TaskContextTracker | null = null;
 let breakDetector: BreakDetector | null = null;
 let resumeTracker: ResumeTracker | null = null;
 let resumeManager: ResumeManager | null = null;
+let sessionManager: SessionManager | null = null;
+let nudgeManager: NudgeManager | null = null;
+let digestManager: DigestManager | null = null;
 let resumeTreeProvider: ResumeTreeDataProvider | null = null;
+let todayTreeProvider: TodayTreeDataProvider | null = null;
+let digestTreeProvider: DigestTreeDataProvider | null = null;
 let tickTimer: ReturnType<typeof setInterval> | null = null;
 let breakTickTimer: ReturnType<typeof setInterval> | null = null;
 let leaseTimer: ReturnType<typeof setTimeout> | null = null;
@@ -93,7 +104,12 @@ export function activate(
   breakDetector?: BreakDetector | null;
   resumeTracker?: ResumeTracker | null;
   resumeManager?: ResumeManager | null;
+  sessionManager?: SessionManager | null;
+  nudgeManager?: NudgeManager | null;
+  digestManager?: DigestManager | null;
   resumeTreeProvider?: ResumeTreeDataProvider | null;
+  todayTreeProvider?: TodayTreeDataProvider | null;
+  digestTreeProvider?: DigestTreeDataProvider | null;
 } {
   const clock = injectedClock ?? new RealClock();
 
@@ -131,7 +147,8 @@ export function activate(
       }
 
       if (stateMsg.focus === 'deep') {
-        statusBar?.setFocused(Math.round(stateMsg.leaseMs / 60000), 0);
+        const heldCount = digestManager?.getItemCount() ?? 0;
+        statusBar?.setFocused(Math.round(stateMsg.leaseMs / 60000), heldCount);
 
         // Auto-revert when lease expires
         leaseTimer = setTimeout(() => {
@@ -139,6 +156,26 @@ export function activate(
         }, stateMsg.leaseMs);
       } else {
         statusBar?.setFocused(0, 0);
+      }
+    },
+    onMessage: (msg) => {
+      if (msg.kind === 'digest') {
+        digestManager?.updateItems(msg.items || []);
+      } else if (msg.kind === 'nudge') {
+        nudgeManager?.handleNudge(msg);
+      } else if (msg.kind === 'cmd') {
+        if (msg.action === 'pause') {
+          privacyFilter?.setPaused(true);
+          statusBar?.setPaused();
+        } else if (msg.action === 'resume') {
+          privacyFilter?.setPaused(false);
+          statusBar?.setWaiting();
+        } else if (msg.action === 'forget_range') {
+          inMemoryEvents.length = 0;
+          sessionManager?.clearHistory();
+          resumeManager?.clearSnapshot();
+          digestManager?.clearItems();
+        }
       }
     }
   });
@@ -181,10 +218,41 @@ export function activate(
     onSnapshotChanged: () => resumeTreeProvider?.refresh()
   });
   resumeTreeProvider = new ResumeTreeDataProvider(vscodeApi, resumeManager);
+
+  // Phase 5: Session, Nudge, Digest Managers
+  sessionManager = new SessionManager({
+    clock,
+    salt: placeholderSalt,
+    outbox,
+    statusBar,
+    vscodeApi,
+    onFlushImmediate: () => engineClient?.flushImmediate(),
+    onSessionChange: () => todayTreeProvider?.refresh()
+  });
+
+  nudgeManager = new NudgeManager({
+    clock,
+    outbox,
+    engineClient,
+    vscodeApi
+  });
+
+  digestManager = new DigestManager({
+    engineClient,
+    outbox,
+    vscodeApi,
+    onDigestChange: () => digestTreeProvider?.refresh()
+  });
+
+  todayTreeProvider = new TodayTreeDataProvider(vscodeApi, sessionManager);
+  digestTreeProvider = new DigestTreeDataProvider(vscodeApi, digestManager);
+
   if (vscodeApi?.window?.registerTreeDataProvider) {
     try {
       context.subscriptions.push(
-        vscodeApi.window.registerTreeDataProvider('dhyan.resume', resumeTreeProvider)
+        vscodeApi.window.registerTreeDataProvider('dhyan.today', todayTreeProvider),
+        vscodeApi.window.registerTreeDataProvider('dhyan.resume', resumeTreeProvider),
+        vscodeApi.window.registerTreeDataProvider('dhyan.digest', digestTreeProvider)
       );
     } catch {}
   }
@@ -213,6 +281,7 @@ export function activate(
   if (context?.secrets) {
     getOrCreateSalt(context.secrets as any).then((salt) => {
       taskContextTracker = new TaskContextTracker(clock, salt);
+      sessionManager?.setSalt(salt);
     }).catch(() => {
       // secrets unavailable — continue with placeholder salt
     });
@@ -226,6 +295,7 @@ export function activate(
       outbox.enqueue(sanitized);
       engineClient?.flushImmediate();
     }
+    digestManager?.notifyAtBreak();
   };
 
   // 7b. Initialize Sensors
@@ -236,6 +306,7 @@ export function activate(
       vscode: vscodeApi,
       onEdit: (kind) => {
         resumeManager?.recordActivity();
+        nudgeManager?.recordTyping();
         if (resumeTracker && outbox) {
           const taskKey = getCurrentTaskKey();
           const resumeEvent = resumeTracker.onEdit(kind, taskKey);
@@ -274,7 +345,9 @@ export function activate(
       }
     });
     diagSensor = new DiagnosticsSensor(vscodeApi, aggregator, clock);
-    debugSensor = new DebugSensor(vscodeApi, aggregator);
+    debugSensor = new DebugSensor(vscodeApi, aggregator, (phase) => {
+      nudgeManager?.setDebugPaused(phase === 'pause');
+    });
 
     // Phase 3: Git, Tasks, Terminal sensors
     gitSensor = new GitSensor(vscodeApi, breakDetector, taskContextTracker);
@@ -412,15 +485,39 @@ export function activate(
     await resumeManager?.executePark(taskKey);
   });
 
+  registerCmd('dhyan.startSession', async () => {
+    await sessionManager?.startSession();
+  });
+
+  registerCmd('dhyan.endSession', async () => {
+    await sessionManager?.endSession();
+  });
+
+  registerCmd('dhyan.toggleTimer', async () => {
+    await sessionManager?.toggleTimer();
+  });
+
+  registerCmd('dhyan.openDigest', async () => {
+    await digestManager?.openDigest();
+  });
+
+  registerCmd('dhyan.today', () => {
+    todayTreeProvider?.refresh();
+  });
+
+  registerCmd('dhyan.forgetToday', async () => {
+    inMemoryEvents.length = 0;
+    sessionManager?.clearHistory();
+    resumeManager?.clearSnapshot();
+    digestManager?.clearItems();
+    if (vscodeApi?.window?.setStatusBarMessage) {
+      vscodeApi.window.setStatusBarMessage("Dhyan: Today's history forgotten.", 3000);
+    }
+  });
+
   const standardCommands = [
-    'dhyan.startSession',
-    'dhyan.endSession',
-    'dhyan.openDigest',
     'dhyan.connect',
-    'dhyan.forgetToday',
-    'dhyan.today',
     'dhyan.openInsights',
-    'dhyan.toggleTimer',
     'dhyan.reconnect',
     'dhyan.showStatus'
   ];
@@ -442,7 +539,12 @@ export function activate(
     breakDetector,
     resumeTracker,
     resumeManager,
-    resumeTreeProvider
+    sessionManager,
+    nudgeManager,
+    digestManager,
+    resumeTreeProvider,
+    todayTreeProvider,
+    digestTreeProvider
   };
 }
 
@@ -474,6 +576,10 @@ export function deactivate(): void {
   if (resumeManager) {
     resumeManager.dispose();
     resumeManager = null;
+  }
+  if (nudgeManager) {
+    nudgeManager.dispose();
+    nudgeManager = null;
   }
   if (editorSensor) {
     editorSensor.dispose();
@@ -514,5 +620,9 @@ export function deactivate(): void {
   breakDetector = null;
   resumeTracker = null;
   resumeTreeProvider = null;
+  sessionManager = null;
+  digestManager = null;
+  todayTreeProvider = null;
+  digestTreeProvider = null;
   currentCapabilities = null;
 }

@@ -2,7 +2,7 @@
 
 ## Status Overview
 - Current Mode: **MODE A** (Existing `vscode-ext/` found)
-- Current Step: **PHASE 4 COMPLETE** (Waiting for user confirmation to begin Phase 5)
+- Current Step: **PHASE 5 COMPLETE** (Waiting for user confirmation to begin Phase 6)
 
 ---
 
@@ -49,13 +49,13 @@
 - [x] Implement `dhyan.resume` and `dhyan.park` commands (`ctrl+alt+p`, `ctrl+alt+r`)
 - [x] Implement status bar resume card and "Where I Left Off" tree view
 
-### [ ] Phase 5: Sessions, Ratings, Views, Nudges, and State Leases
-- [ ] Implement `src/features/session.ts` (`dhyan.startSession`, `dhyan.endSession` with 1-5 ratings)
-- [ ] Implement "Today" tree view (`dhyan.today`)
-- [ ] Implement "Held for You" digest view (`dhyan.digest`)
-- [ ] Implement `src/features/nudge.ts` (rate limiting, typing suppression, status bar presentation)
-- [ ] Implement state lease handling with automatic rollback on expiration
-- [ ] Implement `dhyan.forgetToday` command
+### [x] Phase 5: Sessions, Ratings, Views, Nudges, and State Leases
+- [x] Implement `src/features/session.ts` (`dhyan.startSession`, `dhyan.endSession` with 1-5 ratings)
+- [x] Implement "Today" tree view (`dhyan.today`)
+- [x] Implement "Held for You" digest view (`dhyan.digest`)
+- [x] Implement `src/features/nudge.ts` (rate limiting, typing suppression, status bar presentation)
+- [x] Implement state lease handling with automatic rollback on expiration
+- [x] Implement `dhyan.forgetToday` command
 
 ### [ ] Phase 6: Hardening, Multi-Window, Packaging, CI
 - [ ] Multi-window support (random `windowId` in handshake and batches)

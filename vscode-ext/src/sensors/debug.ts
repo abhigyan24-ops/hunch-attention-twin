@@ -3,12 +3,17 @@ import type { WindowAggregator } from '../aggregate/window.ts';
 export class DebugSensor {
   private disposables: { dispose(): void }[] = [];
 
-  constructor(vscode: any, aggregator: WindowAggregator) {
+  constructor(
+    vscode: any,
+    aggregator: WindowAggregator,
+    onDebugStateChange?: (phase: 'start' | 'pause' | 'continue' | 'stop') => void
+  ) {
     if (vscode?.debug) {
       if (vscode.debug.onDidStartDebugSession) {
         this.disposables.push(
           vscode.debug.onDidStartDebugSession(() => {
             aggregator.onDebug('start');
+            onDebugStateChange?.('start');
           })
         );
       }
@@ -17,6 +22,7 @@ export class DebugSensor {
         this.disposables.push(
           vscode.debug.onDidTerminateDebugSession(() => {
             aggregator.onDebug('stop');
+            onDebugStateChange?.('stop');
           })
         );
       }
@@ -26,6 +32,7 @@ export class DebugSensor {
           vscode.debug.onDidChangeActiveDebugSession((session: any) => {
             if (session) {
               aggregator.onDebug('continue');
+              onDebugStateChange?.('continue');
             }
           })
         );
