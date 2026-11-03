@@ -82,7 +82,7 @@ async function declare(input:Declaration){if(!core||!bridge)return {ok:false,mes
 function updateTray(){if(!tray)return;const items:Electron.MenuItemConstructorOptions[]=[{label:'Declare session',submenu:[{label:'Open session form',click:openPanel},{label:'Focus: coding, 2h, strict',click:()=>{void declare({task:'coding',plannedMin:120,strict:true}).then(result=>{if(!result.ok)dialog.showErrorBox('Dhyan',result.message);});}}]},{label:'Open panel',click:openPanel},{label:paused?'Resume Pip':'Pause Pip',click:()=>{paused=!paused;if(paused)petWindow?.hide();else petWindow?.showInactive();updateTray();}},{label:'Quit',click:()=>app.quit()}];
  items.splice(items.length-1,0,{label:'Pip controls',submenu:[{label:'Snooze 15 min',click:()=>{if(petReaction)petReaction.snoozeUntil=Date.now()+900000;}},{label:'Snooze 1 hour',click:()=>{if(petReaction)petReaction.snoozeUntil=Date.now()+3600000;}},{label:'Break 15 min',click:()=>{if(petReaction)petReaction.breakUntil=Date.now()+900000;}},{label:'Calm mode',type:'checkbox',checked:petReaction?.calm??false,click:()=>{if(petReaction)petReaction.calm=!petReaction.calm;updateTray();}},{label:'Do not disturb',type:'checkbox',checked:petReaction?.dnd??false,click:()=>{if(petReaction)petReaction.dnd=!petReaction.dnd;updateTray();}},{label:'Lock position',type:'checkbox',checked:petPosition?.locked??false,click:()=>{if(petPosition)petPosition.locked=!petPosition.locked;updateTray();}},{label:'Size',submenu:[80,96,128].map(size=>({label:size===80?'Small':size===96?'Medium':'Large',click:()=>{petWindow?.setSize(size+104,size+134);petPosition?.restore();}}))},{label:'Reset position',click:()=>petPosition?.reset()}]});
  if(!app.isPackaged&&process.env.DHYAN_DEV_PET==='1'){const behaviors:PipBehavior[]=['deep_focus','held','drifting','distracted','recovering','fatigued','second_screen_overlap'];items.splice(items.length-1,0,{label:'DEV ONLY: simulate presentation',submenu:[{label:'Use real pipeline',click:()=>bridge?.simulate(null)},...behaviors.map(behavior=>({label:behavior,click:()=>bridge?.simulate(behavior)}))]});items.splice(items.length-1,0,{label:'DEV ONLY: simulate distraction',submenu:[{label:'Use real evidence',click:()=>petReaction?.simulate(null)},...[1,2,3,4].map(level=>({label:`Stage ${level}`,click:()=>petReaction?.simulate(level as 1|2|3|4)}))]});}tray.setContextMenu(Menu.buildFromTemplate(items));}
-function createTray(){const pixels=Buffer.alloc(16*16*4);for(let i=0;i<256;i++){pixels[i*4]=160;pixels[i*4+1]=110;pixels[i*4+2]=50;pixels[i*4+3]=255;}tray=new Tray(nativeImage.createFromBitmap(pixels,{width:16,height:16}));tray.setToolTip('Dhyan');tray.on('click',openPanel);updateTray();}
+function createTray(){const size=32;const pixels=Buffer.alloc(size*size*4);const cx=size/2,cy=size/2,r=size*0.42;for(let y=0;y<size;y++){for(let x=0;x<size;x++){const idx=(y*size+x)*4;const dist=Math.hypot(x-cx,y-cy);if(dist<=r){pixels[idx]=80;pixels[idx+1]=230;pixels[idx+2]=40;pixels[idx+3]=255;}else{pixels[idx]=0;pixels[idx+1]=0;pixels[idx+2]=0;pixels[idx+3]=0;}}}tray=new Tray(nativeImage.createFromBitmap(pixels,{width:size,height:size}));tray.setToolTip('Dhyan (ध्यान) Attention Companion');tray.on('click',openPanel);tray.on('double-click',openPanel);updateTray();}
 ipcMain.on('set-ignore-mouse',(event,ignore:unknown)=>{if(trusted(event)&&petWindow&&event.sender===petWindow.webContents&&typeof ignore==='boolean')petWindow.setIgnoreMouseEvents(dragActive?false:ignore,{forward:true});});
 ipcMain.on('open-panel',event=>{if(trusted(event))openPanel();});
 ipcMain.handle('ui-snapshot',event=>{if(!trusted(event))throw Error('unauthorized');const now=Date.now();if(core&&now-historyAt>=30000&&!historyRead){historyAt=now;historyRead=readObservedToday(app.getPath('userData'),now).then(value=>{history=value;}).catch(()=>{history={minutes:null,provenance:'observed',label:'No data: focus history could not be read'};}).finally(()=>{historyRead=null;});}const value=bridge?.snapshot(history)??{inputs:{local:null,collector:'unknown',remote:null,declaredSession:null,storagePaused:true},pet:{behavior:null,availability:'no_data',label:'No data: collector could not start',heldCount:null,calibration:'rule-based, not calibrated'},focus:history,pairing:{status:'not_paired',label:'Not paired'},diagnostics:{paused:true},ts:now,demo:false};const reaction=bridge&&petReaction&&!value.demo?petReaction.snapshot(value.inputs,now):undefined;if(reaction&&petWindow){const cursor=screen.getCursorScreenPoint(),b=petWindow.getBounds();reaction.gaze={x:Math.sign(cursor.x-b.x-b.width/2),y:Math.sign(cursor.y-b.y-b.height/2)};}if(reaction&&petWindow&&petPosition&&reaction.level!==visualStage){visualStage=reaction.level;const cursor=screen.getCursorScreenPoint(),display=screen.getDisplayNearestPoint(cursor),a=display.workArea,b=petWindow.getBounds();const edge=cursor.x<a.x+a.width/2?a.x+8:a.x+a.width-b.width-8;if(reaction.level>=3&&reaction.motion)petPosition.springTo(a.x+(a.width-b.width)/2,Math.max(a.y+8,Math.min(a.y+a.height-b.height-8,cursor.y)));else if(reaction.level===2&&!petReaction?.calm)petPosition.springTo(edge+(edge<a.x+a.width/2?70:-70),b.y);else if(reaction.level===0)petPosition.dock();}return {...value,reaction,demo:value.demo||reaction?.simulated===true,ingest:ingestSnapshot(),...(sync?{pairing:sync.pairingSnapshot(),sync:sync.snapshot()}:{})};});
@@ -98,8 +98,67 @@ ipcMain.handle('sync-confirm',(event,matches:unknown,confirmationId:unknown)=>tr
 ipcMain.handle('sync-unpair',async event=>trusted(event)&&sync?sync.unpair().catch(()=>false):false);
 ipcMain.handle('sync-command',(event,cmd:unknown,args:unknown)=>{if(!trusted(event)||!sync||typeof cmd!=='string'||!args||typeof args!=='object'||Array.isArray(args))return false;return sync.sendCommand(cmd,args as Record<string,unknown>);});
 app.on('second-instance',openPanel);
-app.whenReady().then(async()=>{if(!ownsLock)return;try{core=await startLaptopCore(app.getPath('userData'),SCHEMA_VERSION,()=>powerMonitor.getSystemIdleTime());try{sidecar=new SidecarManager(join(app.getAppPath(),'..'));void sidecar.start();core.pipeline.onEvent(event=>sidecar?.queueEvent(event));}catch{}bridge=new PetBridge(core.pipeline);petReaction=new PetReactionController(core.pipeline);if(!app.isPackaged&&process.env.DHYAN_DEV_PET_LEVEL){const level=Number(process.env.DHYAN_DEV_PET_LEVEL);if([1,2,3,4].includes(level))petReaction.simulate(level as 1|2|3|4);}feeds=new FeedRouter(core.pipeline);sync=new SyncCoordinator({directory:app.getPath('userData'),deviceId:core.settings.deviceId,schemaVersion:SCHEMA_VERSION,store:core.store,bus:bridge.bus,storage:safeStorage,development:!app.isPackaged,stateMappingApproved:true});await sync.start();
-try{ingestToken=await loadIngestToken(app.getPath('userData'),safeStorage);ingest=await IngestServer.start({port:core.settings.ingest.port,token:ingestToken,allowedExtensionIds:core.settings.ingest.allowedExtensionIds,onMessage:(client,message)=>{feeds!.accept(client,message);},onConnection:(client,connected)=>feeds!.connection(client,connected)});ingestMessage='Local ingest is ready';}catch{ingestMessage='Extension ingest unavailable: secure storage or local port needs attention';}}catch{dialog.showErrorBox('Dhyan storage unavailable','Local storage needs recovery. Collection is paused.');}createPet();lastIgnore=true;hitboxTimer=setInterval(updatePetHitbox,16);if(petWindow){petPosition=new PetPositionController(app.getPath('userData'),petWindow);void petPosition.load();screen.on('display-removed',()=>petPosition?.restore());screen.on('display-metrics-changed',()=>petPosition?.restore());const togglePet=()=>{paused=!paused;if(paused)petWindow?.hide();else petWindow?.show();updateTray();};globalShortcut.register('CommandOrControl+Alt+P',togglePet);globalShortcut.register('Control+Alt+P',togglePet);}createTray();app.on('activate',openPanel);});
+app.whenReady().then(async()=>{
+ if(!ownsLock)return;
+ console.log('[Dhyan] app.whenReady starting...');
+ try{
+  core=await startLaptopCore(app.getPath('userData'),SCHEMA_VERSION,()=>powerMonitor.getSystemIdleTime());
+  console.log('[Dhyan] Laptop core ready');
+  try{
+   sidecar=new SidecarManager(join(app.getAppPath(),'..'));
+   void sidecar.start();
+   core.pipeline.onEvent(event=>sidecar?.queueEvent(event));
+   console.log('[Dhyan] Sidecar initialized');
+  }catch(e){console.warn('[Dhyan] Sidecar err:',e);}
+  bridge=new PetBridge(core.pipeline);
+  petReaction=new PetReactionController(core.pipeline);
+  if(!app.isPackaged&&process.env.DHYAN_DEV_PET_LEVEL){
+   const level=Number(process.env.DHYAN_DEV_PET_LEVEL);
+   if([1,2,3,4].includes(level))petReaction.simulate(level as 1|2|3|4);
+  }
+  feeds=new FeedRouter(core.pipeline);
+  sync=new SyncCoordinator({directory:app.getPath('userData'),deviceId:core.settings.deviceId,schemaVersion:SCHEMA_VERSION,store:core.store,bus:bridge.bus,storage:safeStorage,development:!app.isPackaged,stateMappingApproved:true});
+  console.log('[Dhyan] Starting sync...');
+  await sync.start();
+  console.log('[Dhyan] Sync ready');
+  try{
+   ingestToken=await loadIngestToken(app.getPath('userData'),safeStorage);
+   ingest=await IngestServer.start({port:core.settings.ingest.port,token:ingestToken,allowedExtensionIds:core.settings.ingest.allowedExtensionIds,onMessage:(client,message)=>{feeds!.accept(client,message);},onConnection:(client,connected)=>feeds!.connection(client,connected)});
+   ingestMessage='Local ingest is ready';
+   console.log('[Dhyan] Ingest ready on port',core.settings.ingest.port);
+  }catch(e){
+   ingestMessage='Extension ingest unavailable: secure storage or local port needs attention';
+   console.warn('[Dhyan] Ingest err:',e);
+  }
+ }catch(e){
+  console.error('[Dhyan] Core failure:',e);
+  dialog.showErrorBox('Dhyan storage unavailable','Local storage needs recovery. Collection is paused.');
+ }
+ console.log('[Dhyan] Creating Pet Window...');
+ createPet();
+ lastIgnore=true;
+ hitboxTimer=setInterval(updatePetHitbox,16);
+ if(petWindow){
+  petPosition=new PetPositionController(app.getPath('userData'),petWindow);
+  void petPosition.load();
+  screen.on('display-removed',()=>petPosition?.restore());
+  screen.on('display-metrics-changed',()=>petPosition?.restore());
+  const togglePet=()=>{paused=!paused;if(paused)petWindow?.hide();else petWindow?.show();updateTray();};
+  const togglePanel=()=>{if(panelWindow&&panelWindow.isVisible())panelWindow.hide();else openPanel();};
+  const r1 = globalShortcut.register('CommandOrControl+Alt+P',togglePet);
+  const r2 = globalShortcut.register('Control+Alt+P',togglePet);
+  const r3 = globalShortcut.register('Alt+Shift+P',togglePet);
+  const r4 = globalShortcut.register('Control+Alt+D',togglePanel);
+  const r5 = globalShortcut.register('Alt+Shift+D',togglePanel);
+  console.log('[Dhyan] Hotkeys registered:', {CtrlAltP: r2, AltShiftP: r3, CtrlAltD: r4, AltShiftD: r5});
+ }
+ console.log('[Dhyan] Creating Tray...');
+ createTray();
+ console.log('[Dhyan] Opening Panel Window...');
+ openPanel();
+ console.log('[Dhyan] Initialization complete!');
+ app.on('activate',openPanel);
+});
 let closing=false,closed=false;app.on('before-quit',event=>{if(!core||closed)return;event.preventDefault();if(closing)return;closing=true;bridge?.stop();petReaction?.stop();void (async()=>{await ingest?.close();await sync?.stop();await settingsWrite;await core!.stop();await sidecar?.stop();})().then(()=>{if(core?.store.health.paused)dialog.showErrorBox('Dhyan storage unavailable','Recent events may remain only in memory.');}).catch(()=>dialog.showErrorBox('Dhyan storage unavailable','Some recent events could not be flushed.')).finally(()=>{closed=true;tray?.destroy();app.quit();});});
 app.on('window-all-closed',()=>{/* Tray owns lifecycle; closing the panel never stops collection. */});
 app.on('will-quit',()=>{if(hitboxTimer)clearInterval(hitboxTimer);globalShortcut.unregisterAll();});
