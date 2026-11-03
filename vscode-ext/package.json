@@ -214,6 +214,7 @@
     "@types/ws": "^8.18.1",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
+    "@vscode/vsce": "^4.1.0",
     "esbuild": "^0.25.11",
     "mocha": "^11.1.0",
     "typescript": "^5.9.3"

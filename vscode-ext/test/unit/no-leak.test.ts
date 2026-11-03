@@ -9,6 +9,8 @@ describe('PrivacyGate and No-Leak Invariants', () => {
   const CANARY_BRANCH = 'feature/top-secret-branch';
   const CANARY_CMD = 'git commit -m "leaked private commit message"';
   const CANARY_INTENTION = 'Thinking about private personal thoughts';
+  const CANARY_DIAGNOSTIC = 'Error: NullPointerException at SensitiveAuthService.java:42';
+  const CANARY_PARKED_NOTE = 'Remember to refactor user password hashing function';
 
   const canaryList = [
     CANARY_SECRET,
@@ -16,7 +18,9 @@ describe('PrivacyGate and No-Leak Invariants', () => {
     CANARY_UNIX_PATH,
     CANARY_BRANCH,
     CANARY_CMD,
-    CANARY_INTENTION
+    CANARY_INTENTION,
+    CANARY_DIAGNOSTIC,
+    CANARY_PARKED_NOTE
   ];
 
   it('rejects unknown event types', () => {
@@ -50,6 +54,8 @@ describe('PrivacyGate and No-Leak Invariants', () => {
         terminalCommand: CANARY_CMD,
         rawText: 'console.log("leaked code")',
         intentionNote: CANARY_INTENTION,
+        diagnosticMessage: CANARY_DIAGNOSTIC,
+        parkedNote: CANARY_PARKED_NOTE,
         // valid schema fields with safe values:
         ts: Date.now(),
         mono: 12345,
