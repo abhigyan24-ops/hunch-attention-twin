@@ -46,7 +46,7 @@ export class SidecarManager {
     ['-m', 'uvicorn', 'engine.twin.api.app:app', '--host', '127.0.0.1', '--port', String(this.port), '--no-access-log'],
     {
      cwd: this.projectRoot,
-     env: {...process.env, PYTHONUNBUFFERED: '1'},
+     env: {...process.env, PYTHONPATH: this.projectRoot, PYTHONUNBUFFERED: '1'},
      stdio: ['ignore', 'pipe', 'pipe'],
     }
    );
