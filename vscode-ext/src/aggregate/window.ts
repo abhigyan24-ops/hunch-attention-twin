@@ -43,6 +43,7 @@ export class WindowAggregator {
   };
 
   // Focus and Active duration tracking
+  private windowId = '';
   private isFocused = true;
   private isActive = true;
   private lastMono: number;
@@ -130,6 +131,10 @@ export class WindowAggregator {
     }
   }
 
+  setWindowId(id: string): void {
+    this.windowId = id;
+  }
+
   setContext(ctx: Partial<WindowContext>): void {
     this.context = {
       ...this.context,
@@ -188,6 +193,7 @@ export class WindowAggregator {
     const summary: Record<string, unknown> = {
       type: 'ed_summary',
       windowStart: this.windowStartNow,
+      ...(this.windowId ? { windowId: this.windowId } : {}),
       durMs: actualDurMs,
       focusedMs,
       activeMs,

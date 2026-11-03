@@ -22,3 +22,7 @@
 - **SESSION RATING BOUNDS:** Session focus and energy ratings are clamped strictly between 1 and 5; 0 indicates user skipped rating.
 - **NUDGE FLOW PROTECTION (U3):** Nudges are suppressed if user typed within 10 seconds or if the debugger is paused, and capped at `dhyan.nudges.maxPerHour` (default 4) per 1-hour sliding window. Status bar nudges auto-dismiss after 10s.
 - **STATE LEASE AUTO-ROLLBACK:** On receiving `{ kind: 'state', focus: 'deep', leaseMs }`, status bar reflects deep focus and held counts, setting an auto-revert timeout for `leaseMs` that rolls back to normal if not renewed.
+- **MULTI-WINDOW FOCUS DEBOUNCE (7.2):** Active WebSocket connection is maintained by the focused window only. Window focus/unfocus transitions are debounced with a 2-second timer to avoid connection storms across multiple windows. Unfocused windows queue events in Outbox.
+- **REMOTE WINDOW SAFE DISCONNECT (7.1):** When running under a remote extension host (`vscode.env.remoteName`), localhost connections are disabled by policy to maintain the local-first laptop security boundary; status bar displays `remote-unsupported` with diagnostics reporting.
+- **WINDOW IDENTIFIER TAGGING:** Every window generates a unique 12-hex `windowId` transmitted in the `hello` handshake, batch messages, and periodic `ed_summary` events.
+- **DISK SPILL & RECOVERY ROTATION:** Outbox safely enforces a bounded memory ring buffer (5000 items) and a 5MB JSONL disk spill cap with acknowledgment pruning and safe fallback on filesystem errors.

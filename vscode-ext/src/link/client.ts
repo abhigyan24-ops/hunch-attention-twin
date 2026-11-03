@@ -95,6 +95,10 @@ export class EngineClient {
     return this.state;
   }
 
+  getWindowId(): string {
+    return this.windowId;
+  }
+
   private connect(): void {
     if (this.stopped || !this.currentEndpoint) {
       this.setState('disconnected');
@@ -259,6 +263,7 @@ export class EngineClient {
     const msg = {
       kind: 'events',
       batchId,
+      windowId: this.windowId,
       events: batch
     };
 

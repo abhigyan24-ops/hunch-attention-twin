@@ -1,4 +1,4 @@
-export type StatusBarMode = 'waiting' | 'paused' | 'focused' | 'resume';
+export type StatusBarMode = 'waiting' | 'paused' | 'focused' | 'resume' | 'remote-unsupported';
 
 export interface FocusStateData {
   minutes: number;
@@ -57,6 +57,15 @@ export class DhyanStatusBar {
       this.item.command = 'dhyan.resume';
       this.item.text = `$(history) Resume: ${file}:${line}`;
       this.item.tooltip = `Click to resume where you left off at ${file}:${line}`;
+    }
+  }
+
+  setRemoteUnsupported(): void {
+    this.currentMode = 'remote-unsupported';
+    if (this.item) {
+      this.item.command = 'dhyan.diagnostics';
+      this.item.text = '$(cloud) Dhyan: remote window not supported';
+      this.item.tooltip = 'Dhyan runs locally on your laptop; remote extension host connections are not supported.';
     }
   }
 

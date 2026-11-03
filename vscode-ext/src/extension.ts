@@ -1,4 +1,5 @@
 import type * as vscodeTypes from 'vscode';
+import { randomBytes } from 'node:crypto';
 import { probeCapabilities, type ExtensionCapabilities } from './capabilities.ts';
 import { PrivacyFilter } from './privacy/exclude.ts';
 import { PrivacyGate } from './privacy/gate.ts';
@@ -68,6 +69,8 @@ let digestTreeProvider: DigestTreeDataProvider | null = null;
 let tickTimer: ReturnType<typeof setInterval> | null = null;
 let breakTickTimer: ReturnType<typeof setInterval> | null = null;
 let leaseTimer: ReturnType<typeof setTimeout> | null = null;
+let focusDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+let currentWindowId: string = '';
 
 // Sensors
 let editorSensor: EditorSensor | null = null;
@@ -90,7 +93,8 @@ const MAX_IN_MEMORY_EVENTS = 100;
 
 export function activate(
   context: vscodeTypes.ExtensionContext,
-  injectedClock?: Clock
+  injectedClock?: Clock,
+  customVscode?: any
 ): {
   privacyFilter: PrivacyFilter;
   capabilities: ExtensionCapabilities;
@@ -118,7 +122,7 @@ export function activate(
 
   // 2. Probe runtime VS Code engine capabilities
   // @ts-ignore
-  const vscodeApi = typeof vscode !== 'undefined' ? vscode : (context as any).vscode;
+  const vscodeApi = customVscode ?? (typeof vscode !== 'undefined' ? vscode : (context as any).vscode);
   currentCapabilities = probeCapabilities(vscodeApi);
 
   // 3. Initialize Status Bar
@@ -128,8 +132,12 @@ export function activate(
   const storageDir = context?.globalStorageUri?.fsPath || '';
   outbox = new Outbox(clock, { storageDir });
 
+  currentWindowId = randomBytes(6).toString('hex');
+  const isRemote = Boolean(currentCapabilities.remoteName);
+
   // 5. Initialize Engine Client & Endpoint Discovery
   engineClient = new EngineClient(outbox, {
+    windowId: currentWindowId,
     capabilities: currentCapabilities,
     onConnectionChange: (connState) => {
       if (connState === 'authenticated') {
@@ -180,27 +188,39 @@ export function activate(
     }
   });
 
-  endpointDiscovery = new EndpointDiscovery();
-  endpointDiscovery.startWatching((endpoint) => {
-    engineClient?.setEndpoint(endpoint);
-  });
+  if (isRemote) {
+    statusBar?.setRemoteUnsupported();
+    diagOutputChannel?.appendLine(`[Host] Remote window detected (${currentCapabilities.remoteName}). Local engine connection disabled per policy.`);
+  } else {
+    endpointDiscovery = new EndpointDiscovery();
+    endpointDiscovery.startWatching((endpoint) => {
+      engineClient?.setEndpoint(endpoint);
+    });
 
-  // Read initial endpoint if present
-  const initialEndpoint = endpointDiscovery.readEndpoint();
-  if (initialEndpoint) {
-    engineClient.setEndpoint(initialEndpoint);
+    // Read initial endpoint if present
+    const initialEndpoint = endpointDiscovery.readEndpoint();
+    if (initialEndpoint) {
+      engineClient.setEndpoint(initialEndpoint);
+    }
+
+    // Register URI handler for vscode://dhyan.dhyan-vscode/connect
+    const uriSub = endpointDiscovery.registerUriHandler(vscodeApi, context?.secrets);
+    if (context?.subscriptions) {
+      context.subscriptions.push(uriSub);
+    }
+
+    const initialFocused = vscodeApi?.window?.state ? Boolean(vscodeApi.window.state.focused) : true;
+    if (initialFocused) {
+      engineClient.start();
+    } else {
+      engineClient.stop();
+      statusBar?.setWaiting();
+    }
   }
-
-  // Register URI handler for vscode://dhyan.dhyan-vscode/connect
-  const uriSub = endpointDiscovery.registerUriHandler(vscodeApi, context?.secrets);
-  if (context?.subscriptions) {
-    context.subscriptions.push(uriSub);
-  }
-
-  engineClient.start();
 
   // 6. Initialize Aggregator
   aggregator = new WindowAggregator(clock);
+  aggregator.setWindowId(currentWindowId);
 
   // 7a. Initialize TaskContextTracker + BreakDetector (salt from secrets, async)
   const placeholderSalt = '0'.repeat(64);
@@ -343,6 +363,29 @@ export function activate(
           }
         }
       }
+
+      // Multi-window focus debounce (section 7.2)
+      if (!isRemote && engineClient) {
+        if (focusDebounceTimer) {
+          clearTimeout(focusDebounceTimer);
+          focusDebounceTimer = null;
+        }
+        focusDebounceTimer = setTimeout(() => {
+          const currentFocused = vscodeApi?.window?.state ? Boolean(vscodeApi.window.state.focused) : focused;
+          if (currentFocused) {
+            if (engineClient && engineClient.getState() === 'disconnected') {
+              engineClient.start();
+            }
+          } else {
+            if (engineClient && engineClient.getState() !== 'disconnected') {
+              engineClient.stop();
+              if (statusBar?.getMode() === 'focused') {
+                statusBar.setWaiting();
+              }
+            }
+          }
+        }, 2000);
+      }
     });
     diagSensor = new DiagnosticsSensor(vscodeApi, aggregator, clock);
     debugSensor = new DebugSensor(vscodeApi, aggregator, (phase) => {
@@ -463,6 +506,8 @@ export function activate(
           activeChannel.clear();
           activeChannel.appendLine('=== Dhyan Extension Diagnostics ===');
           activeChannel.appendLine(`Timestamp: ${new Date(clock.now()).toISOString()}`);
+          activeChannel.appendLine(`Window ID: ${currentWindowId}`);
+          activeChannel.appendLine(`Remote Window: ${isRemote ? `YES (${currentCapabilities?.remoteName}) - connection disabled` : 'NO'}`);
           activeChannel.appendLine(`Tracking Paused: ${privacyFilter?.isPaused() ?? false}`);
           activeChannel.appendLine(`Outbox Events: ${outbox?.size().memoryCount ?? 0}`);
           activeChannel.appendLine(`Connection State: ${engineClient?.getState() ?? 'disconnected'}`);
@@ -560,6 +605,10 @@ export function deactivate(): void {
   if (leaseTimer) {
     clearTimeout(leaseTimer);
     leaseTimer = null;
+  }
+  if (focusDebounceTimer) {
+    clearTimeout(focusDebounceTimer);
+    focusDebounceTimer = null;
   }
   if (engineClient) {
     engineClient.stop();

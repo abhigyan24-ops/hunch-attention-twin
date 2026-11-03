@@ -136,6 +136,10 @@ export class MockEngineServer {
     }
   }
 
+  async stop(): Promise<void> {
+    return this.close();
+  }
+
   async close(): Promise<void> {
     for (const ws of this.activeSockets) {
       try {

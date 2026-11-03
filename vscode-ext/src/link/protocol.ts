@@ -14,6 +14,7 @@ export interface HelloMessage {
 export interface EventsBatchMessage {
   kind: 'events';
   batchId: string;
+  windowId?: string;
   events: Record<string, unknown>[];
 }
 
