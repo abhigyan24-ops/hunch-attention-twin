@@ -57,6 +57,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: |
+            package-lock.json
             laptop/package-lock.json
             vscode-ext/package-lock.json
 
@@ -69,6 +70,9 @@ jobs:
             X="$(node -p "require('./$f').version")"
             [ "$X" = "$V" ] || { echo "::error file=$f::version is $X but release version is $V"; exit 1; }
           done
+
+      - name: Install shared test dependencies
+        run: npm ci
 
       - name: laptop typecheck and tests
         working-directory: laptop
