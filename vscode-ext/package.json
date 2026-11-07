@@ -20,8 +20,8 @@
     "compile": "node esbuild.js",
     "watch": "node esbuild.js --watch",
     "lint": "tsc --noEmit",
-    "test:unit": "mocha --node-option=experimental-strip-types \"test/unit/**/*.test.ts\"",
-    "test:integration": "mocha --node-option=experimental-strip-types \"test/integration/**/*.test.ts\"",
+    "test:unit": "tsx node_modules/mocha/bin/mocha.js \"test/unit/**/*.test.ts\"",
+    "test:integration": "tsx node_modules/mocha/bin/mocha.js \"test/integration/**/*.test.ts\"",
     "package": "vsce package --no-dependencies"
   },
   "contributes": {
@@ -217,6 +217,7 @@
     "@vscode/vsce": "^4.1.0",
     "esbuild": "^0.25.11",
     "mocha": "^11.1.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3"
   }
 }
