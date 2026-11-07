@@ -26,6 +26,6 @@ nsis:
   include: build/installer.nsh
 publish:
   provider: github
-  owner: abhigyan
-  repo: dhyan
+  owner: abhigyan24-ops
+  repo: cascade-3.3
   releaseType: release
