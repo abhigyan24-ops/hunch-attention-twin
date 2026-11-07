@@ -77,11 +77,6 @@ describe('Link Integration: Client <-> Mock Engine', () => {
   it('connects, authenticates, sends events batch, and receives ack', async () => {
     client.start();
 
-    // Enqueue 3 test events
-    outbox.enqueue({ type: 'ed_summary', typingChars: 15 });
-    outbox.enqueue({ type: 'ed_summary', typingChars: 25 });
-    outbox.enqueue({ type: 'ed_summary', typingChars: 35 });
-
     // Wait for connection & authentication
     await new Promise((resolve) => {
       const check = setInterval(() => {
@@ -94,6 +89,11 @@ describe('Link Integration: Client <-> Mock Engine', () => {
 
     assert.equal(client.getState(), 'authenticated');
     assert.equal(statusBar.getMode(), 'focused');
+
+    // Enqueue 3 test events after authentication
+    outbox.enqueue({ type: 'ed_summary', typingChars: 15 });
+    outbox.enqueue({ type: 'ed_summary', typingChars: 25 });
+    outbox.enqueue({ type: 'ed_summary', typingChars: 35 });
 
     // Flush batch immediately
     client.flushImmediate();

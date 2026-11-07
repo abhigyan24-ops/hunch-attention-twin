@@ -56,6 +56,7 @@
 
 ### 2. Cold-Start Bayesian Learning from Real Data
 - **Zero Synthetic Pre-Seeding**: Live runtime databases initialize clean with `0` events. Fake persona pre-seeding has been purged from production paths.
+- **ActivityWatch Telemetry & Fallback Collectors**: Queries local ActivityWatch buckets (with automatic fallback to native foreground polling) while strictly enforcing metadata reduction and privacy canary gates.
 - **Bayesian Shrinkage Priors**: Learners smoothly shrink towards uninformative Bayesian priors (`Beta(1,1)` for notification utility; empirical Bayes for hourly focus quality) when fewer than 5 real observations exist.
 - **Dynamic App Extraction**: Telemetry app selectors are populated dynamically from real observed applications on the user's phone and laptop.
 - **Wipe & Reset My Data**: Settings feature that atomically clears phone Room tables, resets unique persistent device IDs (`UUID.randomUUID()`), and clears laptop SQLite tables.
