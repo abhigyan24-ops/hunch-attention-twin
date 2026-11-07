@@ -5,6 +5,7 @@ on:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
       - 'v[0-9]+.[0-9]+.[0-9]+-*' # pre-releases such as v1.2.0-beta.1
+  workflow_dispatch:
 
 permissions:
   contents: read # jobs get only what they need
