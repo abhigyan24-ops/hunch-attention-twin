@@ -10,13 +10,29 @@ android {
   applicationId = "com.dhyan.app"
   minSdk = 26
   targetSdk = 37
-  versionCode = 1
-  versionName = "0.1.0"
+  versionCode = (System.getenv("VERSION_CODE") ?: "1").toInt()
+  versionName = System.getenv("VERSION_NAME") ?: "0.1.0"
   testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   // Export Room schemas for migration verification
   ksp {
    arg("room.schemaLocation", "$projectDir/schemas")
    arg("room.incremental", "true")
+  }
+ }
+ val releaseKeystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+ signingConfigs {
+  if (!releaseKeystorePath.isNullOrBlank()) {
+   create("release") {
+    storeFile = file(releaseKeystorePath)
+    storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+    keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+    keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+   }
+  }
+ }
+ buildTypes {
+  getByName("release") {
+   signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
   }
  }
  buildFeatures { compose = true; buildConfig = true }
