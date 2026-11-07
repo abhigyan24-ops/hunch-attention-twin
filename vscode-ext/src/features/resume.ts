@@ -102,7 +102,7 @@ export class ResumeManager {
         return null;
       }
 
-      const fileName = path.basename(filePath);
+      const fileName = path.basename(filePath.replace(/\\/g, '/'));
       const position = activeEditor.selection?.active || { line: 0, character: 0 };
 
       const existing = this.getSnapshot();

@@ -3,6 +3,7 @@
  */
 
 import assert from 'node:assert/strict';
+import * as path from 'node:path';
 import { describe, it, beforeEach, afterEach } from 'mocha';
 import { FakeClock } from '../../src/clock.ts';
 import { PrivacyFilter } from '../../src/privacy/exclude.ts';
@@ -105,7 +106,7 @@ describe('Resume Integration: Snapshots, Assist, and TreeView', () => {
 
     const snapshot = resumeManager.captureSnapshot('task-abc-123', 'My parked intention');
     assert.ok(snapshot !== null);
-    assert.equal(snapshot!.fileName, 'service.ts');
+    assert.equal(path.basename(snapshot!.fileName.replace(/\\/g, '/')), 'service.ts');
     assert.equal(snapshot!.line, 42);
     assert.equal(snapshot!.character, 10);
     assert.equal(snapshot!.parkedNote, 'My parked intention');
@@ -197,7 +198,11 @@ describe('Resume Integration: Snapshots, Assist, and TreeView', () => {
     items = await treeProvider.getChildren();
 
     assert.equal(items.length, 3);
-    assert.equal(items[0].label, 'service.ts:43'); // line 42 + 1
+    const labelParts = items[0].label.split(':');
+    const fileName = labelParts.slice(0, -1).join(':');
+    const lineNum = labelParts[labelParts.length - 1];
+    assert.equal(path.basename(fileName.replace(/\\/g, '/')), 'service.ts');
+    assert.equal(lineNum, '43');
     assert.equal(items[0].command?.command, 'dhyan.resume');
     assert.equal(items[1].label, '"Refactor auth token"');
     assert.ok(items[2].label.startsWith('Saved at'));
