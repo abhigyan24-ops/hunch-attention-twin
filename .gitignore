@@ -20,3 +20,7 @@ __pycache__/
 *.db-shm
 *.db-wal
 *.vsix
+
+.vscode-test/
+*.jks
+*.keystore

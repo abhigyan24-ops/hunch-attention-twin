@@ -4,125 +4,207 @@ on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+-*' # pre-releases such as v1.2.0-beta.1
-  workflow_dispatch:
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'      # pre-releases such as v1.2.0-beta.1
+  workflow_dispatch:                    # DRY RUN: builds every artifact, skips the release job
 
 permissions:
-  contents: read # jobs get only what they need
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
 env:
-  VERSION: ${{ github.ref_name }} # e.g. v1.2.0
+  NODE_VERSION: '22'
+  PYTHON_VERSION: '3.10'
+  JAVA_VERSION: '17'
 
 jobs:
-  # ------------------------------------------------------------------ verify
-  verify:
+  # ------------------------------------------------------------------ meta
+  meta:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      is_tag: ${{ steps.v.outputs.is_tag }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm, cache-dependency-path: laptop/package-lock.json }
-
-      - name: Tag matches package versions
+      - id: v
         shell: bash
         run: |
-          if [[ "$GITHUB_REF_NAME" == v* ]]; then
-            TAG="${GITHUB_REF_NAME#v}"
-            for f in laptop/package.json vscode-ext/package.json; do
-              V=$(node -p "require('./$f').version")
-              [ "$V" = "$TAG" ] || { echo "::error::$f has version $V but tag is $TAG"; exit 1; }
-            done
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            V="${GITHUB_REF_NAME#v}"
+            echo "is_tag=true" >> "$GITHUB_OUTPUT"
+          else
+            V="$(node -p "require('./laptop/package.json').version")"
+            echo "is_tag=false" >> "$GITHUB_OUTPUT"
           fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Release version: $V (tag run: ${GITHUB_REF})"
 
-      - name: Desktop lint and tests
+  # ------------------------------------------------------------------ verify
+  verify:
+    needs: meta
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'   # unit tests do not need the Electron binary
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            laptop/package-lock.json
+            vscode-ext/package-lock.json
+
+      - name: Package versions match the release version
+        shell: bash
+        env:
+          V: ${{ needs.meta.outputs.version }}
+        run: |
+          for f in laptop/package.json vscode-ext/package.json; do
+            X="$(node -p "require('./$f').version")"
+            [ "$X" = "$V" ] || { echo "::error file=$f::version is $X but release version is $V"; exit 1; }
+          done
+
+      - name: laptop typecheck and tests
         working-directory: laptop
         run: |
           npm ci
+          npm run typecheck
           npm test
 
+      - name: vscode-ext typecheck and tests
+        working-directory: vscode-ext
+        run: |
+          npm ci
+          npm run lint
+          npm run test:unit
+          npm run test:integration
+
       - uses: actions/setup-python@v5
-        with: { python-version: '3.10', cache: pip, cache-dependency-path: engine/requirements.lock.txt }
-      - name: Engine tests
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: engine/requirements.lock.txt
+
+      - name: engine tests
         working-directory: engine
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.lock.txt
           python -m pytest -q
 
-  # ------------------------------------------------------------------ engine
+  # ------------------------------------------------------------------ engine (PyInstaller)
   engine:
     needs: verify
     runs-on: windows-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
-        with: { python-version: '3.10', cache: pip, cache-dependency-path: engine/requirements.lock.txt }
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: engine/requirements.lock.txt
 
       - name: Install pinned dependencies
         working-directory: engine
+        shell: pwsh
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.lock.txt
-          pip install pyinstaller
+          python -m pip show pyinstaller
 
       - name: Freeze engine (onedir)
         working-directory: engine
+        shell: pwsh
         run: pyinstaller dhyan-engine.spec --noconfirm
 
       - name: Smoke test the frozen engine
         shell: pwsh
+        env:
+          TWIN_TOKEN: ci-smoke-token
         run: |
-          $env:TWIN_TOKEN = 'ci-smoke-token'
-          $p = Start-Process -FilePath engine\dist\dhyan-engine\dhyan-engine.exe -PassThru -WindowStyle Hidden
+          $exe = 'engine\dist\dhyan-engine\dhyan-engine.exe'
+          if (-not (Test-Path $exe)) { throw "missing $exe" }
+          $p = Start-Process -FilePath $exe -PassThru -WindowStyle Hidden
+          $ok = $false
           try {
-            $ok = $false
-            1..40 | ForEach-Object {
-              try { Invoke-RestMethod http://127.0.0.1:8765/health -TimeoutSec 1 | Out-Null; $ok = $true; break }
+            for ($i = 0; $i -lt 40; $i++) {
+              try { Invoke-RestMethod http://127.0.0.1:8765/health -TimeoutSec 2 | Out-Null; $ok = $true; break }
               catch { Start-Sleep -Seconds 1 }
             }
-            if (-not $ok) { throw 'engine did not become healthy' }
+            if (-not $ok) { throw 'engine did not become healthy on :8765/health' }
             Write-Host 'engine healthy'
-          } finally { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+          } finally {
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+          }
 
       - uses: actions/upload-artifact@v4
-        with: { name: engine-win, path: engine/dist/dhyan-engine, retention-days: 3 }
+        with:
+          name: engine-win
+          path: engine/dist/dhyan-engine
+          retention-days: 3
+          if-no-files-found: error
 
-  # ------------------------------------------------------------------ vscode extension
+  # ------------------------------------------------------------------ VS Code extension
   vsix:
     needs: verify
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm, cache-dependency-path: vscode-ext/package-lock.json }
-      - working-directory: vscode-ext
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: vscode-ext/package-lock.json
+
+      - name: Build, test and package
+        working-directory: vscode-ext
         run: |
           npm ci
-          npm run compile && npm run test:unit
-          npx @vscode/vsce package --allow-missing-repository --out dhyan.vsix
-      - uses: actions/upload-artifact@v4
-        with: { name: vsix, path: vscode-ext/dhyan.vsix, retention-days: 3 }
+          npm run compile
+          npm run test:unit
+          xvfb-run -a npm run test:e2e
+          npm run package -- --out dhyan.vsix --skip-license
 
-  # ------------------------------------------------------------------ desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-vsix
+          path: vscode-ext/dhyan.vsix
+          retention-days: 3
+          if-no-files-found: error
+
+  # ------------------------------------------------------------------ desktop installer
   desktop:
-    needs: [engine, vsix]
+    needs: [meta, engine, vsix]
     runs-on: windows-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm, cache-dependency-path: laptop/package-lock.json }
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: laptop/package-lock.json
 
       - uses: actions/download-artifact@v4
-        with: { name: engine-win, path: engine/dist/dhyan-engine }
+        with:
+          name: engine-win
+          path: engine/dist/dhyan-engine
+
       - uses: actions/download-artifact@v4
-        with: { name: vsix, path: vscode-ext }
+        with:
+          name: release-vsix
+          path: vscode-ext
 
       - name: Install dependencies
         working-directory: laptop
@@ -135,94 +217,103 @@ jobs:
           CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
         run: |
-          if (-not $env:CSC_LINK) { Write-Host '::warning::No signing secrets: building an UNSIGNED installer' }
-          npm run build
-          npx electron-builder --win --publish never
+          if (-not $env:CSC_LINK) { Write-Host '::warning::No Windows signing secrets: building an UNSIGNED installer (SmartScreen will warn)' }
+          npm run dist:win
 
-      - name: Verify expected files exist
+      - name: Verify installer files and bundled engine
         shell: pwsh
         run: |
           $d = 'laptop/dist-installer'
-          foreach ($f in @('latest.yml')) { if (-not (Test-Path "$d/$f")) { throw "missing $f" } }
-          if (-not (Get-ChildItem $d -Filter 'Dhyan-Setup-*.exe')) { throw 'missing installer exe' }
-          if (-not (Get-ChildItem $d -Filter 'Dhyan-Setup-*.exe.blockmap')) { throw 'missing blockmap' }
+          foreach ($pat in 'Dhyan-Setup-*.exe', 'Dhyan-Setup-*.exe.blockmap', 'latest.yml') {
+            if (-not (Get-ChildItem -Path $d -Filter $pat -ErrorAction SilentlyContinue)) { throw "missing $pat in $d" }
+          }
+          $engine = "$d/win-unpacked/resources/engine/dhyan-engine.exe"
+          if (-not (Test-Path $engine)) { throw "engine not bundled: $engine" }
+          Write-Host 'installer files and bundled engine OK'
 
       - uses: actions/upload-artifact@v4
         with:
-          name: desktop-win
+          name: release-desktop
           path: |
             laptop/dist-installer/Dhyan-Setup-*.exe
             laptop/dist-installer/Dhyan-Setup-*.exe.blockmap
             laptop/dist-installer/latest.yml
           retention-days: 3
+          if-no-files-found: error
 
   # ------------------------------------------------------------------ android
   android:
-    needs: verify
+    needs: [meta, verify]
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: '17' }
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
       - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Decode or prepare signing keystore
+      - name: Keystore (optional)
+        id: ks
+        shell: bash
         env:
-          KS_B64: '${{ secrets.ANDROID_KEYSTORE_B64 }}'
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
         run: |
           if [ -n "$KS_B64" ]; then
             echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/dhyan.jks"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning::ANDROID_KEYSTORE_B64 not set in repository secrets; generating fallback CI signing keystore"
-            keytool -genkeypair -v -keystore "$RUNNER_TEMP/dhyan.jks" -alias dhyan -keyalg RSA -keysize 2048 -validity 10000 -storepass dhyanpassword -keypass dhyanpassword -dname "CN=Dhyan, OU=Dev, O=Dhyan, L=Unknown, ST=Unknown, C=US"
+            echo "::warning::ANDROID_KEYSTORE_B64 not set: building a DEBUG-SIGNED apk. It cannot upgrade a release-signed install."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build release APK
+      - name: Build APK
         working-directory: phone
+        shell: bash
         env:
-          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/dhyan.jks
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'dhyanpassword' }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || 'dhyan' }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD || 'dhyanpassword' }}
+          V: ${{ needs.meta.outputs.version }}
+          ANDROID_KEYSTORE_PATH: ${{ steps.ks.outputs.signed == 'true' && format('{0}/dhyan.jks', runner.temp) || '' }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          TAG="${GITHUB_REF_NAME#v}"; BASE="${TAG%%-*}"
-          if [[ "$BASE" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-            IFS=. read -r MA MI PA <<< "$BASE"
-            export VERSION_CODE=$(( MA*1000000 + MI*10000 + PA*100 ))
-          else
-            export VERSION_CODE=1
-          fi
-          export VERSION_NAME="${TAG:-1.0.0}"
-          ./gradlew assembleRelease --no-daemon
+          BASE="${V%%-*}"
+          IFS=. read -r MA MI PA <<< "$BASE"
+          export VERSION_NAME="$V"
+          export VERSION_CODE=$(( MA*1000000 + MI*10000 + PA*100 ))
+          ./gradlew assembleRelease --no-daemon --stacktrace
 
-      - name: Sign and verify APK
+      - name: Locate, verify and name the APK
+        shell: bash
         env:
-          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'dhyanpassword' }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || 'dhyan' }}
-          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD || 'dhyanpassword' }}
+          V: ${{ needs.meta.outputs.version }}
+          SIGNED: ${{ steps.ks.outputs.signed }}
         run: |
-          APK=$(find phone/app/build/outputs/apk -name "*.apk" | head -n1)
-          if [ -z "$APK" ]; then echo "::error::No APK produced"; exit 1; fi
-          BT=$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n1)
-          APKSIGNER="$ANDROID_HOME/build-tools/$BT/apksigner"
-          OUT_APK="$RUNNER_TEMP/Dhyan-${GITHUB_REF_NAME#v}.apk"
-          
-          # Sign APK with zipalign and apksigner
-          "$APKSIGNER" sign --ks "$RUNNER_TEMP/dhyan.jks" --ks-pass "pass:$KS_PASS" --ks-key-alias "$KEY_ALIAS" --key-pass "pass:$KEY_PASS" --out "$OUT_APK" "$APK"
-          "$APKSIGNER" verify --print-certs "$OUT_APK"
+          mapfile -t APKS < <(find phone/app/build/outputs/apk -type f -name '*.apk' ! -name '*unsigned*' ! -name '*androidTest*')
+          if [ "${#APKS[@]}" -ne 1 ]; then
+            echo "::error::expected exactly 1 APK, found ${#APKS[@]}"; printf '%s\n' "${APKS[@]}"; exit 1
+          fi
+          BT="$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n1)"
+          "$ANDROID_HOME/build-tools/$BT/apksigner" verify --print-certs "${APKS[0]}"
+          NAME="Dhyan-${V}.apk"; [ "$SIGNED" = "true" ] || NAME="Dhyan-${V}-debug-signed.apk"
+          mkdir -p out && cp "${APKS[0]}" "out/$NAME"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: android-apk
-          path: ${{ runner.temp }}/Dhyan-*.apk
+          name: release-android
+          path: out/*.apk
           retention-days: 3
+          if-no-files-found: error
 
-  # ------------------------------------------------------------------ release (single publisher)
+  # ------------------------------------------------------------------ release (single publisher, tags only)
   release:
-    needs: [desktop, android, vsix]
+    needs: [meta, desktop, android, vsix]
+    if: needs.meta.outputs.is_tag == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -230,20 +321,27 @@ jobs:
       attestations: write
     steps:
       - uses: actions/download-artifact@v4
-        with: { path: artifacts, merge-multiple: true }
+        with:
+          pattern: release-*             # excludes the large engine-win artifact
+          path: artifacts
+          merge-multiple: true
 
-      - name: Checksums
+      - name: List and checksum
         working-directory: artifacts
-        run: sha256sum Dhyan-* latest.yml dhyan.vsix > SHA256SUMS.txt
+        run: |
+          ls -la
+          find . -maxdepth 1 -type f ! -name SHA256SUMS.txt -printf '%f\n' | sort | xargs sha256sum > SHA256SUMS.txt
+          cat SHA256SUMS.txt
 
       - uses: actions/attest-build-provenance@v2
-        continue-on-error: true
-        with: { subject-path: 'artifacts/Dhyan-*' }
+        continue-on-error: true           # unavailable on private repositories
+        with:
+          subject-path: 'artifacts/Dhyan-*'
 
       - name: Create DRAFT release
         uses: softprops/action-gh-release@v2
         with:
-          draft: false
+          draft: true                      # publish manually after a clean-machine test
           prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true
           fail_on_unmatched_files: true
