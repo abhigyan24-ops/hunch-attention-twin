@@ -3,9 +3,9 @@ import * as esbuild from 'esbuild';
 const isWatch = process.argv.includes('--watch');
 
 const buildOptions = {
-  entryPoints: ['src/extension.ts'],
+  entryPoints: ['src/entry.ts'],
   bundle: true,
-  outfile: 'dist/extension.js',
+  outfile: 'dist/extension.cjs',
   external: ['vscode'],
   format: 'cjs',
   platform: 'node',

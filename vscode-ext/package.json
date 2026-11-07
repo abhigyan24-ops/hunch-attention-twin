@@ -5,6 +5,7 @@
   "description": "Privacy-preserving telemetry sensor, resume assist, and quiet actuator for the Dhyan attention digital twin",
   "version": "1.0.0",
   "publisher": "dhyan",
+  "repository": { "type": "git", "url": "https://github.com/abhigyan24-ops/cascade-3.3.git", "directory": "vscode-ext" },
   "engines": {
     "vscode": "^1.93.0"
   },
@@ -15,8 +16,9 @@
   "activationEvents": [
     "onStartupFinished"
   ],
-  "main": "./dist/extension.js",
+  "main": "./dist/extension.cjs",
   "scripts": {
+    "test:e2e": "npm run compile && node test/e2e/run.mjs",
     "compile": "node esbuild.js",
     "watch": "node esbuild.js --watch",
     "lint": "tsc --noEmit",

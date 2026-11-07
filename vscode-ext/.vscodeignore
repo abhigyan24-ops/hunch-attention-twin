@@ -8,3 +8,4 @@ esbuild.js
 .vscode-test.mjs
 *.map
 node_modules/**
+dist/extension.js
