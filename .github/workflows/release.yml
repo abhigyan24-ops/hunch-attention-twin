@@ -24,19 +24,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm, cache-dependency-path: desktop/package-lock.json }
+        with: { node-version: 22, cache: npm, cache-dependency-path: laptop/package-lock.json }
 
       - name: Tag matches package versions
         shell: bash
         run: |
           TAG="${GITHUB_REF_NAME#v}"
-          for f in desktop/package.json vscode-ext/package.json; do
+          for f in laptop/package.json vscode-ext/package.json; do
             V=$(node -p "require('./$f').version")
             [ "$V" = "$TAG" ] || { echo "::error::$f has version $V but tag is $TAG"; exit 1; }
           done
 
       - name: Desktop lint and tests
-        working-directory: desktop
+        working-directory: laptop
         run: |
           npm ci
           npm test
@@ -113,7 +113,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm, cache-dependency-path: desktop/package-lock.json }
+        with: { node-version: 22, cache: npm, cache-dependency-path: laptop/package-lock.json }
 
       - uses: actions/download-artifact@v4
         with: { name: engine-win, path: engine/dist/dhyan-engine }
@@ -121,11 +121,11 @@ jobs:
         with: { name: vsix, path: vscode-ext }
 
       - name: Install dependencies
-        working-directory: desktop
+        working-directory: laptop
         run: npm ci
 
       - name: Build installer (signed when secrets exist)
-        working-directory: desktop
+        working-directory: laptop
         shell: pwsh
         env:
           CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
@@ -138,7 +138,7 @@ jobs:
       - name: Verify expected files exist
         shell: pwsh
         run: |
-          $d = 'desktop/dist-installer'
+          $d = 'laptop/dist-installer'
           foreach ($f in @('latest.yml')) { if (-not (Test-Path "$d/$f")) { throw "missing $f" } }
           if (-not (Get-ChildItem $d -Filter 'Dhyan-Setup-*.exe')) { throw 'missing installer exe' }
           if (-not (Get-ChildItem $d -Filter 'Dhyan-Setup-*.exe.blockmap')) { throw 'missing blockmap' }
@@ -147,9 +147,9 @@ jobs:
         with:
           name: desktop-win
           path: |
-            desktop/dist-installer/Dhyan-Setup-*.exe
-            desktop/dist-installer/Dhyan-Setup-*.exe.blockmap
-            desktop/dist-installer/latest.yml
+            laptop/dist-installer/Dhyan-Setup-*.exe
+            laptop/dist-installer/Dhyan-Setup-*.exe.blockmap
+            laptop/dist-installer/latest.yml
           retention-days: 3
 
   # ------------------------------------------------------------------ android
@@ -221,7 +221,7 @@ jobs:
       - name: Create DRAFT release
         uses: softprops/action-gh-release@v2
         with:
-          draft: true
+          draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true
           fail_on_unmatched_files: true
