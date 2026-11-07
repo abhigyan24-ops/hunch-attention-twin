@@ -45,3 +45,5 @@ jobs:
 
       - name: Run Integration Tests
         run: npm run test:integration
+
+# Trigger CI on Node 22 + tsx
