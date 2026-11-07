@@ -17,9 +17,12 @@
     "@google/genai": "^2.32.0",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
+    "electron-log": "^5.4.4",
+    "electron-updater": "^6.8.11",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "ws": "^8.18.3"
+    "ws": "^8.18.3",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@electron-internal/extract-zip": "file:vendor/electron-extractor",

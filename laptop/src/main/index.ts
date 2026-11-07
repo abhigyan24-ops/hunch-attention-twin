@@ -5,6 +5,9 @@ import {IngestServer} from '../ingest/IngestServer';
 import {FeedRouter} from '../ingest/FeedRouter';
 import {saveAllowedExtensionIds} from './settings';
 import {SidecarManager} from './sidecar';
+import {loadKeys, registerKeyIpcHandlers} from './privacy/keys';
+import {initAutoUpdater, installNow, type UpdaterDeps} from './updater';
+import {complete as brokerComplete, loadPrefs as loadBrokerPrefs, savePrefs as saveBrokerPrefs, getAuditSummary} from './llm/broker';
 import {app,BrowserWindow,ipcMain,powerMonitor,dialog,Tray,Menu,nativeImage,safeStorage,clipboard,screen,globalShortcut} from 'electron';
 import {readFileSync,mkdirSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -28,6 +31,8 @@ let core:Awaited<ReturnType<typeof startLaptopCore>>|undefined,bridge:PetBridge|
 let ingest:IngestServer|undefined,feeds:FeedRouter|undefined,ingestToken:string|null=null,ingestMessage='Extension ingest not started';
 let sync:SyncCoordinator|undefined;
 let sidecar:SidecarManager|undefined;
+let updaterState: { phase: 'idle' | 'downloading' | 'ready' | 'error'; version?: string } = { phase: 'idle' };
+let quittingForUpdate = false;
 let paused=false,history:UiSnapshot['focus']={minutes:null,provenance:'observed',label:'No data: persisted focus snapshots are not available'},historyAt=0,historyRead:Promise<void>|null=null;
 if(!app.isPackaged){const devProfile=join(app.getPath('appData'),'Dhyan-PipV2-Isolated');mkdirSync(devProfile,{recursive:true});app.setPath('userData',devProfile);}
 const ownsLock=app.requestSingleInstanceLock();if(!ownsLock)app.quit();
@@ -79,7 +84,32 @@ function load(window:BrowserWindow,panel:boolean){const guard=(event:Electron.Ev
 function openPanel(){if(panelWindow){panelWindow.show();panelWindow.focus();return;}panelWindow=new BrowserWindow({width:680,height:860,show:true,autoHideMenuBar:true,title:'Dhyan Attention Companion',webPreferences:preferences()});panelWindow.center();panelWindow.show();panelWindow.focus();panelWindow.on('closed',()=>{panelWindow=null;});load(panelWindow,true);}
 function createPet(){petWindow=new BrowserWindow({width:200,height:230,transparent:true,frame:false,alwaysOnTop:true,skipTaskbar:true,resizable:false,show:true,webPreferences:preferences()});petWindow.setAlwaysOnTop(true,'floating');petWindow.show();petWindow.on('closed',()=>{petWindow=null;});load(petWindow,false);}
 async function declare(input:Declaration){if(!core||!bridge)return {ok:false,message:'Collection is unavailable; session was not declared.'};try{const result=await declareLocally(input,core.store,{deviceId:core.settings.deviceId,schemaVersion:SCHEMA_VERSION,nowMs:Date.now()});if(!result)return {ok:false,message:'Choose a valid categorized task and duration.'};bridge.bus.setDeclaredSession(result.session);return {ok:true,message:result.persisted?'Declared locally. Phone sync is pending.':'Declared locally in memory; storage is paused.'};}catch{return {ok:false,message:'Storage is unavailable; session was not declared.'};}}
+const updaterDeps: UpdaterDeps = {
+ isDeepFocus: () => {
+  const busSnap = bridge?.bus.snapshot();
+  return busSnap?.declaredSession !== null || busSnap?.local?.laptopState === 'flowing';
+ },
+ stopServices: async () => {
+  closing = true;
+  bridge?.stop();
+  petReaction?.stop();
+  await ingest?.close();
+  await sync?.stop();
+  await settingsWrite;
+  await core?.stop();
+  await sidecar?.stop();
+ },
+ onState: (s) => {
+  updaterState = s;
+  updateTray();
+ },
+ setQuitting: (flag) => {
+  quittingForUpdate = flag;
+ },
+ beta: false,
+};
 function updateTray(){if(!tray)return;const items:Electron.MenuItemConstructorOptions[]=[{label:'Declare session',submenu:[{label:'Open session form',click:openPanel},{label:'Focus: coding, 2h, strict',click:()=>{void declare({task:'coding',plannedMin:120,strict:true}).then(result=>{if(!result.ok)dialog.showErrorBox('Dhyan',result.message);});}}]},{label:'Open panel',click:openPanel},{label:paused?'Resume Pip':'Pause Pip',click:()=>{paused=!paused;if(paused)petWindow?.hide();else petWindow?.showInactive();updateTray();}},{label:'Quit',click:()=>app.quit()}];
+ if(updaterState.phase==='ready'){items.unshift({label:`Restart to update to ${updaterState.version||'new version'}`,click:()=>{void installNow(updaterDeps);}});}
  items.splice(items.length-1,0,{label:'Pip controls',submenu:[{label:'Snooze 15 min',click:()=>{if(petReaction)petReaction.snoozeUntil=Date.now()+900000;}},{label:'Snooze 1 hour',click:()=>{if(petReaction)petReaction.snoozeUntil=Date.now()+3600000;}},{label:'Break 15 min',click:()=>{if(petReaction)petReaction.breakUntil=Date.now()+900000;}},{label:'Calm mode',type:'checkbox',checked:petReaction?.calm??false,click:()=>{if(petReaction)petReaction.calm=!petReaction.calm;updateTray();}},{label:'Do not disturb',type:'checkbox',checked:petReaction?.dnd??false,click:()=>{if(petReaction)petReaction.dnd=!petReaction.dnd;updateTray();}},{label:'Lock position',type:'checkbox',checked:petPosition?.locked??false,click:()=>{if(petPosition)petPosition.locked=!petPosition.locked;updateTray();}},{label:'Size',submenu:[80,96,128].map(size=>({label:size===80?'Small':size===96?'Medium':'Large',click:()=>{petWindow?.setSize(size+104,size+134);petPosition?.restore();}}))},{label:'Reset position',click:()=>petPosition?.reset()}]});
  if(!app.isPackaged&&process.env.DHYAN_DEV_PET==='1'){const behaviors:PipBehavior[]=['deep_focus','held','drifting','distracted','recovering','fatigued','second_screen_overlap'];items.splice(items.length-1,0,{label:'DEV ONLY: simulate presentation',submenu:[{label:'Use real pipeline',click:()=>bridge?.simulate(null)},...behaviors.map(behavior=>({label:behavior,click:()=>bridge?.simulate(behavior)}))]});items.splice(items.length-1,0,{label:'DEV ONLY: simulate distraction',submenu:[{label:'Use real evidence',click:()=>petReaction?.simulate(null)},...[1,2,3,4].map(level=>({label:`Stage ${level}`,click:()=>petReaction?.simulate(level as 1|2|3|4)}))]});}tray.setContextMenu(Menu.buildFromTemplate(items));}
 function createTray(){const size=32;const pixels=Buffer.alloc(size*size*4);const cx=size/2,cy=size/2,r=size*0.42;for(let y=0;y<size;y++){for(let x=0;x<size;x++){const idx=(y*size+x)*4;const dist=Math.hypot(x-cx,y-cy);if(dist<=r){pixels[idx]=80;pixels[idx+1]=230;pixels[idx+2]=40;pixels[idx+3]=255;}else{pixels[idx]=0;pixels[idx+1]=0;pixels[idx+2]=0;pixels[idx+3]=0;}}}tray=new Tray(nativeImage.createFromBitmap(pixels,{width:size,height:size}));tray.setToolTip('Dhyan (ध्यान) Attention Companion');tray.on('click',openPanel);tray.on('double-click',openPanel);updateTray();}
@@ -102,6 +132,17 @@ app.whenReady().then(async()=>{
  if(!ownsLock)return;
  console.log('[Dhyan] app.whenReady starting...');
  try{
+  loadKeys();
+  registerKeyIpcHandlers();
+  ipcMain.handle('llm:complete', async (e, req) => { if (!trusted(e)) throw Error('unauthorized'); return brokerComplete(req); });
+  ipcMain.handle('llm:prefs', async (e) => { if (!trusted(e)) throw Error('unauthorized'); return loadBrokerPrefs(); });
+  ipcMain.handle('llm:save-prefs', async (e, prefs) => { if (!trusted(e)) throw Error('unauthorized'); saveBrokerPrefs(prefs); return true; });
+  ipcMain.handle('llm:audit', async (e) => { if (!trusted(e)) throw Error('unauthorized'); return getAuditSummary(); });
+  initAutoUpdater(updaterDeps);
+ }catch(err){
+  console.warn('[Dhyan] Keys/Updater init error:', err);
+ }
+ try{
   core=await startLaptopCore(app.getPath('userData'),SCHEMA_VERSION,()=>powerMonitor.getSystemIdleTime());
   console.log('[Dhyan] Laptop core ready');
   try{
@@ -121,6 +162,10 @@ app.whenReady().then(async()=>{
   console.log('[Dhyan] Starting sync...');
   await sync.start();
   console.log('[Dhyan] Sync ready');
+   if(sidecar&&sync){sidecar.setPhoneLeaseSender((focus,leaseMs)=>{sync?.broadcastFocusLease(focus,leaseMs);});}
+   const checkFocusState=()=>{if(!core||!bridge||!sidecar)return;const busSnap=bridge.bus.snapshot();const isDeclared=busSnap.declaredSession!==null;const cat=core.pipeline.currentCategory.toLowerCase();const isProductive=['coding','docs','writing','terminal','learning'].includes(cat);const isFlowing=busSnap.local?.laptopState==='flowing';const isFocusing=!paused&&(isDeclared||(isProductive&&isFlowing)||(isProductive&&busSnap.local?.laptopState!=='away'&&busSnap.local?.laptopState!=='offline'&&busSnap.local?.laptopState!=='gaming'&&busSnap.local?.laptopState!=='browsing'));sidecar.updateFocusState(isFocusing);};
+   core.pipeline.onState(()=>checkFocusState());
+   bridge.bus.subscribe(()=>checkFocusState());
   try{
    ingestToken=await loadIngestToken(app.getPath('userData'),safeStorage);
    ingest=await IngestServer.start({port:core.settings.ingest.port,token:ingestToken,allowedExtensionIds:core.settings.ingest.allowedExtensionIds,onMessage:(client,message)=>{feeds!.accept(client,message);},onConnection:(client,connected)=>feeds!.connection(client,connected)});

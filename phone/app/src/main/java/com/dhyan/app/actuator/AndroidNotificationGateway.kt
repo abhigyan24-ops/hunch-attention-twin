@@ -54,4 +54,8 @@ class AndroidNotificationGateway(private val context: Context) : NotificationGat
         }
         NotificationGateway.Result.Ok
     }.getOrElse { e -> NotificationGateway.Result.Failed(e.javaClass.simpleName) }
+
+    fun snoozeByKey(sbnKey: String, snoozeDurationMs: Long): NotificationGateway.Result {
+        return snooze(keyHash = sbnKey, platformId = 0, packageName = "", snoozeDurationMs = snoozeDurationMs)
+    }
 }

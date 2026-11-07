@@ -40,7 +40,7 @@ fun InsightsTab(viewModel: InsightsViewModel, modifier: Modifier = Modifier) {
                 }
                 RecordedShareRing(state.allowCount, state.totalDecisions, "Allowed")
             }
-            Text(if (state.totalDecisions == 0) "No decisions recorded yet." else "Stored totals across available history.",
+            Text(if (state.totalDecisions == 0) state.coldStartMessage else "Stored totals across available history.",
                 style = MaterialTheme.typography.bodySmall)
         }
         PastelSquircleCard {
@@ -53,7 +53,7 @@ fun InsightsTab(viewModel: InsightsViewModel, modifier: Modifier = Modifier) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             MiniSparklineCard("Shielded", com.dhyan.app.collectors.A11yCollector.distractionsShieldedCount.get().toString(), emptyList(),
                 Modifier.weight(1f), PastelTone.LAVENDER)
-            MiniSparklineCard("Saved Focus", "${(com.dhyan.app.collectors.A11yCollector.distractionsShieldedCount.get() + com.dhyan.app.collectors.A11yCollector.doomscrollsPreventedCount.get()) * 8}m", emptyList(),
+            MiniSparklineCard("Saved Focus", "${state.savedMinutes}m", emptyList(),
                 Modifier.weight(1f), PastelTone.SAND)
         }
         val petController = remember { com.dhyan.app.ui.pet.PetDistractionController.getInstance() }
@@ -115,8 +115,12 @@ fun InsightsTab(viewModel: InsightsViewModel, modifier: Modifier = Modifier) {
             Text("Empirical Bayes shrunk focus probability from historical blocks", style = MaterialTheme.typography.bodySmall)
             FocusHourHeatmap()
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                state.peakFocusWindows.forEach { window ->
-                    ContextChip("Peak: $window", true, {})
+                if (state.peakFocusWindows.isEmpty()) {
+                    ContextChip("Warming up: 0 real focus blocks & 0 notifications", false, {})
+                } else {
+                    state.peakFocusWindows.forEach { window ->
+                        ContextChip("Peak: $window", true, {})
+                    }
                 }
             }
         }
@@ -147,11 +151,15 @@ fun InsightsTab(viewModel: InsightsViewModel, modifier: Modifier = Modifier) {
             StatusPillBadge("Learner 3 · Survival Inversion")
             Text("App Stickiness (Weibull AFT)", style = MaterialTheme.typography.titleLarge)
             Text("Median excursion duration diverted from primary task", style = MaterialTheme.typography.bodySmall)
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                state.stickinessMedians.forEach { (cat, median) ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(cat.replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.bodyMedium)
-                        Text(String.format(java.util.Locale.US, "%.1f min median", median), style = MaterialTheme.typography.titleSmall)
+            if (state.stickinessMedians.isEmpty()) {
+                Text("Warming up: 0 real focus blocks & 0 notifications", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    state.stickinessMedians.forEach { (cat, median) ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(cat.replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.bodyMedium)
+                            Text(String.format(java.util.Locale.US, "%.1f min median", median), style = MaterialTheme.typography.titleSmall)
+                        }
                     }
                 }
             }

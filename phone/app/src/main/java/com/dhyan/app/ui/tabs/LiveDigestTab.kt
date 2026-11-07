@@ -1,13 +1,20 @@
 package com.dhyan.app.ui.tabs
 
+import android.app.AppOpsManager
+import android.app.NotificationManager
+import android.content.Context
 import android.content.Intent
+import android.os.Build
+import android.os.Process
 import android.provider.Settings
+import androidx.core.app.NotificationManagerCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,6 +36,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -74,6 +82,7 @@ import com.dhyan.app.ui.viewmodel.LiveDecisionItemUi
 import com.dhyan.app.ui.viewmodel.LiveDigestUiState
 import com.dhyan.app.ui.viewmodel.LiveDigestViewModel
 import com.dhyan.app.ui.viewmodel.LiveHeldItemUi
+import kotlinx.coroutines.delay
 
 @Composable
 fun LiveDigestTab(
@@ -102,6 +111,7 @@ fun LiveDigestTab(
     viewModel: LiveDigestViewModel,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     LiveDigestContent(
         uiState = uiState,
@@ -112,6 +122,7 @@ fun LiveDigestTab(
         onToggleKillSwitch = { viewModel.toggleKillSwitch() },
         onStartFocusSession = { min, task -> viewModel.startFocusSession(min, task) },
         onEndFocusSession = { viewModel.endFocusSession() },
+        onSendTestNotification = { viewModel.sendTestInterceptionNotification(context) },
         modifier = modifier
     )
 }
@@ -127,12 +138,28 @@ fun LiveDigestContent(
     onToggleKillSwitch: () -> Unit = {},
     onStartFocusSession: (Double, String) -> Unit = { _, _ -> },
     onEndFocusSession: () -> Unit = {},
+    onSendTestNotification: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var showDecisions by remember { mutableStateOf(false) }
     var selectedDuration by remember { mutableIntStateOf(25) }
     var selectedTask by remember { mutableStateOf("coding") }
+
+    // Live permission states
+    var notifAccess by remember { mutableStateOf(hasNotificationAccess(context)) }
+    var dndAccess by remember { mutableStateOf(hasDndAccess(context)) }
+    var usageAccess by remember { mutableStateOf(hasUsageAccess(context)) }
+
+    // Auto-refresh permission checks periodically
+    LaunchedEffect(Unit) {
+        while (true) {
+            notifAccess = hasNotificationAccess(context)
+            dndAccess = hasDndAccess(context)
+            usageAccess = hasUsageAccess(context)
+            delay(1500L)
+        }
+    }
 
     Column(
         modifier = modifier
@@ -152,6 +179,58 @@ fun LiveDigestContent(
             }
             Text("A little more\nheadspace.", style = MaterialTheme.typography.headlineLarge)
             Text("Your live context & quiet queue", style = MaterialTheme.typography.bodyMedium)
+        }
+
+        // 0. Mandatory Android Permission Status Chips
+        PastelSquircleCard(tone = PastelTone.SAGE) {
+            StatusPillBadge(
+                if (notifAccess && dndAccess && usageAccess) "All Permissions Granted" else "Permissions Required",
+                active = notifAccess && dndAccess && usageAccess
+            )
+            Text("Android Permissions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                "Live status for real notification interception and DND lease control:",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Permission 1: Notification Access
+                ContextChip(
+                    label = if (notifAccess) "✓ Notification Access" else "⚠️ Grant Notification Access",
+                    isSelected = notifAccess,
+                    onClick = {
+                        context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        })
+                    }
+                )
+
+                // Permission 2: DND Policy Control
+                ContextChip(
+                    label = if (dndAccess) "✓ DND Policy Control" else "⚠️ Grant DND Control",
+                    isSelected = dndAccess,
+                    onClick = {
+                        context.startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        })
+                    }
+                )
+
+                // Permission 3: Usage Access
+                ContextChip(
+                    label = if (usageAccess) "✓ Usage Access" else "⚠️ Grant Usage Access",
+                    isSelected = usageAccess,
+                    onClick = {
+                        context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        })
+                    }
+                )
+            }
         }
 
         // 1. Focus Shield & Session Bento Card
@@ -219,7 +298,7 @@ fun LiveDigestContent(
                     text = "Shields you from Instagram, TikTok, Reels, Shorts & doomscrolling.",
                     style = MaterialTheme.typography.bodyMedium
                 )
-                androidx.compose.foundation.layout.FlowRow(
+                FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -231,7 +310,7 @@ fun LiveDigestContent(
                         )
                     }
                 }
-                androidx.compose.foundation.layout.FlowRow(
+                FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -254,30 +333,23 @@ fun LiveDigestContent(
                 ) {
                     Text("Start Focus ($selectedDuration min)")
                 }
-                if (A11yCollector.isServiceConnected) {
-                    Text(
-                        text = "● Shield Ready · Zero text or URLs collected",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "⚠️ Enable Accessibility to block distracting apps",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        TextButton(onClick = {
-                            context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                            })
-                        }) { Text("Enable") }
-                    }
-                }
+            }
+        }
+
+        // Test Interception Button Card
+        PastelSquircleCard(tone = PastelTone.SKY) {
+            StatusPillBadge("Interception Testing", active = true)
+            Text("Send Test Notification", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                "Fires a high-priority dummy notification on a test channel. When Focus Mode or DND lease is active, NotifCollector immediately intercepts it, snoozes it off the screen, and logs it into Held Digest.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            OutlinedButton(
+                onClick = onSendTestNotification,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Send Test Notification Now")
             }
         }
 
@@ -350,7 +422,7 @@ fun LiveDigestContent(
             Text("Waiting for a context snapshot. No focus state is assumed.",
                 style = MaterialTheme.typography.bodyLarge)
         } else {
-            val attention = when (snapshot.focusState) {
+            val attention: AttentionState = when (snapshot.focusState) {
                 FocusState.DEEP_FOCUS -> AttentionState.DEEP_FOCUS
                 FocusState.WORKING -> AttentionState.WORKING
                 FocusState.DRIFTING -> AttentionState.DRIFTING
@@ -370,7 +442,7 @@ fun LiveDigestContent(
         }
 
         // 5. Held Digest Queue
-        LiveCard("Your digest · ${uiState.heldQueue.size}") {
+        LiveCard("Held Notifications Digest · ${uiState.heldQueue.size}") {
             Text("Categories only. Notification content stays private.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (uiState.heldQueue.isEmpty()) Text("Nothing waiting. You’re all caught up.",
@@ -379,14 +451,14 @@ fun LiveDigestContent(
                 Button(onClick = onReleaseAll, modifier = Modifier.fillMaxWidth()) { Text("Release all") }
                 uiState.heldQueue.forEach { item ->
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Text(item.appCat.replace('_', ' '), style = MaterialTheme.typography.titleMedium)
+                    Text("${item.appCat.replace('_', ' ')} · +${item.tauMeanSavedMin}m saved", style = MaterialTheme.typography.titleMedium)
                     Text("${item.notifCat} · ${item.state} · ${item.mechanism} · ${item.heldAgo} · due ${item.dueIn}",
                         style = MaterialTheme.typography.bodySmall)
-                    androidx.compose.foundation.layout.FlowRow(
+                    FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Button(onClick = { onShowNow(item.keyHash) }) { Text("Show now") }
+                        Button(onClick = { onShowNow(item.keyHash) }) { Text("Show Now") }
                         val record = uiState.decisionFeed.firstOrNull { it.keyHash == item.keyHash }
                         TextButton(enabled = record != null,
                             onClick = { record?.let { onMarkImportant(item.keyHash, it.id) } }) { Text("Important") }
@@ -429,6 +501,26 @@ fun LiveDigestContent(
 
         Spacer(Modifier.height(84.dp))
     }
+}
+
+fun hasNotificationAccess(context: Context): Boolean {
+    return NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
+}
+
+fun hasDndAccess(context: Context): Boolean {
+    val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+    return nm?.isNotificationPolicyAccessGranted == true
+}
+
+fun hasUsageAccess(context: Context): Boolean {
+    val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as? AppOpsManager ?: return false
+    val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        appOps.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName)
+    } else {
+        @Suppress("DEPRECATION")
+        appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName)
+    }
+    return mode == AppOpsManager.MODE_ALLOWED
 }
 
 @Composable

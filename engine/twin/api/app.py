@@ -7,7 +7,6 @@ from fastapi import Depends, FastAPI, HTTPException, Header, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from ...synth.persona import seed_db_if_needed
 from ..causal.abduction import AbductionEngine
 from ..causal.cate import CausalForestDML
 from ..causal.conformal import SplitConformal
@@ -73,8 +72,7 @@ def refresh_learners() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: ensure DB exists, pre-seed if needed, and fit all 6 learners
-    seed_db_if_needed(db)
+    # Startup: ensure DB exists and fit all 6 learners from real DB data (0 fake pre-seeding)
     refresh_learners()
     yield
 
@@ -132,10 +130,37 @@ class DecideRequest(BaseModel):
 
 
 class FeedbackRequest(BaseModel):
-    action: str  # "accepted" or "dismissed"
+    action: str  # "accepted", "dismissed", "forget_range", or "wipe_reset"
     stage: int = 2
     context: str = ""
     notif_id: Optional[str] = None
+
+
+class FocusLeaseRequest(BaseModel):
+    focus: str = "normal"  # "normal" | "deep"
+    leaseMs: int = 90000
+
+
+# Focus Lease State
+active_focus_lease: Dict[str, Any] = {
+    "focus": "normal",
+    "leaseMs": 0,
+    "expires_at": 0,
+}
+
+
+def get_current_lease() -> Dict[str, Any]:
+    global active_focus_lease
+    now_ms = int(time.time() * 1000)
+    if active_focus_lease["expires_at"] <= now_ms or active_focus_lease["focus"] == "normal":
+        return {"focus": "normal", "leaseMs": 0, "expires_at": 0}
+    remaining_ms = max(0, active_focus_lease["expires_at"] - now_ms)
+    return {
+        "focus": active_focus_lease["focus"],
+        "leaseMs": remaining_ms,
+        "expires_at": active_focus_lease["expires_at"],
+    }
+
 
 
 # --- Endpoints ---
@@ -180,6 +205,47 @@ def ingest_batch(
     }
 
 
+@app.post("/reset")
+def reset_database(authorized: bool = Depends(verify_token)) -> Dict[str, Any]:
+    db.clear_all_data()
+    refresh_learners()
+    global active_focus_lease
+    active_focus_lease = {"focus": "normal", "leaseMs": 0, "expires_at": 0}
+    return {
+        "status": "reset_complete",
+        "events_count": 0,
+        "message": "All twin data tables wiped. Starting clean with 0 fake events.",
+    }
+
+
+@app.post("/twin/lease")
+def set_focus_lease(
+    req: FocusLeaseRequest, authorized: bool = Depends(verify_token)
+) -> Dict[str, Any]:
+    global active_focus_lease
+    now_ms = int(time.time() * 1000)
+    if req.focus == "deep" and req.leaseMs > 0:
+        active_focus_lease = {
+            "focus": "deep",
+            "leaseMs": req.leaseMs,
+            "expires_at": now_ms + req.leaseMs,
+        }
+    else:
+        active_focus_lease = {
+            "focus": "normal",
+            "leaseMs": 0,
+            "expires_at": 0,
+        }
+    current = get_current_lease()
+    return {"status": "ok", "lease": current}
+
+
+@app.get("/simulate/apps")
+def get_simulate_apps(authorized: bool = Depends(verify_token)) -> Dict[str, Any]:
+    apps = db.get_distinct_apps()
+    return {"apps": apps, "total": len(apps)}
+
+
 @app.post("/whatif")
 def what_if_simulation(
     req: WhatIfRequest, authorized: bool = Depends(verify_token)
@@ -194,8 +260,26 @@ def what_if_simulation(
         )
         notifs = [dict(r) for r in cur.fetchall()]
 
+    distinct_apps = db.get_distinct_apps()
+
     if not notifs:
-        return {"status": "no_data", "result": None}
+        return {
+            "status": "warming_up",
+            "message": "Collecting real notifications from phone/laptop. 0 notifications recorded so far.",
+            "result": {
+                "focus_minutes_baseline": 0.0,
+                "focus_minutes_counterfactual": 0.0,
+                "focus_minutes_saved": 0.0,
+                "interruptions_baseline": 0,
+                "interruptions_counterfactual": 0,
+                "interruptions_prevented": 0,
+                "notifications_held": 0,
+                "notifications_total": 0,
+                "details": [],
+            },
+            "apps": distinct_apps,
+            "parameters": req.model_dump(),
+        }
 
     def policy_fn(n: Dict[str, Any]) -> str:
         urgency = float(n.get("urgency_score", 0.0))
@@ -213,8 +297,17 @@ def what_if_simulation(
     return {
         "status": "success",
         "result": res.to_dict(),
+        "apps": distinct_apps,
         "parameters": req.model_dump(),
     }
+
+
+@app.post("/simulate")
+def simulate_alias(
+    req: WhatIfRequest, authorized: bool = Depends(verify_token)
+) -> Dict[str, Any]:
+    return what_if_simulation(req, authorized)
+
 
 
 @app.post("/decide")
@@ -266,6 +359,18 @@ def replay_notification(
 def record_feedback(
     req: FeedbackRequest, authorized: bool = Depends(verify_token)
 ) -> Dict[str, Any]:
+    if req.action in ("wipe_reset", "forget_range"):
+        db.clear_all_data()
+        refresh_learners()
+        global active_focus_lease
+        active_focus_lease = {"focus": "normal", "leaseMs": 0, "expires_at": 0}
+        return {
+            "status": "reset",
+            "action": req.action,
+            "events_count": 0,
+            "message": "Wiped twin database per user reset request.",
+        }
+
     stats = nudge_engine.record_feedback(
         action=req.action, stage=req.stage, context=req.context
     )
@@ -281,6 +386,7 @@ def record_feedback(
 @app.get("/policy/cache")
 def get_policy_cache(authorized: bool = Depends(verify_token)) -> Dict[str, Any]:
     thresholds = nudge_engine.get_effective_distraction_thresholds()
+    current_lease = get_current_lease()
     return {
         "mode": "LIVE",
         "version": "1.0",
@@ -289,18 +395,32 @@ def get_policy_cache(authorized: bool = Depends(verify_token)) -> Dict[str, Any]
             "explore_eps": explorer.eps,
         },
         "thresholds": thresholds,
+        "lease": {
+            "focus": current_lease["focus"],
+            "leaseMs": current_lease["leaseMs"],
+        },
     }
 
 
 @app.get("/twin/maturity")
 def get_maturity(authorized: bool = Depends(verify_token)) -> Dict[str, Any]:
-    event_cnt = db.get_event_count()
-    # 0 to 100% maturity based on event count
-    maturity_pct = min(100.0, round((event_cnt / 250.0) * 100.0, 1))
+    counts = db.get_counts()
+    fb_cnt = counts["focus_blocks"]
+    notif_cnt = counts["notifications"]
+    event_cnt = counts["events"]
+    # Honest status reporting exact counts of real focus blocks & notifications
+    status_str = f"Warming up: learned from {fb_cnt} real focus blocks & {notif_cnt} notifications"
+    is_calibrated = (fb_cnt >= 20 and notif_cnt >= 20)
+    maturity_pct = min(100.0, round(((fb_cnt * 2.0 + notif_cnt) / 50.0) * 100.0, 1))
+
     return {
+        "status": status_str,
+        "calibration_status": "calibrated" if is_calibrated else "collecting_priors",
         "maturity_percentage": maturity_pct,
         "events_count": event_cnt,
-        "calibration_status": "calibrated" if maturity_pct > 60 else "collecting_priors",
+        "focus_blocks_count": fb_cnt,
+        "notifications_count": notif_cnt,
+        "message": status_str,
         "learners": {
             "focus": focus_learner.fitted,
             "interruptions": interruption_learner.fitted,
@@ -320,8 +440,10 @@ def get_twin_state(authorized: bool = Depends(verify_token)) -> Dict[str, Any]:
     - fatigue_p in [0, 1]
     - held_count
     - alignment score in [0, 1]
+    - lease { focus, leaseMs }
     - pet_opacity (0.0 for HIDDEN, 0.18 for GHOST_FLOW, 1.0 for COMPANION_EDGE / WALK_IN)
     """
+    current_lease = get_current_lease()
     with db.get_connection() as conn:
         cur = conn.cursor()
         cur.execute(
@@ -343,6 +465,10 @@ def get_twin_state(authorized: bool = Depends(verify_token)) -> Dict[str, Any]:
         )
         held_row = cur.fetchone()
         held_count = int(held_row["cnt"]) if held_row else 0
+
+    # If laptop focus lease is deep, elevate focus_depth
+    if current_lease["focus"] == "deep":
+        focus_depth = max(focus_depth, 0.85)
 
     thresholds = nudge_engine.get_effective_distraction_thresholds()
 
@@ -368,6 +494,10 @@ def get_twin_state(authorized: bool = Depends(verify_token)) -> Dict[str, Any]:
         "fatigue_p": round(fatigue, 3),
         "held_count": held_count,
         "alignment": 0.94,
+        "lease": {
+            "focus": current_lease["focus"],
+            "leaseMs": current_lease["leaseMs"],
+        },
         "pet": {
             "mode": pet_mode,
             "opacity": pet_opacity,
@@ -376,6 +506,7 @@ def get_twin_state(authorized: bool = Depends(verify_token)) -> Dict[str, Any]:
         },
         "ts": int(time.time() * 1000),
     }
+
 
 
 # --- Profile Endpoints for Bento Cards on Insights Tab ---

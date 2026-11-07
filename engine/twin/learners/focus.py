@@ -18,11 +18,14 @@ class FocusLearner:
         # 7 days (0=Mon .. 6=Sun) x 24 hours
         self.heatmap: np.ndarray = np.full((7, 24), prior_mean, dtype=float)
         self.sample_counts: np.ndarray = np.zeros((7, 24), dtype=int)
+        self.real_blocks_count: int = 0
         self.fitted: bool = False
 
     def fit(self, focus_blocks: List[Dict[str, Any]]) -> "FocusLearner":
+        self.real_blocks_count = len(focus_blocks)
         if not focus_blocks:
             self._apply_default_priors()
+            self.sample_counts = np.zeros((7, 24), dtype=int)
             self.fitted = True
             return self
 
@@ -41,13 +44,13 @@ class FocusLearner:
 
         total_obs = obs_counts.sum()
         if total_obs > 0:
-            grand_mean = obs_sums.sum() / total_obs
+            # Empirical Bayes shrinkage: shrink hourly cells towards grand mean / prior mean
+            effective_prior_mean = (self.prior_mean * self.prior_weight + obs_sums.sum()) / (self.prior_weight + total_obs)
             cell_means = np.divide(
-                obs_sums, obs_counts, out=np.full_like(obs_sums, grand_mean), where=obs_counts > 0
+                obs_sums, obs_counts, out=np.full_like(obs_sums, effective_prior_mean), where=obs_counts > 0
             )
-            # Empirical Bayes shrinkage towards grand mean
             shrinkage = obs_counts / (obs_counts + self.prior_weight)
-            self.heatmap = (shrinkage * cell_means) + ((1.0 - shrinkage) * grand_mean)
+            self.heatmap = (shrinkage * cell_means) + ((1.0 - shrinkage) * effective_prior_mean)
         else:
             self._apply_default_priors()
 
@@ -114,4 +117,6 @@ class FocusLearner:
             "heatmap": self.heatmap.round(3).tolist(),
             "top_windows": self.get_top_windows(),
             "fitted": self.fitted,
+            "real_blocks_count": self.real_blocks_count,
+            "warming_up": self.real_blocks_count < 5,
         }

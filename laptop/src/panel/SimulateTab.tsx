@@ -3,9 +3,25 @@ import React, { useEffect, useState } from 'react';
 export function SimulateTab() {
   const [multiplier, setMultiplier] = useState(1.0);
   const [result, setResult] = useState<any>(null);
+  const [apps, setApps] = useState<string[]>([]);
+  const [selectedApp, setSelectedApp] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [replay, setReplay] = useState<any>(null);
   const [selectedNotif, setSelectedNotif] = useState<string | null>(null);
+
+  const fetchApps = async () => {
+    try {
+      const res = await fetch('http://127.0.0.1:8765/simulate/apps');
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json.apps) && json.apps.length > 0) {
+          setApps(json.apps);
+        }
+      }
+    } catch {
+      // Offline fallback
+    }
+  };
 
   const runSimulation = async (mult: number) => {
     setLoading(true);
@@ -22,6 +38,9 @@ export function SimulateTab() {
       if (res.ok) {
         const json = await res.json();
         setResult(json.result);
+        if (Array.isArray(json.apps) && json.apps.length > 0) {
+          setApps(json.apps);
+        }
       }
     } catch {
       // Sidecar offline fallback
@@ -44,8 +63,14 @@ export function SimulateTab() {
   };
 
   useEffect(() => {
+    void fetchApps();
     void runSimulation(multiplier);
   }, []);
+
+  const filteredDetails = (result?.details || []).filter((d: any) => {
+    if (!selectedApp) return true;
+    return d.category === selectedApp || d.app_pkg === selectedApp || d.notif_id?.includes(selectedApp);
+  });
 
   return (
     <div className="dhyan-bento-card">
@@ -54,8 +79,36 @@ export function SimulateTab() {
         Simulate counterfactual attention policies with Common Random Numbers (CRN)
       </div>
 
-      {/* Dial & Multiplier Slider */}
+      {/* App Selector and Multiplier Slider */}
       <div style={{ marginTop: '16px' }}>
+        {apps.length > 0 && (
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ fontSize: '12px', fontWeight: 700, display: 'block', marginBottom: '4px' }}>
+              Observed Application Filter:
+            </label>
+            <select
+              value={selectedApp}
+              onChange={(e) => setSelectedApp(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '6px 10px',
+                borderRadius: '8px',
+                border: '1px solid var(--dhyan-border, #ccc)',
+                background: 'var(--dhyan-card, #fff)',
+                color: 'var(--dhyan-text-main, #333)',
+                fontSize: '12px',
+              }}
+            >
+              <option value="">All Observed Apps ({apps.length} available)</option>
+              {apps.map((pkg) => (
+                <option key={pkg} value={pkg}>
+                  {pkg}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 700 }}>
           <span>Policy Gatekeeper Multiplier</span>
           <span style={{ color: 'var(--dhyan-mint-accent)' }}>{multiplier.toFixed(2)}x</span>
@@ -87,7 +140,7 @@ export function SimulateTab() {
       </div>
 
       {/* Counterfactual Comparison Card */}
-      {result && (
+      {result && result.notifications_total > 0 ? (
         <div className="dhyan-cf-hero" style={{ marginTop: '20px' }}>
           <h4 style={{ fontSize: '14px', fontWeight: 800, margin: 0 }}>
             Coupled Counterfactual Results (Equal Horizon H=3600s)
@@ -109,13 +162,13 @@ export function SimulateTab() {
             </div>
           </div>
 
-          {/* Sample Notification List */}
+          {/* Real Notification List */}
           <div style={{ marginTop: '16px' }}>
             <h5 style={{ fontSize: '12px', fontWeight: 800, marginBottom: '8px' }}>
-              Sample Notifications (Click to Inspect Pearl's Abduction Replay)
+              Real Notifications ({filteredDetails.length} recorded · Click to Inspect Pearl's Abduction Replay)
             </h5>
             <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {result.details?.slice(0, 8).map((d: any) => (
+              {filteredDetails.slice(0, 12).map((d: any) => (
                 <div
                   key={d.notif_id}
                   style={{
@@ -154,6 +207,15 @@ export function SimulateTab() {
               </div>
             )}
           </div>
+        </div>
+      ) : (
+        <div className="dhyan-cf-hero" style={{ marginTop: '20px', padding: '16px', textAlign: 'center' }}>
+          <h4 style={{ fontSize: '13px', fontWeight: 700, margin: '0 0 6px 0' }}>
+            🌱 Warming Up: No Fake Data Pre-Seeded
+          </h4>
+          <p style={{ fontSize: '12px', color: 'var(--dhyan-text-muted)', margin: 0 }}>
+            The Digital Twin starts with zero synthetic events. Real notification arrivals and focus blocks will appear here as they are synced from your phone.
+          </p>
         </div>
       )}
     </div>

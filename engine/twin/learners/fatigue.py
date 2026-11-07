@@ -45,7 +45,10 @@ class FatigueLearner:
             ]
         )
 
+        self.real_inputs_count: int = 0
+
     def fit(self, input_summaries: List[Dict[str, Any]]) -> "FatigueLearner":
+        self.real_inputs_count = len(input_summaries)
         if len(input_summaries) < 15:
             self.fitted = True
             return self
@@ -98,4 +101,6 @@ class FatigueLearner:
             "transition_matrix": self.trans_mat.round(3).tolist(),
             "state_means": self.means.round(1).tolist(),
             "fitted": self.fitted,
+            "real_inputs_count": self.real_inputs_count,
+            "warming_up": self.real_inputs_count < 15,
         }

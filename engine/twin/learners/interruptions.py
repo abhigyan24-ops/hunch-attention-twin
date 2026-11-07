@@ -21,13 +21,32 @@ class InterruptionLearner:
             "is_peak": -0.65,
             "duration_hours": 0.85,
         }
-        self.excess_break_ratio: float = 0.38
+        self.excess_break_ratio: float = 0.0
+        self.real_blocks_count: int = 0
+        self.real_notifs_count: int = 0
 
     def fit(
         self,
         focus_blocks: List[Dict[str, Any]],
         notifications: Optional[List[Dict[str, Any]]] = None,
     ) -> "InterruptionLearner":
+        self.real_blocks_count = len(focus_blocks)
+        self.real_notifs_count = len(notifications or [])
+
+        # Compute empirical breaks from whatever real blocks we have
+        total_breaks = sum(int(b.get("interruptions_count", 0)) for b in focus_blocks)
+        if total_breaks > 0 and notifications:
+            notif_times = set(int(n.get("post_time", 0)) for n in notifications)
+            notif_attributed = 0
+            for b in focus_blocks:
+                b_start = int(b.get("start_ts", 0))
+                b_end = int(b.get("end_ts", 0))
+                matched = sum(1 for n_t in notif_times if b_start <= n_t <= b_end)
+                notif_attributed += min(int(b.get("interruptions_count", 0)), matched)
+            self.excess_break_ratio = round(min(1.0, notif_attributed / total_breaks), 3)
+        else:
+            self.excess_break_ratio = 0.0
+
         if len(focus_blocks) < 5:
             self.fitted = True
             return self
@@ -93,4 +112,7 @@ class InterruptionLearner:
             "coefficients": self.coefs,
             "excess_break_ratio": self.excess_break_ratio,
             "fitted": self.fitted,
+            "real_blocks_count": self.real_blocks_count,
+            "real_notifs_count": self.real_notifs_count,
+            "warming_up": self.real_blocks_count < 5,
         }

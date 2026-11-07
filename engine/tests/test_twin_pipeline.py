@@ -24,7 +24,7 @@ from engine.twin.policy.gatekeeper import GatekeeperPolicy
 from engine.twin.policy.nudge_backoff import NudgeBackoffEngine
 from engine.twin.sessionize.focus_blocks import extract_focus_blocks
 from engine.twin.sessionize.outcomes import label_outcomes
-from engine.twin.sessionize.timeline import build_timeline, parse_payload_safe
+from engine.twin.sessionize.timeline import TimelineSlice, build_timeline, parse_payload_safe
 from engine.twin.simulator.simulate import AttentionSimulator
 from engine.twin.simulator.stages import SimulatorStages
 
@@ -113,6 +113,69 @@ def test_sessionize_safe_parsing_and_equal_horizon():
     assert outcomes[1].horizon_s == 3600.0
 
 
+def test_cross_device_pickup_and_excursion():
+    laptop_slices = [
+        TimelineSlice(
+            start_ts=1000000,
+            end_ts=1060000,
+            duration_s=60.0,
+            idle_s=5.0,
+            keystrokes=120,
+            mouse_px=400.0,
+            active_app="code.exe",
+            category="coding",
+            device_id="laptop",
+        ),
+        TimelineSlice(
+            start_ts=1060000,
+            end_ts=1120000,
+            duration_s=60.0,
+            idle_s=45.0,
+            keystrokes=10,
+            mouse_px=50.0,
+            active_app="code.exe",
+            category="coding",
+            device_id="laptop",
+        ),
+        TimelineSlice(
+            start_ts=1120000,
+            end_ts=1180000,
+            duration_s=60.0,
+            idle_s=5.0,
+            keystrokes=130,
+            mouse_px=450.0,
+            active_app="code.exe",
+            category="coding",
+            device_id="laptop",
+        ),
+    ]
+
+    phone_events = [
+        {"ts": 1065000, "event_type": "ACTION_SCREEN_ON", "payload": '{"app_pkg": "com.whatsapp"}'},
+        {"ts": 1070000, "event_type": "ACTION_USER_PRESENT", "payload": '{"app_pkg": "com.whatsapp"}'},
+        {"ts": 1095000, "event_type": "ACTION_SCREEN_OFF", "payload": '{"app_pkg": "com.whatsapp"}'},
+    ]
+
+    notifs = [
+        {
+            "notif_id": "notif_msg_1",
+            "post_time": 1060000,
+            "action_taken": "ALLOW",
+            "app_pkg": "com.whatsapp",
+        }
+    ]
+
+    outcomes = label_outcomes(notifs, laptop_slices, phone_events=phone_events, horizon_s=3600.0)
+    assert len(outcomes) == 1
+    out = outcomes[0]
+    assert out.attended == 1
+    assert out.react_latency_s == 5.0  # 1065000 - 1060000 = 5000 ms = 5s
+    assert out.dest_app == "com.whatsapp"
+    assert out.excursion_s == 30.0  # 1095000 - 1065000 = 30000 ms = 30s
+    assert out.resume_lag_s >= 0.0
+
+
+
 def test_six_learners():
     # 1. Focus Learner
     focus = FocusLearner()
@@ -178,10 +241,11 @@ def test_six_learners():
 
 
 def test_causal_engine_and_abduction():
+    rng = np.random.RandomState(42)
     dml = CausalForestDML()
-    X = np.random.uniform(0, 1, size=(20, 5))
-    T = np.random.binomial(1, 0.5, size=20)
-    Y = 5.0 + (10.0 * T) + (2.0 * X[:, 0]) + np.random.normal(0, 0.5, size=20)
+    X = rng.uniform(0, 1, size=(50, 5))
+    T = rng.binomial(1, 0.5, size=50)
+    Y = 5.0 + (5.0 * T) + (1.0 * X[:, 0]) + rng.normal(0, 0.2, size=50)
     dml.fit(X, T, Y)
     assert dml.fitted is True
 
@@ -205,6 +269,7 @@ def test_causal_engine_and_abduction():
     assert replay["factual"]["action"] == "ALLOW"
     assert replay["counterfactual"]["action"] == "HOLD"
     assert replay["counterfactual"]["attention_saved_min"] > 0
+
 
 
 def test_policy_and_auto_backoff(temp_db):
@@ -237,7 +302,18 @@ def test_api_endpoints():
         assert res.status_code == 200
         assert res.json()["service"] == "dhyan-twin-sidecar"
 
-        # 2. Ingest Batch
+        # 2. Reset database endpoint (starts clean with 0 fake events)
+        res = client.post("/reset")
+        assert res.status_code == 200
+        assert res.json()["status"] == "reset_complete"
+        assert res.json()["events_count"] == 0
+
+        # 3. Simulate Apps Dynamic Selector
+        res = client.get("/simulate/apps")
+        assert res.status_code == 200
+        assert len(res.json()["apps"]) > 0
+
+        # 4. Ingest Batch with real events and real notifications
         batch_payload = {
             "device_id": "laptop_test",
             "client_send_ts": int(time.time() * 1000) - 20,
@@ -246,20 +322,31 @@ def test_api_endpoints():
                     "device_id": "laptop_test",
                     "ts": int(time.time() * 1000),
                     "event_type": "input",
-                    "payload": '{"idle_s": 5.0}',
+                    "payload": '{"idle_s": 5.0, "active_app": "Code.exe"}',
+                }
+            ],
+            "notifications": [
+                {
+                    "notif_id": "real_n1",
+                    "post_time": int(time.time() * 1000),
+                    "app_pkg": "com.whatsapp",
+                    "category": "communication",
+                    "urgency_score": 0.7,
+                    "action_taken": "ALLOW",
                 }
             ],
         }
         res = client.post("/ingest/batch", json=batch_payload)
         assert res.status_code == 200
-        assert res.json()["accepted"] >= 1
+        assert res.json()["accepted"] >= 2
 
-        # 3. WhatIf Simulation
+        # 5. WhatIf Simulation
         res = client.post("/whatif", json={"threshold_multiplier": 1.0, "urgency_cutoff": 0.4})
         assert res.status_code == 200
-        assert res.json()["status"] == "success"
+        assert res.json()["status"] in ("success", "warming_up")
+        assert "apps" in res.json()
 
-        # 4. Decide
+        # 6. Decide
         res = client.post(
             "/decide",
             json={
@@ -270,26 +357,37 @@ def test_api_endpoints():
         assert res.status_code == 200
         assert res.json()["action"] in ("ALLOW", "HOLD")
 
-        # 5. Feedback
+        # 7. Focus Lease Endpoints
+        res = client.post("/twin/lease", json={"focus": "deep", "leaseMs": 90000})
+        assert res.status_code == 200
+        assert res.json()["lease"]["focus"] == "deep"
+        assert res.json()["lease"]["leaseMs"] > 0
+
+        # 8. Feedback
         res = client.post("/feedback", json={"action": "accepted", "stage": 2})
         assert res.status_code == 200
         assert res.json()["status"] == "recorded"
 
-        # 6. Policy Cache
+        # 9. Policy Cache (contains thresholds & lease)
         res = client.get("/policy/cache")
         assert res.status_code == 200
         assert "thresholds" in res.json()
+        assert "lease" in res.json()
+        assert res.json()["lease"]["focus"] == "deep"
 
-        # 7. Twin Maturity & State
+        # 10. Twin Maturity & State
         res = client.get("/twin/maturity")
         assert res.status_code == 200
-        assert res.json()["maturity_percentage"] > 0
+        assert "Warming up: learned from" in res.json()["status"]
+        assert res.json()["notifications_count"] >= 1
 
         res = client.get("/twin/state")
         assert res.status_code == 200
         data = res.json()
         assert "focus_depth" in data
         assert "pet" in data
+        assert "lease" in data
+        assert data["lease"]["focus"] == "deep"
         assert data["pet"]["mode"] in (
             "GHOST_FLOW",
             "COMPANION_EDGE",
@@ -297,8 +395,14 @@ def test_api_endpoints():
             "HIDDEN",
         )
 
-        # 8. Profile Learner endpoints
+        # 11. Profile Learner endpoints
         for endpoint in ["focus", "interruptions", "stickiness", "notif_value", "fragmentation", "fatigue"]:
             res = client.get(f"/profile/{endpoint}")
             assert res.status_code == 200
             assert res.json()["fitted"] is True
+
+        # 12. Wipe Reset via feedback
+        res = client.post("/feedback", json={"action": "wipe_reset"})
+        assert res.status_code == 200
+        assert res.json()["status"] == "reset"
+

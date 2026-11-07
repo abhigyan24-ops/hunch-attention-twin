@@ -26,7 +26,7 @@ fun SettingsBottomSheet(stateHolder: DhyanStateHolder? = null, onDismiss: () -> 
     val poster = remember(context) { AndroidDigestPoster(context) }
     val sync = remember { runCatching { DhyanApplication.syncManager }.getOrNull() }
     val vm = remember(db, sync) {
-        SettingsViewModel(vipDao = db.vipDao(), settingsDao = db.settingsDao(), digestPoster = poster, syncManager = sync)
+        SettingsViewModel(vipDao = db.vipDao(), settingsDao = db.settingsDao(), digestPoster = poster, syncManager = sync, db = db)
     }
     SettingsBottomSheet(vm, onDismiss)
 }
@@ -39,6 +39,8 @@ fun SettingsBottomSheet(viewModel: SettingsViewModel, onDismiss: () -> Unit) {
     var contact by remember { mutableStateOf("") }
     var advanced by remember { mutableStateOf(false) }
     var trusted by remember { mutableStateOf(false) }
+    var showResetDialog by remember { mutableStateOf(false) }
+
     if (state.showLiveConfirmDialog) AlertDialog(
         onDismissRequest = viewModel::dismissLiveDialog,
         title = { Text("Enable live holds?") },
@@ -46,6 +48,29 @@ fun SettingsBottomSheet(viewModel: SettingsViewModel, onDismiss: () -> Unit) {
         confirmButton = { Button(onClick = viewModel::confirmLiveMode) { Text("Enable live") } },
         dismissButton = { TextButton(onClick = viewModel::dismissLiveDialog) { Text("Keep current mode") } }
     )
+
+    if (showResetDialog) AlertDialog(
+        onDismissRequest = { showResetDialog = false },
+        title = { Text("Wipe & Reset My Data?") },
+        text = { Text("This will permanently delete all held notifications, decisions, feedback, local telemetry events, generate a fresh unique device ID, and trigger a data reset on your laptop companion.") },
+        confirmButton = {
+            Button(
+                onClick = {
+                    viewModel.wipeAndResetMyData(context)
+                    showResetDialog = false
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+            ) {
+                Text("Wipe Everything")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { showResetDialog = false }) {
+                Text("Cancel")
+            }
+        }
+    )
+
     ModalBottomSheet(onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = MaterialTheme.colorScheme.background) {
@@ -158,6 +183,17 @@ fun SettingsBottomSheet(viewModel: SettingsViewModel, onDismiss: () -> Unit) {
                             TextButton(onClick = { viewModel.removeVipSender(hash) }) { Text("Remove") }
                         }
                     }
+                }
+            }
+            SettingsCard("Data & Reset") {
+                Text("Clear phone Room databases (held notifications, decisions, feedback, events) and trigger a full reset on the laptop companion.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedButton(
+                    onClick = { showResetDialog = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Wipe & Reset My Data")
                 }
             }
             TextButton(onClick = { advanced = !advanced }) { Text(if (advanced) "Hide advanced settings −" else "Advanced settings +") }

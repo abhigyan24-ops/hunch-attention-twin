@@ -1,0 +1,234 @@
+name: Release Dhyan
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*' # pre-releases such as v1.2.0-beta.1
+
+permissions:
+  contents: read # jobs get only what they need
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  VERSION: ${{ github.ref_name }} # e.g. v1.2.0
+
+jobs:
+  # ------------------------------------------------------------------ verify
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm, cache-dependency-path: desktop/package-lock.json }
+
+      - name: Tag matches package versions
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          for f in desktop/package.json vscode-ext/package.json; do
+            V=$(node -p "require('./$f').version")
+            [ "$V" = "$TAG" ] || { echo "::error::$f has version $V but tag is $TAG"; exit 1; }
+          done
+
+      - name: Desktop lint and tests
+        working-directory: desktop
+        run: |
+          npm ci
+          npm test
+
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.10', cache: pip, cache-dependency-path: engine/requirements.lock.txt }
+      - name: Engine tests
+        working-directory: engine
+        run: |
+          pip install -r requirements.lock.txt
+          pytest -q
+
+  # ------------------------------------------------------------------ engine
+  engine:
+    needs: verify
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.10', cache: pip, cache-dependency-path: engine/requirements.lock.txt }
+
+      - name: Install pinned dependencies
+        working-directory: engine
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.lock.txt
+          pip install pyinstaller
+
+      - name: Freeze engine (onedir)
+        working-directory: engine
+        run: pyinstaller dhyan-engine.spec --noconfirm
+
+      - name: Smoke test the frozen engine
+        shell: pwsh
+        run: |
+          $env:TWIN_TOKEN = 'ci-smoke-token'
+          $p = Start-Process -FilePath engine\dist\dhyan-engine\dhyan-engine.exe -PassThru -WindowStyle Hidden
+          try {
+            $ok = $false
+            1..40 | ForEach-Object {
+              try { Invoke-RestMethod http://127.0.0.1:8765/health -TimeoutSec 1 | Out-Null; $ok = $true; break }
+              catch { Start-Sleep -Seconds 1 }
+            }
+            if (-not $ok) { throw 'engine did not become healthy' }
+            Write-Host 'engine healthy'
+          } finally { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+
+      - uses: actions/upload-artifact@v4
+        with: { name: engine-win, path: engine/dist/dhyan-engine, retention-days: 3 }
+
+  # ------------------------------------------------------------------ vscode extension
+  vsix:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm, cache-dependency-path: vscode-ext/package-lock.json }
+      - working-directory: vscode-ext
+        run: |
+          npm ci
+          npm run compile && npm run test:unit
+          npx @vscode/vsce package --out dhyan.vsix
+      - uses: actions/upload-artifact@v4
+        with: { name: vsix, path: vscode-ext/dhyan.vsix, retention-days: 3 }
+
+  # ------------------------------------------------------------------ desktop
+  desktop:
+    needs: [engine, vsix]
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm, cache-dependency-path: desktop/package-lock.json }
+
+      - uses: actions/download-artifact@v4
+        with: { name: engine-win, path: engine/dist/dhyan-engine }
+      - uses: actions/download-artifact@v4
+        with: { name: vsix, path: vscode-ext }
+
+      - name: Install dependencies
+        working-directory: desktop
+        run: npm ci
+
+      - name: Build installer (signed when secrets exist)
+        working-directory: desktop
+        shell: pwsh
+        env:
+          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        run: |
+          if (-not $env:CSC_LINK) { Write-Host '::warning::No signing secrets: building an UNSIGNED installer' }
+          npm run build
+          npx electron-builder --win --publish never
+
+      - name: Verify expected files exist
+        shell: pwsh
+        run: |
+          $d = 'desktop/dist-installer'
+          foreach ($f in @('latest.yml')) { if (-not (Test-Path "$d/$f")) { throw "missing $f" } }
+          if (-not (Get-ChildItem $d -Filter 'Dhyan-Setup-*.exe')) { throw 'missing installer exe' }
+          if (-not (Get-ChildItem $d -Filter 'Dhyan-Setup-*.exe.blockmap')) { throw 'missing blockmap' }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-win
+          path: |
+            desktop/dist-installer/Dhyan-Setup-*.exe
+            desktop/dist-installer/Dhyan-Setup-*.exe.blockmap
+            desktop/dist-installer/latest.yml
+          retention-days: 3
+
+  # ------------------------------------------------------------------ android
+  android:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Decode signing keystore
+        env: { KS_B64: '${{ secrets.ANDROID_KEYSTORE_B64 }}' }
+        run: |
+          if [ -z "$KS_B64" ]; then echo "::error::ANDROID_KEYSTORE_B64 missing; an unsigned APK cannot be installed or updated"; exit 1; fi
+          echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/dhyan.jks"
+
+      - name: Build signed release APK
+        working-directory: phone
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/dhyan.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          TAG="${GITHUB_REF_NAME#v}"; BASE="${TAG%%-*}"
+          IFS=. read -r MA MI PA <<< "$BASE"
+          export VERSION_NAME="$TAG"
+          export VERSION_CODE=$(( MA*1000000 + MI*10000 + PA*100 ))
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Verify APK signature
+        run: |
+          APK=$(find phone/app/build/outputs/apk -name "*.apk" | head -n1)
+          if [ -z "$APK" ]; then echo "::error::No APK produced"; exit 1; fi
+          BT=$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n1)
+          "$ANDROID_HOME/build-tools/$BT/apksigner" verify --print-certs "$APK"
+          cp "$APK" "$RUNNER_TEMP/Dhyan-${GITHUB_REF_NAME#v}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: ${{ runner.temp }}/Dhyan-*.apk
+          retention-days: 3
+
+  # ------------------------------------------------------------------ release (single publisher)
+  release:
+    needs: [desktop, android, vsix]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: artifacts, merge-multiple: true }
+
+      - name: Checksums
+        working-directory: artifacts
+        run: sha256sum Dhyan-* latest.yml dhyan.vsix > SHA256SUMS.txt
+
+      - uses: actions/attest-build-provenance@v2
+        with: { subject-path: 'artifacts/Dhyan-*' }
+
+      - name: Create DRAFT release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            artifacts/Dhyan-Setup-*.exe
+            artifacts/Dhyan-Setup-*.exe.blockmap
+            artifacts/latest.yml
+            artifacts/Dhyan-*.apk
+            artifacts/dhyan.vsix
+            artifacts/SHA256SUMS.txt

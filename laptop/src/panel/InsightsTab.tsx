@@ -44,13 +44,26 @@ export function InsightsTab() {
 
       {data && (
         <>
+          {/* Real Maturity Status Banner */}
+          <div style={{
+            margin: '12px 0 16px 0',
+            padding: '10px 14px',
+            background: 'var(--dhyan-mint-bg, rgba(80, 230, 40, 0.08))',
+            border: '1px solid var(--dhyan-mint-accent, #50E628)',
+            borderRadius: '10px',
+            fontSize: '12px',
+            fontWeight: 600,
+          }}>
+            🌱 <strong>Twin Calibration:</strong> {data.maturity?.status ?? 'Warming up: learned from 0 real focus blocks & 0 notifications'}
+          </div>
+
           <div className="dhyan-learner-grid">
             {/* Card 1: Focus Capacity */}
             <div className="dhyan-learner-card">
               <h4>🕒 1. Focus Capacity Heatmap</h4>
               <p>Empirical Bayes shrunk 24x7 diurnal rhythm.</p>
               <div className="dhyan-badge-pill">
-                Top Window: {data.focus?.top_windows?.[0]?.label ?? '10:00 - 12:00'} ({Math.round((data.focus?.top_windows?.[0]?.score ?? 0.85) * 100)}% flow)
+                Top Window: {data.focus?.real_blocks_count > 0 && data.focus?.top_windows?.[0] ? `${data.focus.top_windows[0].label} (${Math.round(data.focus.top_windows[0].score * 100)}% flow)` : 'Warming up (0 blocks)'}
               </div>
             </div>
 
@@ -59,7 +72,7 @@ export function InsightsTab() {
               <h4>⚡ 2. Interruption Hazard</h4>
               <p>Discrete-time logistic hazard model attributing excess breaks to alerts.</p>
               <div className="dhyan-badge-pill">
-                Excess Break Ratio: {Math.round((data.interruptions?.excess_break_ratio ?? 0.38) * 100)}%
+                Excess Break Ratio: {data.interruptions?.real_blocks_count > 0 ? `${Math.round((data.interruptions?.excess_break_ratio ?? 0) * 100)}%` : 'Warming up (0 breaks)'}
               </div>
             </div>
 
@@ -68,17 +81,17 @@ export function InsightsTab() {
               <h4>⏱ 3. Stickiness Survival</h4>
               <p>Kaplan-Meier median dwell times across destination apps.</p>
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
-                <span className="dhyan-badge-pill">Social: {data.stickiness?.categories?.social?.median_min ?? 11.2}m</span>
-                <span className="dhyan-badge-pill">Shorts: {data.stickiness?.categories?.short_video?.median_min ?? 15.4}m</span>
+                <span className="dhyan-badge-pill">Social: {data.stickiness?.real_outcomes_count > 0 ? `${data.stickiness?.categories?.social?.median_min ?? 0}m` : 'Prior default'}</span>
+                <span className="dhyan-badge-pill">Shorts: {data.stickiness?.real_outcomes_count > 0 ? `${data.stickiness?.categories?.short_video?.median_min ?? 0}m` : 'Prior default'}</span>
               </div>
             </div>
 
             {/* Card 4: Information Value */}
             <div className="dhyan-learner-card">
               <h4>🏷 4. Information Value</h4>
-              <p>Hierarchical Beta-Bernoulli with 7-day half-life decay.</p>
+              <p>Beta(1,1) Bayesian shrinkage with 7-day half-life decay.</p>
               <div className="dhyan-badge-pill">
-                Work Utility: {data.notifValue?.categories?.work ?? 0.80} · Promo: {data.notifValue?.categories?.promo ?? 0.10}
+                Work: {data.notifValue?.real_notifs_count > 0 ? (data.notifValue?.categories?.work ?? 0.50) : 'Beta(1,1) Prior'} · Promo: {data.notifValue?.real_notifs_count > 0 ? (data.notifValue?.categories?.promo ?? 0.50) : 'Beta(1,1) Prior'}
               </div>
             </div>
 
@@ -87,7 +100,7 @@ export function InsightsTab() {
               <h4>🧩 5. Task Fragmentation</h4>
               <p>HC3 fixed-effects OLS attention residue index.</p>
               <div className="dhyan-badge-pill">
-                Switching Penalty: +{data.fragmentation?.switching_penalty_ms ?? 450}ms
+                Switching Penalty: +{data.fragmentation?.real_inputs_count > 0 ? `${data.fragmentation?.switching_penalty_ms}ms` : 'Prior: 450ms'}
               </div>
             </div>
 
@@ -96,7 +109,7 @@ export function InsightsTab() {
               <h4>🔋 6. Latent Fatigue HMM</h4>
               <p>3-state Gaussian HMM on keystroke tempo and micro-pauses.</p>
               <div className="dhyan-badge-pill">
-                Alert Components: 3 states active
+                {data.fatigue?.real_inputs_count > 0 ? `${data.fatigue.real_inputs_count} windows fitted` : '3-state prior (warming up)'}
               </div>
             </div>
           </div>
@@ -113,19 +126,19 @@ export function InsightsTab() {
               <div className="dhyan-cf-stat">
                 <span>Nudges Shown</span>
                 <strong style={{ color: 'var(--dhyan-text-main)' }}>
-                  {th?.nudges_shown ?? 8}
+                  {th?.nudges_shown ?? 0}
                 </strong>
               </div>
               <div className="dhyan-cf-stat">
                 <span>Accepted (Refocus)</span>
                 <strong>
-                  {th?.nudges_accepted ?? 5}
+                  {th?.nudges_accepted ?? 0}
                 </strong>
               </div>
               <div className="dhyan-cf-stat">
                 <span>Dismissed / Flung</span>
                 <strong style={{ color: '#D97706' }}>
-                  {th?.nudges_dismissed ?? 3}
+                  {th?.nudges_dismissed ?? 0}
                 </strong>
               </div>
             </div>

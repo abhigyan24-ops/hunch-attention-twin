@@ -14,11 +14,26 @@ class FragmentationLearner:
     def __init__(self):
         self.switching_penalty_ms: float = 450.0
         self.residue_decay_s: float = 120.0
-        self.fragmentation_score: float = 0.32
+        self.fragmentation_score: float = 0.0
+        self.real_inputs_count: int = 0
         self.fitted = False
 
     def fit(self, input_summaries: List[Dict[str, Any]]) -> "FragmentationLearner":
+        self.real_inputs_count = len(input_summaries)
         if len(input_summaries) < 10:
+            if input_summaries:
+                prev_app = None
+                curr_switches = 0
+                for s in input_summaries:
+                    app = str(s.get("active_app", ""))
+                    if prev_app and app != prev_app:
+                        curr_switches += 1
+                    prev_app = app
+                self.fragmentation_score = min(
+                    1.0, max(0.0, float(curr_switches / max(1, len(input_summaries))))
+                )
+            else:
+                self.fragmentation_score = 0.0
             self.fitted = True
             return self
 
@@ -68,4 +83,6 @@ class FragmentationLearner:
             "residue_decay_s": self.residue_decay_s,
             "fragmentation_score": round(self.fragmentation_score, 3),
             "fitted": self.fitted,
+            "real_inputs_count": self.real_inputs_count,
+            "warming_up": self.real_inputs_count < 10,
         }

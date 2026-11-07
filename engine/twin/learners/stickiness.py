@@ -31,9 +31,11 @@ class StickinessLearner:
             "entertainment": {"scale_lambda": 16.0, "shape_gamma": 1.30, "median_min": 13.5},
             "default": {"scale_lambda": 6.0, "shape_gamma": 1.50, "median_min": 5.0},
         }
+        self.real_outcomes_count = 0
         self.fitted = False
 
     def fit(self, outcomes: List[Dict[str, Any]]) -> "StickinessLearner":
+        self.real_outcomes_count = len(outcomes)
         if not outcomes:
             self.fitted = True
             return self
@@ -106,4 +108,6 @@ class StickinessLearner:
         return {
             "categories": self.category_params,
             "fitted": self.fitted,
+            "real_outcomes_count": self.real_outcomes_count,
+            "warming_up": self.real_outcomes_count < 5,
         }

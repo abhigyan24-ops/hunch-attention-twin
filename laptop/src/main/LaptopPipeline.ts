@@ -25,6 +25,7 @@ export class LaptopPipeline {
  setFeedProvider(provider:()=>Pick<FocusInputs,'vscode'|'browser'>){this.feedProvider=provider;}
  private stuckEvidence=false;private stuckAt:number|null=null;private timer:ReturnType<typeof setInterval>|undefined;
  readonly focus:FocusRunner;
+ get currentCategory():string {return this.category;}
  constructor(private readonly options:PipelineOptions){
   this.now=options.now??Date.now;this.normalizer=options.normalize??new WindowNormalizer(p=>options.labels.category(p));
   if(!Number.isInteger(options.queueLimit??2000)||(options.queueLimit??2000)<1)throw Error('invalid_queue_limit');

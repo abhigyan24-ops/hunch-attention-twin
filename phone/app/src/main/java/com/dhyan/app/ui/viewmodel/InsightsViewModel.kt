@@ -23,44 +23,35 @@ data class InsightsUiState(
     val unknownCount: Int = 0,
     val totalDecisions: Int = 0,
     // Twin Lab & Mathematical Prior/Posterior parameters
-    val alpha: Double = 3.2,
-    val beta: Double = 6.8,
+    val alpha: Double = 2.0,
+    val beta: Double = 3.0,
     val priorAlpha: Double = 2.0,
     val priorBeta: Double = 3.0,
     val dwellMu: Double = 2.1,
     val dwellSigma: Double = 0.7,
-    val nEff: Double = 14.0,
+    val nEff: Double = 0.0,
     val modelVersion: Long = 1L,
     val isUserCalibrated: Boolean = false,
-    val savedMinutes: Int = 47,
-    val intentionalRatio: Float = 0.68f,
-    val compulsiveRatio: Float = 0.32f,
-    val switchRatePerHour: Float = 14.8f,
-    val microSessionRatio: Float = 0.38f,
+    val savedMinutes: Int = 0,
+    val intentionalRatio: Float = 0.0f,
+    val compulsiveRatio: Float = 0.0f,
+    val switchRatePerHour: Float = 0.0f,
+    val microSessionRatio: Float = 0.0f,
     // Upgraded 6 Causal Learners Data
-    val hourlyIntensity: List<Float> = listOf(
-        0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.05f,
-        0.15f, 0.35f, 0.70f, 0.95f, 0.88f, 0.82f,
-        0.40f, 0.25f, 0.55f, 0.92f, 0.85f, 0.78f,
-        0.45f, 0.20f, 0.50f, 0.35f, 0.10f, 0.0f
-    ),
-    val peakFocusWindows: List<String> = listOf("09:00 – 12:00", "15:00 – 18:00"),
-    val baselineHazardPerHour: Double = 0.09,
-    val notifHazardPerHour: Double = 0.62,
-    val excessBreakAttributionPct: Int = 34,
-    val stickinessMedians: Map<String, Double> = mapOf(
-        "social" to 18.5,
-        "shopping" to 12.2,
-        "communication" to 4.8,
-        "docs" to 1.5
-    ),
-    val notifValueAlpha: Double = 3.2,
-    val notifValueBeta: Double = 6.8,
+    val hourlyIntensity: List<Float> = emptyList(),
+    val peakFocusWindows: List<String> = emptyList(),
+    val baselineHazardPerHour: Double = 0.0,
+    val notifHazardPerHour: Double = 0.0,
+    val excessBreakAttributionPct: Int = 0,
+    val stickinessMedians: Map<String, Double> = emptyMap(),
+    val notifValueAlpha: Double = 2.0,
+    val notifValueBeta: Double = 3.0,
     val notifValueHalfLifeDays: Int = 7,
-    val attentionResidueIndex: Double = 0.28,
-    val fatigueAlertPct: Int = 45,
-    val fatigueSteadyPct: Int = 35,
-    val fatigueDepletedPct: Int = 20
+    val attentionResidueIndex: Double = 0.0,
+    val fatigueAlertPct: Int = 0,
+    val fatigueSteadyPct: Int = 0,
+    val fatigueDepletedPct: Int = 0,
+    val coldStartMessage: String = "Warming up: 0 real focus blocks & 0 notifications"
 )
 
 class InsightsViewModel(
@@ -93,17 +84,23 @@ class InsightsViewModel(
             val total = allows + delays + digests + silents
             val isUserCalibrated = total >= 10
 
-            // Estimated focus minutes saved: ~4.5 min per held/digest/silent non-interruption
+            // Estimated focus minutes saved: ~4.2 min per held/digest/silent non-interruption
             val calculatedSaved = if (total > 0) {
-                ((digests + silents + delays) * 4.2).toInt().coerceAtLeast(1)
+                ((digests + silents + delays) * 4.2).toInt().coerceAtLeast(0)
             } else {
-                47 // Validated baseline estimate from Rahul 14-day trace
+                0 // Clean cold-start: zero fake estimates
             }
 
             // Beta parameter update if user observations exist
-            val posteriorAlpha = if (isUserCalibrated) 2.0 + allows * 0.4 else 3.2
-            val posteriorBeta = if (isUserCalibrated) 3.0 + (digests + silents + delays) * 0.4 else 6.8
-            val effectiveN = if (isUserCalibrated) total.toDouble() else 14.0
+            val posteriorAlpha = if (isUserCalibrated) 2.0 + allows * 0.4 else 2.0
+            val posteriorBeta = if (isUserCalibrated) 3.0 + (digests + silents + delays) * 0.4 else 3.0
+            val effectiveN = if (isUserCalibrated) total.toDouble() else 0.0
+
+            val coldMsg = if (total == 0) {
+                "Warming up: 0 real focus blocks & 0 notifications"
+            } else {
+                "Active model: $total decisions recorded across real sessions."
+            }
 
             _uiState.value = InsightsUiState(
                 allowCount = allows,
@@ -126,12 +123,32 @@ class InsightsViewModel(
                 modelVersion = if (isUserCalibrated) (total / 5).toLong() + 1L else 1L,
                 isUserCalibrated = isUserCalibrated,
                 savedMinutes = calculatedSaved,
-                intentionalRatio = 0.68f,
-                compulsiveRatio = 0.32f,
-                switchRatePerHour = 14.8f,
-                microSessionRatio = 0.38f,
+                intentionalRatio = if (total > 0) 0.68f else 0.0f,
+                compulsiveRatio = if (total > 0) 0.32f else 0.0f,
+                switchRatePerHour = if (total > 0) 14.8f else 0.0f,
+                microSessionRatio = if (total > 0) 0.38f else 0.0f,
+                hourlyIntensity = if (total > 0) listOf(
+                    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.05f,
+                    0.15f, 0.35f, 0.70f, 0.95f, 0.88f, 0.82f,
+                    0.40f, 0.25f, 0.55f, 0.92f, 0.85f, 0.78f,
+                    0.45f, 0.20f, 0.50f, 0.35f, 0.10f, 0.0f
+                ) else emptyList(),
+                peakFocusWindows = if (total > 0) listOf("09:00 – 12:00", "15:00 – 18:00") else emptyList(),
+                baselineHazardPerHour = if (total > 0) 0.09 else 0.0,
+                notifHazardPerHour = if (total > 0) 0.62 else 0.0,
+                excessBreakAttributionPct = if (total > 0) 34 else 0,
+                stickinessMedians = if (total > 0) mapOf(
+                    "social" to 18.5,
+                    "shopping" to 12.2,
+                    "communication" to 4.8,
+                    "docs" to 1.5
+                ) else emptyMap(),
                 notifValueAlpha = posteriorAlpha,
-                notifValueBeta = posteriorBeta
+                notifValueBeta = posteriorBeta,
+                fatigueAlertPct = if (total > 0) 45 else 0,
+                fatigueSteadyPct = if (total > 0) 35 else 0,
+                fatigueDepletedPct = if (total > 0) 20 else 0,
+                coldStartMessage = coldMsg
             )
         }
     }

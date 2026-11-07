@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -19,7 +20,9 @@ import kotlin.math.roundToInt
 
 @Composable
 fun SimulateTab(stateHolder: DhyanStateHolder? = null, modifier: Modifier = Modifier) {
-    val viewModel = remember { SimulateViewModel() }
+    val context = LocalContext.current
+    val db = remember(context) { com.dhyan.app.data.DhyanDatabase.getInstance(context) }
+    val viewModel = remember(db) { SimulateViewModel(appLabelDao = db.appLabelDao()) }
     SimulateTab(viewModel, modifier)
 }
 
@@ -40,10 +43,10 @@ fun SimulateTab(viewModel: SimulateViewModel, modifier: Modifier = Modifier) {
             Text("Interactive attention dynamics and synthetic persona simulations.", style = MaterialTheme.typography.bodyLarge)
         }
         SimCard("A safe place to experiment") {
-            Text("Synthetic personas · in-memory simulation. This does not change your live notifications.",
+            Text("Digital Twin profile simulation. This does not change your live notifications.",
                 style = MaterialTheme.typography.bodyMedium)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(PersonaCatalog.RAHUL, PersonaCatalog.ANIKA, PersonaCatalog.KABIR).forEach { persona ->
+                listOf(PersonaCatalog.REAL_USER, PersonaCatalog.RAHUL, PersonaCatalog.ANIKA, PersonaCatalog.KABIR).forEach { persona ->
                     ContextChip(persona.name.substringBefore(" "), state.selectedPersona.id == persona.id,
                         { viewModel.selectPersona(persona) })
                 }
@@ -51,14 +54,14 @@ fun SimulateTab(viewModel: SimulateViewModel, modifier: Modifier = Modifier) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(Modifier.weight(1f)) {
                     Text("Learn from a replay", style = MaterialTheme.typography.titleMedium)
-                    Text("14 days of synthetic history", style = MaterialTheme.typography.bodySmall)
+                    Text("Synthetic or historical trace", style = MaterialTheme.typography.bodySmall)
                 }
                 Switch(state.isTrained, { viewModel.setTrained(it) })
             }
             if (state.isReplaying) {
                 LinearProgressIndicator(progress = { state.replayProgress.coerceIn(0f, 1f) },
                     modifier = Modifier.fillMaxWidth())
-                Text("Preparing synthetic history…", style = MaterialTheme.typography.bodySmall)
+                Text("Preparing trace replay…", style = MaterialTheme.typography.bodySmall)
             }
         }
         SimCard("Your context") {
@@ -86,12 +89,16 @@ fun SimulateTab(viewModel: SimulateViewModel, modifier: Modifier = Modifier) {
             Text("Fatigue uses neutral switch-rate and stall inputs in this sandbox.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        SimCard("The interruption") {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(Triple("Social", "social", "social_notif"), Triple("Known contact", "communication", "msg"),
-                    Triple("Promo", "shopping", "promo"), Triple("Work docs", "docs", "alert")).forEach { (label, app, notif) ->
-                    ContextChip(label, state.simCategory == app && state.simNotifCat == notif,
-                        { viewModel.setCategory(app, notif) })
+        SimCard("The interruption (Real Apps)") {
+            Text("Observed apps from phone & laptop", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                state.availableApps.forEach { appOption ->
+                    ContextChip(
+                        label = appOption.label,
+                        isSelected = state.simApp == appOption.label,
+                        onClick = { viewModel.selectApp(appOption) }
+                    )
                 }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

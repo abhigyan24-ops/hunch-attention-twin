@@ -7,13 +7,20 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import com.dhyan.app.actuator.ActuationCoordinator
 import com.dhyan.app.actuator.AndroidNotificationGateway
+import com.dhyan.app.actuator.FocusLeaseController
+import com.dhyan.app.data.AppLabelDao
+import com.dhyan.app.data.AppLabelEntity
+import com.dhyan.app.data.HeldNotifDao
+import com.dhyan.app.data.HeldNotifEntity
 import com.dhyan.app.data.RoomDecisionLogStore
-import com.dhyan.app.ingest.AppCategorizer
 import com.dhyan.app.ingest.ClockOffset
 import com.dhyan.app.ingest.EpisodeRuntime
 import com.dhyan.app.ingest.Normalizer
 import com.dhyan.app.ingest.NotifExtractor
+import com.dhyan.app.safety.FailOpen
 import com.dhyan.app.twin.decision.Action
+import com.dhyan.app.twin.decision.ActuationStatus
+import com.dhyan.app.twin.decision.Decision
 import com.dhyan.app.twin.decision.DecisionProvider
 import com.dhyan.app.twin.decision.DecisionRecordFactory
 import com.dhyan.app.twin.decision.ImportanceProvider
@@ -58,8 +65,14 @@ class NotifCollector : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         sbn ?: return
-        // Skip our own notifications (foreground service notif, digest notifs)
-        if (sbn.packageName == packageName) return
+
+        // 1. Ignore ongoing foreground notifications (e.g. media player, active timer)
+        if (sbn.isOngoing) return
+
+        val isTestNotif = sbn.notification?.channelId == TEST_CHANNEL_ID
+
+        // 2. Ignore our own app's notifications (foreground service, digest cards), unless it's the test channel
+        if (sbn.packageName == packageName && !isTestNotif) return
 
         val ts = ClockOffset.adjustedNow()
         val pkg = sbn.packageName ?: return
@@ -83,6 +96,23 @@ class NotifCollector : NotificationListenerService() {
         // Ephemeral text-derived safety flags and transient hold payload (D56-1, D6-1)
         val extracted = NotifExtractor.extract(notification)
 
+        // Dynamically record app label into Room app_labels for Simulate screen
+        scope.launch(Dispatchers.IO) {
+            appLabelDaoInstance?.let { dao ->
+                val appLabel = runCatching {
+                    packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
+                }.getOrDefault(pkg.substringAfterLast('.'))
+                dao.upsert(
+                    AppLabelEntity(
+                        pkg = pkg,
+                        category = norm.appCat,
+                        label = appLabel,
+                        updatedMs = ts
+                    )
+                )
+            }
+        }
+
         // Notify telemetry / ingest listeners
         scope.launch {
             onEvent?.invoke(norm.appCat, norm.notifCat, norm.senderHash, isVip, norm.ts)
@@ -97,9 +127,9 @@ class NotifCollector : NotificationListenerService() {
             )
         }
 
-        // Decision and Actuation pipeline (Stage 5 + Stage 6 integration)
+        // Decision and Actuation pipeline
         scope.launch(Dispatchers.Default) {
-            processDecisionAndActuation(sbn, pkg, norm, isVip, extracted, ts)
+            processDecisionAndActuation(sbn, pkg, norm, isVip, extracted, ts, isTestNotif, androidCat)
         }
     }
 
@@ -109,12 +139,17 @@ class NotifCollector : NotificationListenerService() {
         norm: Normalizer.NormalizedNotif,
         isVip: Boolean,
         extracted: NotifExtractor.ExtractedNotif,
-        ts: Long
+        ts: Long,
+        isTestNotif: Boolean = false,
+        androidCat: String? = null
     ) {
         val provider = decisionProvider ?: return
         val logStore = decisionLogStore ?: return
         val keyHash = computeKeyHash(sbn, norm.senderHash)
-        sbn.key?.let { AndroidNotificationGateway.platformKeys[keyHash] = it }
+        sbn.key?.let {
+            AndroidNotificationGateway.platformKeys[keyHash] = it
+            AndroidNotificationGateway.platformKeys[it] = it
+        }
 
         val facts = NotificationFacts(
             keyHash = keyHash,
@@ -135,30 +170,94 @@ class NotifCollector : NotificationListenerService() {
         val snapshot = LiveContextHolder.snapshot.value ?: fallbackSnapshot(ts)
         val settings = PolicySettingsHolder.get()
 
-        // 1. Compute decision via Stage 5 pipeline (FailOpen guarded)
-        val decision = provider.decide(facts, snapshot, settings, ts)
+        // Absolute Safety / Never-Hold Rules:
+        // Never suppress call (CATEGORY_CALL), calendar_alarm (CATEGORY_ALARM), otp (isOtpLike),
+        // emergency keywords (hasEmergencyKeyword), or VIP senders.
+        val isCallOrAlarm = androidCat == Notification.CATEGORY_CALL ||
+            androidCat == Notification.CATEGORY_ALARM ||
+            (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && androidCat == Notification.CATEGORY_WORKOUT) ||
+            androidCat == "call" || androidCat == "alarm"
+
+        val isNeverSuppress = isCallOrAlarm || extracted.isOtpLike || extracted.hasEmergencyKeyword || isVip
+
+        val isDeepFocus = runCatching { FocusLeaseController.getInstance(applicationContext).isDeepFocusActive.value }.getOrDefault(false) ||
+            snapshot.focusState == FocusState.DEEP_FOCUS ||
+            snapshot.declaredSession != null
+
+        // 1. Compute decision
+        val computedDecision = if (isNeverSuppress) {
+            FailOpen.decision(facts, ts, if (isVip) "vip_sender" else "safety_never_hold").copy(
+                failedOpen = false,
+                safetyReason = if (isVip) "VIP sender" else "Critical safety classification",
+                explanation = "Allowed immediately: high-priority essential alert."
+            )
+        } else if (isTestNotif) {
+            FailOpen.decision(facts, ts, "test_interception").copy(
+                action = Action.DELAY,
+                failedOpen = false,
+                holdMinutes = 15.0,
+                deltaLMean = 4.5,
+                explanation = "Test notification intercepted during active focus."
+            )
+        } else {
+            provider.decide(facts, snapshot, settings, ts)
+        }
 
         // 2. Score importance for logging
         val importance = importanceProvider?.score(facts) ?: 0.5
 
-        // 3. Log decision record (privacy preserved: no content)
-        val record = DecisionRecordFactory.from(facts, decision, snapshot, settings, importance)
+        // 3. Log decision record
+        val record = DecisionRecordFactory.from(facts, computedDecision, snapshot, settings, importance)
         logStore.append(record)
 
-        // 4. Actuate if action is DELAY, DIGEST, or SILENT in LIVE mode
-        if (decision.action in listOf(Action.DELAY, Action.DIGEST, Action.SILENT) && settings.mode == PolicyMode.LIVE) {
-            val actCoordinator = coordinator ?: return
-            val req = ActuationCoordinator.ActuateRequest(
-                facts = facts,
-                decision = decision,
-                snapshot = snapshot,
-                settings = settings,
+        // 4. Interception and Actuation:
+        // For any notification where decision is defer/batch/silent or during active focus lease/state:
+        val shouldIntercept = !isNeverSuppress && (
+            computedDecision.action in listOf(Action.DELAY, Action.DIGEST, Action.SILENT) || isDeepFocus
+        )
+
+        if (shouldIntercept) {
+            val waitMinutes = computedDecision.holdMinutes ?: 15.0
+            val waitMs = (waitMinutes * 60_000).toLong().coerceAtLeast(60_000L)
+            val gw = gatewayInstance ?: AndroidNotificationGateway(applicationContext)
+
+            // Step A: Immediately snooze the notification so it is physically removed from status bar/lock screen
+            val realKey = sbn.key ?: keyHash
+            gw.snooze(
+                keyHash = realKey,
                 platformId = sbn.id,
                 packageName = pkg,
-                holdPayload = extracted.holdPayload
+                snoozeDurationMs = waitMs
             )
-            val result = actCoordinator.actuate(req)
-            logStore.updateStatus(keyHash, sbn.postTime, result.status.name)
+
+            // Step B: Persist into local Room held_notifs table
+            val heldDao = heldNotifDaoInstance
+            val heldEntity = HeldNotifEntity(
+                keyHash = keyHash,
+                mechanism = "SNOOZE",
+                state = ActuationStatus.HELD.name,
+                appCat = norm.appCat,
+                notifCat = norm.notifCat,
+                senderHash = norm.senderHash,
+                postedTsMs = sbn.postTime,
+                heldSinceMs = ts,
+                holdUntilMs = ts + waitMs,
+                expiresAtMs = ts + (7 * 24 * 3600 * 1000L),
+                ciphertext = null,
+                iv = null,
+                platformId = sbn.id,
+                pkgHash = pkg.hashCode().toString(),
+                decisionAction = computedDecision.action.name,
+                propensity = computedDecision.propensity
+            )
+            heldDao?.insert(heldEntity)
+            logStore.updateStatus(keyHash, sbn.postTime, ActuationStatus.HELD.name)
+
+            // Step C: Send URGENT sync event to laptop
+            val tauMean = computedDecision.deltaLMean ?: 4.5
+            runCatching {
+                com.dhyan.app.DhyanApplication.syncManager.sendUrgentHeldNotification(heldEntity, tauMean)
+            }
         }
     }
 
@@ -231,11 +330,16 @@ class NotifCollector : NotificationListenerService() {
     }
 
     companion object {
+        const val TEST_CHANNEL_ID = "dhyan_interception_test"
+
         @Volatile var vipHashSet: Set<String> = emptySet()
         @Volatile var coordinator: ActuationCoordinator? = null
         @Volatile var decisionProvider: DecisionProvider? = null
         @Volatile var decisionLogStore: RoomDecisionLogStore? = null
         @Volatile var importanceProvider: ImportanceProvider? = null
+        @Volatile var appLabelDaoInstance: AppLabelDao? = null
+        @Volatile var heldNotifDaoInstance: HeldNotifDao? = null
+        @Volatile var gatewayInstance: AndroidNotificationGateway? = null
 
         fun isEnabled(context: Context): Boolean {
             val flat = android.provider.Settings.Secure.getString(

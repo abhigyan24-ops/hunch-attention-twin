@@ -3,6 +3,7 @@ package com.dhyan.app.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dhyan.app.actuator.InMemoryParamPersistence
+import com.dhyan.app.data.AppLabelDao
 import com.dhyan.app.personas.GeneratorConfig
 import com.dhyan.app.personas.LoggingPolicy
 import com.dhyan.app.personas.PersonaCatalog
@@ -47,17 +48,24 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.util.concurrent.ConcurrentHashMap
 
+data class SimAppOption(
+    val label: String,
+    val packageName: String,
+    val category: String,
+    val notifCat: String
+)
+
 data class AbductionReplayState(
     val isExpanded: Boolean = false,
-    val abductedShockU: String = "U = (ε_attend=+0.32, ε_excursion=+0.15, ε_resume=+0.21)",
-    val shockAttend: Double = 0.32,
-    val shockExcursion: Double = 0.15,
-    val shockResume: Double = 0.21,
-    val counterfactualSavingsMin: Double = 14.5
+    val abductedShockU: String = "U = (uncalibrated)",
+    val shockAttend: Double = 0.0,
+    val shockExcursion: Double = 0.0,
+    val shockResume: Double = 0.0,
+    val counterfactualSavingsMin: Double = 0.0
 )
 
 data class SimulateUiState(
-    val selectedPersona: PersonaProfile = UiPersonaCatalog.RAHUL,
+    val selectedPersona: PersonaProfile = UiPersonaCatalog.REAL_USER,
     val isTrained: Boolean = false,
     val isReplaying: Boolean = false,
     val replayProgress: Float = 0f,
@@ -73,7 +81,7 @@ data class SimulateUiState(
     val simApp: String = "Instagram",
     val simCategory: String = "social",
     val simNotifCat: String = "social_notif",
-    val simSender: String = "@deepika_k",
+    val simSender: String = "@contact",
     val simUrgency: Double = 0.2,
     val simRepeatCount: Int = 0,
     val simIsVip: Boolean = false,
@@ -88,22 +96,36 @@ data class SimulateUiState(
     val reasonCode: String = "cost_selected",
     val priorAlpha: Double = 3.0,
     val priorBeta: Double = 4.0,
-    // Upgraded Attention Twin Causal Features
-    val y1ExcursionMin: Double = 12.5,
-    val y1ResumeMin: Double = 6.2,
-    val y1TotalLostMin: Double = 18.7,
+    val y1ExcursionMin: Double = 0.0,
+    val y1ResumeMin: Double = 0.0,
+    val y1TotalLostMin: Double = 0.0,
     val y0ExcursionMin: Double = 0.0,
     val y0ResumeMin: Double = 0.0,
-    val y0TotalLostMin: Double = 0.5,
-    val netFocusSavedMin: Double = 18.2,
-    val ciLowMin: Double = 8.4,
-    val ciHighMin: Double = 26.8,
-    val abductionReplay: AbductionReplayState = AbductionReplayState()
+    val y0TotalLostMin: Double = 0.0,
+    val netFocusSavedMin: Double = 0.0,
+    val ciLowMin: Double = 0.0,
+    val ciHighMin: Double = 0.0,
+    val abductionReplay: AbductionReplayState = AbductionReplayState(),
+    val availableApps: List<SimAppOption> = emptyList(),
+    val coldStartMessage: String = "Warming up: 0 real focus blocks & 0 notifications"
 )
 
-class SimulateViewModel : ViewModel() {
+class SimulateViewModel(
+    private val appLabelDao: AppLabelDao? = null
+) : ViewModel() {
 
     companion object {
+        val DEFAULT_REAL_APPS = listOf(
+            SimAppOption("Instagram", "com.instagram.android", "social", "social_notif"),
+            SimAppOption("WhatsApp", "com.whatsapp", "communication", "msg"),
+            SimAppOption("Slack", "com.slack", "communication", "msg"),
+            SimAppOption("Gmail", "com.google.android.gm", "communication", "msg"),
+            SimAppOption("Amazon", "com.amazon.mShop.android.shopping", "shopping", "promo"),
+            SimAppOption("Docs", "com.google.android.apps.docs", "docs", "alert"),
+            SimAppOption("YouTube", "com.google.android.youtube", "entertainment", "social_notif"),
+            SimAppOption("Chrome", "com.android.chrome", "browser", "alert")
+        )
+
         /** In-memory cache for Stage 4 replay-trained parameter stores. Never writes to Room. */
         val personaStoreCache = ConcurrentHashMap<String, InMemoryParamStore>()
 
@@ -114,7 +136,11 @@ class SimulateViewModel : ViewModel() {
 
         suspend fun trainPersona(personaName: String, onProgress: (Float) -> Unit = {}): InMemoryParamStore {
             personaStoreCache[personaName]?.let { return it }
-            val personaDef = PersonaCatalog.byName(personaName)
+            val personaDef = try {
+                PersonaCatalog.byName(personaName)
+            } catch (_: Exception) {
+                PersonaCatalog.byName("Rahul")
+            }
             val config = GeneratorConfig(seed = 42L, days = 14, world = World.MATCHED, loggingPolicy = LoggingPolicy.ShowAll)
             val generated = HistoryGenerator.generate(personaDef, config)
             val store = InMemoryParamStore(persistence = InMemoryParamPersistence(), flushDispatcher = Dispatchers.Unconfined)
@@ -143,6 +169,41 @@ class SimulateViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(computeInitialState())
     val uiState: StateFlow<SimulateUiState> = _uiState.asStateFlow()
 
+    init {
+        refreshApps()
+    }
+
+    fun refreshApps() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val loaded = appLabelDao?.loadAll()?.map { entity ->
+                val notifCat = when (entity.category) {
+                    "communication", "comms" -> "msg"
+                    "shopping" -> "promo"
+                    "docs", "productivity", "system" -> "alert"
+                    else -> "social_notif"
+                }
+                SimAppOption(
+                    label = entity.label,
+                    packageName = entity.pkg,
+                    category = if (entity.category == "comms") "communication" else entity.category,
+                    notifCat = notifCat
+                )
+            } ?: emptyList()
+
+            val combined = (loaded + DEFAULT_REAL_APPS).distinctBy { it.packageName }
+            _uiState.value = _uiState.value.copy(availableApps = combined)
+        }
+    }
+
+    fun selectApp(option: SimAppOption) {
+        _uiState.value = _uiState.value.copy(
+            simApp = option.label,
+            simCategory = option.category,
+            simNotifCat = option.notifCat
+        )
+        recompute()
+    }
+
     private fun computeInitialState(): SimulateUiState {
         val fIndex = FatigueIndex.compute(hoursWorked = 4.0, switchRateZ = 0.0, stallRatio = 0.0)
         val fBand = FatigueIndex.band(fIndex)
@@ -150,7 +211,7 @@ class SimulateViewModel : ViewModel() {
 
         val initialOutcome = runTwinSimulation(
             store = coldStore,
-            personaName = "Rahul",
+            personaName = "Real User",
             isTrained = false,
             task = "coding",
             category = "social",
@@ -166,6 +227,7 @@ class SimulateViewModel : ViewModel() {
         )
 
         return SimulateUiState(
+            selectedPersona = UiPersonaCatalog.REAL_USER,
             simulationResult = initialOutcome.simResult,
             deltaLMean = initialOutcome.simResult.expectedLostShowMin - initialOutcome.simResult.expectedLostSuppressMin,
             evidenceStrength = initialOutcome.evidenceStrength,
@@ -188,7 +250,8 @@ class SimulateViewModel : ViewModel() {
             netFocusSavedMin = initialOutcome.netFocusSavedMin,
             ciLowMin = initialOutcome.ciLowMin,
             ciHighMin = initialOutcome.ciHighMin,
-            abductionReplay = initialOutcome.abductionReplay
+            abductionReplay = initialOutcome.abductionReplay,
+            availableApps = DEFAULT_REAL_APPS
         )
     }
 
@@ -217,7 +280,6 @@ class SimulateViewModel : ViewModel() {
             recompute(storeOverride = cached)
             return
         }
-        // Train in background off main thread with progress
         _uiState.value = _uiState.value.copy(isReplaying = true, replayProgress = 0f)
         viewModelScope.launch(Dispatchers.Default) {
             val store = trainPersona(personaName) { progress ->
@@ -418,17 +480,14 @@ class SimulateViewModel : ViewModel() {
             repeatCount5m = repeatCount
         )
 
-        // 1. Run raw TwinEngine simulation (pure physics, no UI multipliers)
         val engine = TwinEngine(store, TwinConfig.default(), clock = { nowMs })
         val simOutcome = engine.simulate(snapshot, notifInput, seed = 42L)
 
-        // 2. Resolve ModelSnapshot for Twin Lab posterior display
         val bucket = ContextBucketer.bucket(snapshot, notifInput)
         val baseline = ContextBucketer.baselineBucket(snapshot)
         val resolvedSnapshot = store.resolve(bucket, baseline, notifInput)
         val (priorAlpha, priorBeta) = com.dhyan.app.twin.params.PriorTable.pickupPrior(category, notifCat, fatigueBand)
 
-        // 3. Evaluate DecisionPipeline for verdict, explanation & safety (Amendment 3)
         val facts = NotificationFacts(
             keyHash = "sim_${category}_${notifCat}",
             postedTsMs = nowMs,
@@ -540,7 +599,6 @@ class SimulateViewModel : ViewModel() {
                 )
             }
             is SimOutcome.NotReady -> {
-                // Fail-open per spec 25.5 (Amendment 4): NO fabricated estimates
                 val simResult = SimulationResult(
                     pDistractionShow = 0.0,
                     pDistractionSuppress = 0.0,

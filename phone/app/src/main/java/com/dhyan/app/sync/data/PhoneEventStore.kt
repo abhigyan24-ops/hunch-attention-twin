@@ -8,8 +8,12 @@ import com.dhyan.app.sync.session.RelayClient
 import java.util.UUID
 
 /** Identity allocation and insertion share a Room transaction; never re-identify historical rows. */
-class PhoneEventStore(private val db: DhyanDatabase) {
+class PhoneEventStore(private val db: DhyanDatabase, private val customDeviceId: String? = null) {
     suspend fun deviceId(): String = db.withTransaction {
+        if (!customDeviceId.isNullOrBlank()) {
+            db.settingsDao().set(SettingsEntity("sync_installation_id", customDeviceId, System.currentTimeMillis()))
+            return@withTransaction customDeviceId
+        }
         db.settingsDao().get("sync_installation_id") ?: UUID.randomUUID().toString().also {
             db.settingsDao().set(SettingsEntity("sync_installation_id", it, System.currentTimeMillis()))
         }

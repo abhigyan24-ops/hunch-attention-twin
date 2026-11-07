@@ -2,6 +2,7 @@ package com.dhyan.app.sync
 
 import com.dhyan.app.actuator.ActuationEventBus
 import com.dhyan.app.twin.decision.ActuationStatus
+import com.dhyan.app.actuator.FocusLeaseController
 import com.dhyan.app.actuator.HeldItemsView
 import com.dhyan.app.actuator.PhoneControl
 import com.dhyan.app.actuator.RoomHeldItemsView
@@ -10,6 +11,7 @@ import com.dhyan.app.data.CmdLogDao
 import com.dhyan.app.data.CmdLogEntity
 import com.dhyan.app.data.DhyanDatabase
 import com.dhyan.app.data.EventDao
+import com.dhyan.app.data.HeldNotifEntity
 import com.dhyan.app.data.SettingsDao
 import com.dhyan.app.data.SettingsEntity
 import com.dhyan.app.fusion.ContextFuser
@@ -52,6 +54,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.util.concurrent.TimeUnit
 
 /**
  * Top-level coordinator for cross-device synchronization (Milestones M1-M4).
@@ -66,7 +73,8 @@ class SyncManager(
     private val sessionTransportProvider: () -> SessionTransport = { OkHttpSessionTransport() },
     private val keyWrapper: KeyWrapper = KeystoreKeyWrapper(),
     private val actuationEventBus: ActuationEventBus = SharedActuationEventBus,
-    private val heldItemsView: HeldItemsView = RoomHeldItemsView(db.heldNotifDao())
+    private val heldItemsView: HeldItemsView = RoomHeldItemsView(db.heldNotifDao()),
+    private val focusLeaseController: FocusLeaseController? = null
 ) {
     private val settingsDao: SettingsDao = db.settingsDao()
     private val cmdLogDao: CmdLogDao = db.cmdLogDao()
@@ -247,8 +255,8 @@ class SyncManager(
             phoneControl = phoneControl,
             cmdLogDao = cmdLogDao,
             relayClient = client,
-            heldItemsView = heldItemsView
-            , transaction = { block -> db.withTransaction { block() } }
+            heldItemsView = heldItemsView,
+            transaction = { block -> db.withTransaction { block() } }
         )
         commandDispatcher = dispatcher
 
@@ -315,6 +323,9 @@ class SyncManager(
                 val lStateStr = parsed["laptopState"] as? String ?: "offline"
                 val lState = LaptopState.entries.find { it.wire.equals(lStateStr, ignoreCase = true) }
                     ?: LaptopState.OFFLINE
+
+                val focusStr = (parsed["focus"] as? String) ?: (parsed["laptopFocus"] as? String)
+                focusLeaseController?.onLaptopFocusStateChanged(focusStr, lState)
 
                 val declaredMap = parsed["declared"] as? Map<*, *>
                 val declaredSession = if (declaredMap != null) {
@@ -416,6 +427,7 @@ class SyncManager(
 
     fun startFocusSession(minutes: Double, task: String = "coding", strict: Boolean = false) {
         scope.launch {
+            focusLeaseController?.onPhoneFocusSessionStarted(minutes)
             phoneControl.declareSession(task, minutes, strict)
             val session = LiveContextHolder.currentSnapshot()?.declaredSession
             if (session != null) {
@@ -434,11 +446,73 @@ class SyncManager(
 
     fun endFocusSession() {
         scope.launch {
+            focusLeaseController?.onPhoneFocusSessionEnded()
             phoneControl.endSession()
             _activeDeclaredSession.value = null
             contextFuser.updateDeclaredSession(null)
             val now = System.currentTimeMillis()
             recordLocalEvent("session_ended", "phone", emptyMap(), now)
+        }
+    }
+
+    /**
+     * Sends an urgent sync event to the laptop so intercepted notifications appear immediately
+     * on both Laptop Dashboard and Phone Live screen under "Held Notifications Digest".
+     */
+    fun sendUrgentHeldNotification(entity: HeldNotifEntity, tauMeanMin: Double = 4.5) {
+        scope.launch {
+            runCatching { commandDispatcher?.sendHeldList() }
+            runCatching { dataEngine?.exportOutboundBatch(outgoingAck) }
+
+            val jsonPayload = """{"keyHash":"${entity.keyHash}","appCat":"${entity.appCat}","notifCat":"${entity.notifCat}","heldAt":${entity.heldSinceMs},"holdUntil":${entity.holdUntilMs},"tauMean":$tauMeanMin}"""
+            val urlCandidates = listOf(
+                "http://127.0.0.1:8080/ingest/batch",
+                "http://10.0.2.2:8080/ingest/batch"
+            )
+            val mediaType = "application/json; charset=utf-8".toMediaType()
+            for (url in urlCandidates) {
+                runCatching {
+                    val client = OkHttpClient.Builder()
+                        .connectTimeout(500, TimeUnit.MILLISECONDS)
+                        .readTimeout(500, TimeUnit.MILLISECONDS)
+                        .build()
+                    val req = Request.Builder()
+                        .url(url)
+                        .post(jsonPayload.toRequestBody(mediaType))
+                        .build()
+                    client.newCall(req).execute().close()
+                }
+            }
+        }
+    }
+
+    /**
+     * Triggers the laptop data reset (POST /reset).
+     */
+    fun triggerLaptopReset() {
+        scope.launch {
+            val cmdId = "reset_${System.currentTimeMillis()}"
+            val resetCmd = """{"cmdId":"$cmdId","cmd":"reset","args":{},"issuedTs":${System.currentTimeMillis()},"exp":${System.currentTimeMillis() + 30_000L}}"""
+            runCatching { relayClient?.sendEncrypted("command", resetCmd) }
+
+            val urlCandidates = listOf(
+                "http://127.0.0.1:8080/reset",
+                "http://10.0.2.2:8080/reset"
+            )
+            val mediaType = "application/json; charset=utf-8".toMediaType()
+            for (url in urlCandidates) {
+                runCatching {
+                    val client = OkHttpClient.Builder()
+                        .connectTimeout(1, TimeUnit.SECONDS)
+                        .readTimeout(1, TimeUnit.SECONDS)
+                        .build()
+                    val req = Request.Builder()
+                        .url(url)
+                        .post("{}".toRequestBody(mediaType))
+                        .build()
+                    client.newCall(req).execute().close()
+                }
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.dhyan.app.ui.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dhyan.app.actuator.ActuatorConfig
@@ -7,17 +8,20 @@ import com.dhyan.app.actuator.KillSwitchController
 import com.dhyan.app.actuator.digest.DigestBuilder
 import com.dhyan.app.actuator.digest.DigestPoster
 import com.dhyan.app.data.CmdLogEntity
+import com.dhyan.app.data.DhyanDatabase
 import com.dhyan.app.data.SettingsDao
 import com.dhyan.app.data.SettingsEntity
 import com.dhyan.app.data.VipDao
 import com.dhyan.app.data.VipEntity
 import com.dhyan.app.ingest.AppCategorizer
 import com.dhyan.app.sync.SyncManager
+import com.dhyan.app.sync.data.DeviceIdProvider
 import com.dhyan.app.twin.decision.PolicyMode
 import com.dhyan.app.twin.decision.PolicySettings
 import com.dhyan.app.twin.model.DeclaredSession
 import com.dhyan.app.ui.model.PolicySettingsHolder
 import com.dhyan.app.ui.settings.SyncUiStatus
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,6 +42,7 @@ class SettingsViewModel(
     private val killSwitchController: KillSwitchController? = null,
     private val digestPoster: DigestPoster? = null,
     private val syncManager: SyncManager? = null,
+    private val db: DhyanDatabase? = null,
     val salt: String = "dhyan_salt_default",
     coroutineScope: kotlinx.coroutines.CoroutineScope? = null
 ) : ViewModel() {
@@ -227,5 +232,23 @@ class SettingsViewModel(
                 )
             )
         )
+    }
+
+    /**
+     * Clears phone Room tables (held_notifs, decisions, feedback, events, etc.),
+     * resets persistent UUID device ID, and triggers laptop reset (POST /reset).
+     */
+    fun wipeAndResetMyData(context: Context) {
+        scope.launch(Dispatchers.IO) {
+            db?.let { database ->
+                runCatching { database.clearAllTables() }
+            }
+
+            SimulateViewModel.personaStoreCache.clear()
+            DeviceIdProvider.resetDeviceId(context)
+
+            syncManager?.triggerLaptopReset()
+            loadVips()
+        }
     }
 }

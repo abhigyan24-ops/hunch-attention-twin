@@ -1,12 +1,30 @@
-import {spawn,type ChildProcess} from 'node:child_process';
+import {spawn, execFile, type ChildProcess} from 'node:child_process';
 import {join} from 'node:path';
+import {existsSync} from 'node:fs';
 import type {CategorizedEvent} from './jsonlStore';
+
+export function killTree(pid: number): Promise<void> {
+ return new Promise(res => {
+  if (process.platform === 'win32') {
+   execFile('taskkill', ['/pid', String(pid), '/T', '/F'], () => res());
+  } else {
+   try {
+    process.kill(-pid, 'SIGTERM');
+   } catch {}
+   res();
+  }
+ });
+}
 
 export interface TwinState {
  focus_depth: number;
  fatigue_p: number;
  held_count: number;
  alignment: number;
+ lease?: {
+  focus: string;
+  leaseMs: number;
+ };
  pet: {
   mode: string;
   opacity: number;
@@ -22,10 +40,62 @@ export class SidecarManager {
  private buffer: Array<{ts: number; type: string; payload: string}> = [];
  private flushTimer: ReturnType<typeof setInterval> | null = null;
  private lastClockOffset = 0;
+ private leaseTimer: ReturnType<typeof setInterval> | null = null;
+ private currentLeaseFocus: 'normal' | 'deep' = 'normal';
+ private phoneLeaseSender: ((focus: 'normal' | 'deep', leaseMs: number) => void) | null = null;
  readonly port = 8765;
  readonly baseUrl = 'http://127.0.0.1:8765';
 
  constructor(private readonly projectRoot: string) {}
+
+ setPhoneLeaseSender(sender: (focus: 'normal' | 'deep', leaseMs: number) => void): void {
+  this.phoneLeaseSender = sender;
+ }
+
+ async broadcastFocusLease(focus: 'normal' | 'deep', leaseMs: number): Promise<boolean> {
+  try {
+   const res = await fetch(`${this.baseUrl}/twin/lease`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({focus, leaseMs}),
+    signal: AbortSignal.timeout(2000),
+   });
+   if (this.phoneLeaseSender) {
+    this.phoneLeaseSender(focus, leaseMs);
+   }
+   return res.ok;
+  } catch {
+   if (this.phoneLeaseSender) {
+    this.phoneLeaseSender(focus, leaseMs);
+   }
+   return false;
+  }
+ }
+
+ updateFocusState(isFocusing: boolean): void {
+  const targetFocus: 'normal' | 'deep' = isFocusing ? 'deep' : 'normal';
+  if (targetFocus === 'deep') {
+   if (this.currentLeaseFocus !== 'deep') {
+    this.currentLeaseFocus = 'deep';
+    void this.broadcastFocusLease('deep', 90000);
+    if (this.leaseTimer) clearInterval(this.leaseTimer);
+    this.leaseTimer = setInterval(() => {
+     if (this.currentLeaseFocus === 'deep') {
+      void this.broadcastFocusLease('deep', 90000);
+     }
+    }, 30000);
+   }
+  } else {
+   if (this.currentLeaseFocus === 'deep') {
+    this.currentLeaseFocus = 'normal';
+    if (this.leaseTimer) {
+     clearInterval(this.leaseTimer);
+     this.leaseTimer = null;
+    }
+    void this.broadcastFocusLease('normal', 0);
+   }
+  }
+ }
 
  async start(): Promise<boolean> {
   if (this.running) return true;
@@ -38,18 +108,30 @@ export class SidecarManager {
    return true;
   }
 
-  // 2. Spawn python sidecar
-  const pythonBin = process.platform === 'win32' ? 'python' : 'python3';
+  // 2. Check for frozen engine if packaged or fallback to python
+  const packagedDir = (process as any).resourcesPath ? join((process as any).resourcesPath, 'engine') : '';
+  const frozenExe = packagedDir ? join(packagedDir, process.platform === 'win32' ? 'dhyan-engine.exe' : 'dhyan-engine') : '';
+  const useFrozen = Boolean(frozenExe && existsSync(frozenExe));
+
   try {
-   this.process = spawn(
-    pythonBin,
-    ['-m', 'uvicorn', 'engine.twin.api.app:app', '--host', '127.0.0.1', '--port', String(this.port), '--no-access-log'],
-    {
-     cwd: this.projectRoot,
-     env: {...process.env, PYTHONPATH: this.projectRoot, PYTHONUNBUFFERED: '1'},
+   if (useFrozen) {
+    this.process = spawn(frozenExe, [], {
+     cwd: packagedDir,
+     env: {...process.env, TWIN_TOKEN: 'dhyan-local-twin-token'},
      stdio: ['ignore', 'pipe', 'pipe'],
-    }
-   );
+    });
+   } else {
+    const pythonBin = process.platform === 'win32' ? 'python' : 'python3';
+    this.process = spawn(
+     pythonBin,
+     ['-m', 'uvicorn', 'engine.twin.api.app:app', '--host', '127.0.0.1', '--port', String(this.port), '--no-access-log'],
+     {
+      cwd: this.projectRoot,
+      env: {...process.env, PYTHONPATH: this.projectRoot, PYTHONUNBUFFERED: '1'},
+      stdio: ['ignore', 'pipe', 'pipe'],
+     }
+    );
+   }
 
    this.process.stdout?.on('data', (d: Buffer) => {
     const msg = d.toString();
@@ -177,14 +259,22 @@ export class SidecarManager {
 
  async stop(): Promise<void> {
   this.running = false;
+  if (this.leaseTimer) {
+   clearInterval(this.leaseTimer);
+   this.leaseTimer = null;
+  }
+  if (this.currentLeaseFocus === 'deep') {
+   this.currentLeaseFocus = 'normal';
+   void this.broadcastFocusLease('normal', 0);
+  }
   if (this.flushTimer) {
    clearInterval(this.flushTimer);
    this.flushTimer = null;
   }
   await this.flush();
-  if (this.process) {
+  if (this.process?.pid) {
    try {
-    this.process.kill();
+    await killTree(this.process.pid);
    } catch {
     // Already exited
    }

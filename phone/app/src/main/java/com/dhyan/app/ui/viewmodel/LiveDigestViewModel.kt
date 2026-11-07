@@ -1,10 +1,17 @@
 package com.dhyan.app.ui.viewmodel
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
+import android.os.Build
+import androidx.core.app.NotificationCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dhyan.app.actuator.Clock
 import com.dhyan.app.actuator.KillSwitchController
 import com.dhyan.app.actuator.SystemClock
+import com.dhyan.app.collectors.NotifCollector
 import com.dhyan.app.data.DecisionDao
 import com.dhyan.app.data.DecisionEntity
 import com.dhyan.app.data.FeedbackDao
@@ -33,7 +40,8 @@ data class LiveHeldItemUi(
     val heldAgo: String,
     val dueIn: String,
     val propensity: Double,
-    val decisionAction: String
+    val decisionAction: String,
+    val tauMeanSavedMin: Double = 4.5
 )
 
 data class LiveDecisionItemUi(
@@ -58,7 +66,7 @@ data class LiveDigestUiState(
     val heldQueue: List<LiveHeldItemUi> = emptyList(),
     val decisionFeed: List<LiveDecisionItemUi> = emptyList(),
     val historyStrip: List<LiveHeldItemUi> = emptyList(),
-    val isFakeProvider: Boolean = true,
+    val isFakeProvider: Boolean = false,
     val provenance: String = "observed",
     val laptopAvailability: String = "No laptop data"
 )
@@ -69,7 +77,7 @@ class LiveDigestViewModel(
     private val feedbackDao: FeedbackDao,
     private val killSwitchController: KillSwitchController? = null,
     private val clock: Clock = SystemClock,
-    val isFakeProvider: Boolean = true,
+    val isFakeProvider: Boolean = false,
     val provenance: String = "observed",
     coroutineScope: kotlinx.coroutines.CoroutineScope? = null
 ) : ViewModel() {
@@ -222,6 +230,34 @@ class LiveDigestViewModel(
         }
     }
 
+    fun sendTestInterceptionNotification(context: Context) {
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                NotifCollector.TEST_CHANNEL_ID,
+                "Focus Test Interception Channel",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "High-priority test alerts for focus mode interception testing"
+                enableVibration(true)
+            }
+            nm.createNotificationChannel(channel)
+        }
+        val notif = NotificationCompat.Builder(
+            context,
+            NotifCollector.TEST_CHANNEL_ID
+        )
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("Test Interception Alert")
+            .setContentText("Focus Mode active: this alert should be snoozed and held")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(Notification.CATEGORY_SOCIAL)
+            .setAutoCancel(true)
+            .build()
+
+        nm.notify(99999, notif)
+    }
+
     private fun HeldNotifEntity.toUi(nowMs: Long): LiveHeldItemUi {
         val elapsedSec = ((nowMs - heldSinceMs) / 1000).coerceAtLeast(0)
         val heldAgo = when {
@@ -252,7 +288,8 @@ class LiveDigestViewModel(
             heldAgo = heldAgo,
             dueIn = dueIn,
             propensity = propensity,
-            decisionAction = decisionAction
+            decisionAction = decisionAction,
+            tauMeanSavedMin = 4.5
         )
     }
 

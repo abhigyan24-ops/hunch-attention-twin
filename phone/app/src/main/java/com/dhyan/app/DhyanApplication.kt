@@ -3,6 +3,7 @@ package com.dhyan.app
 import android.app.Application
 import com.dhyan.app.actuator.ActuationCoordinator
 import com.dhyan.app.actuator.AndroidNotificationGateway
+import com.dhyan.app.actuator.FocusLeaseController
 import com.dhyan.app.actuator.KillSwitchController
 import com.dhyan.app.actuator.PhoneControlImpl
 import com.dhyan.app.actuator.RoomHeldStore
@@ -13,6 +14,7 @@ import com.dhyan.app.data.RoomDecisionLogStore
 import com.dhyan.app.data.RoomParamPersistence
 import com.dhyan.app.ingest.EpisodeRuntime
 import com.dhyan.app.sync.SyncManager
+import com.dhyan.app.sync.data.DeviceIdProvider
 import com.dhyan.app.twin.decision.DecisionPipeline
 import com.dhyan.app.twin.decision.ImportanceModel
 import com.dhyan.app.twin.decision.ModelImportanceProvider
@@ -46,6 +48,9 @@ class DhyanApplication : Application() {
     }
 
     private fun initializePipeline() {
+        // Enforce unique persistent device ID per installation in SharedPreferences
+        DeviceIdProvider.getDeviceId(this)
+
         val db = DhyanDatabase.getInstance(this)
         val persistence = RoomParamPersistence(db.paramDao())
         val paramStore = InMemoryParamStore(persistence)
@@ -64,6 +69,12 @@ class DhyanApplication : Application() {
         NotifCollector.decisionLogStore = decisionLogStore
         NotifCollector.coordinator = coordinator
         NotifCollector.importanceProvider = importanceProvider
+        NotifCollector.appLabelDaoInstance = db.appLabelDao()
+        NotifCollector.heldNotifDaoInstance = db.heldNotifDao()
+        NotifCollector.gatewayInstance = gateway
+
+        // Initialize FocusLeaseController singleton
+        val focusLeaseController = FocusLeaseController.getInstance(this)
 
         val phoneControl = PhoneControlImpl(
             heldStore = heldStore,
@@ -71,7 +82,8 @@ class DhyanApplication : Application() {
         )
         syncManager = SyncManager(
             db = db,
-            phoneControl = phoneControl
+            phoneControl = phoneControl,
+            focusLeaseController = focusLeaseController
         )
 
         val runtime = EpisodeRuntime(paramStore)

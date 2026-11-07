@@ -78,6 +78,15 @@ data class PersonaProfile(
 )
 
 object PersonaCatalog {
+    val REAL_USER = PersonaProfile(
+        id = "real_user",
+        name = "My Real Twin",
+        role = "Your Real Profile",
+        description = "Empirically calibrated from your unique device telemetry and focus sessions.",
+        medianSessionMin = 30,
+        pPickupDefault = 0.50,
+        typicalApps = emptyList()
+    )
     val RAHUL = PersonaProfile(
         id = "rahul",
         name = "Rahul Sharma",
@@ -98,13 +107,11 @@ object PersonaCatalog {
     )
     val KABIR = PersonaProfile(
         id = "kabir",
-        name = "Kabir Verma",
-        role = "Graduate Student / Researcher",
-        description = "Intense evening study blocks (8 PM - 1 AM). High susceptibility to infinite scroll drift after social pings.",
-        medianSessionMin = 36,
-        pPickupDefault = 0.54,
-        typicalApps = listOf("Instagram", "YouTube", "Discord", "Notion")
+        name = "Kabir Mehta",
+        role = "Design & Content Creator",
+        description = "Visual workflows, high media consumption, variable cadence. Prone to rabbit holes from social alerts.",
+        medianSessionMin = 35,
+        pPickupDefault = 0.71,
+        typicalApps = listOf("Figma", "Instagram", "YouTube", "Behance")
     )
-
-    val ALL = listOf(RAHUL, ANIKA, KABIR)
 }

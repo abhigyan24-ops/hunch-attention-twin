@@ -1,4 +1,5 @@
 import os
+import shutil
 import sqlite3
 import time
 from pathlib import Path
@@ -6,6 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 SCHEMA_PATH = Path(__file__).parent / "schema.sql"
 DEFAULT_DB_PATH = Path(os.getenv("DHYAN_DB_PATH", "dhyan_twin.db"))
+CURRENT_SCHEMA_VERSION = 1
 
 
 class Database:
@@ -21,14 +23,52 @@ class Database:
         conn.execute("PRAGMA synchronous = NORMAL;")
         return conn
 
+    def _backup_db(self, old_ver: int) -> Path:
+        bak_path = self.db_path.with_name(f"{self.db_path.name}.bak-v{old_ver}")
+        shutil.copy2(self.db_path, bak_path)
+        # Prune old backups, keeping only the last 2
+        backups = sorted(self.db_path.parent.glob(f"{self.db_path.name}.bak-v*"), key=os.path.getmtime)
+        while len(backups) > 2:
+            try:
+                backups.pop(0).unlink()
+            except OSError:
+                break
+        return bak_path
+
+    def _restore_db(self, old_ver: int) -> None:
+        bak_path = self.db_path.with_name(f"{self.db_path.name}.bak-v{old_ver}")
+        if bak_path.exists():
+            shutil.copy2(bak_path, self.db_path)
+
+    def _migrate(self, conn: sqlite3.Connection, from_ver: int, to_ver: int) -> None:
+        # Schema migration hooks for forward transitions
+        pass
+
     def init_db(self) -> None:
         if self.db_path.parent and not self.db_path.parent.exists():
             self.db_path.parent.mkdir(parents=True, exist_ok=True)
         with self.get_connection() as conn:
-            if SCHEMA_PATH.exists():
-                with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
-                    conn.executescript(f.read())
-            conn.commit()
+            cur = conn.cursor()
+            cur.execute("PRAGMA user_version;")
+            row = cur.fetchone()
+            version = row[0] if row else 0
+
+            if version == 0:
+                if SCHEMA_PATH.exists():
+                    with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
+                        conn.executescript(f.read())
+                cur.execute(f"PRAGMA user_version = {CURRENT_SCHEMA_VERSION};")
+                conn.commit()
+            elif version < CURRENT_SCHEMA_VERSION:
+                self._backup_db(version)
+                try:
+                    self._migrate(conn, version, CURRENT_SCHEMA_VERSION)
+                    cur.execute(f"PRAGMA user_version = {CURRENT_SCHEMA_VERSION};")
+                    conn.commit()
+                except Exception as err:
+                    conn.rollback()
+                    self._restore_db(version)
+                    raise RuntimeError(f"Database migration from v{version} failed, restored backup: {err}")
 
     def calculate_ntp_offset(
         self,
@@ -201,6 +241,70 @@ class Database:
                 "nudges_dismissed": int(row["dismissed"]) if row else 0,
                 "threshold_multiplier": float(row["multiplier"]) if row else 1.0,
             }
+
+    def clear_all_data(self) -> None:
+        """Wipes all data tables to completely reset the twin database to 0 events."""
+        with self.get_connection() as conn:
+            conn.execute("DELETE FROM events;")
+            conn.execute("DELETE FROM input_summary;")
+            conn.execute("DELETE FROM notifications;")
+            conn.execute("DELETE FROM focus_blocks;")
+            conn.execute("DELETE FROM notif_outcomes;")
+            conn.execute("DELETE FROM self_reports;")
+            conn.execute("DELETE FROM nudge_telemetry;")
+            conn.execute("DELETE FROM device_sync;")
+            try:
+                conn.execute("DELETE FROM sqlite_sequence;")
+            except Exception:
+                pass
+            conn.commit()
+
+    def get_distinct_apps(self) -> List[str]:
+        """
+        Returns distinct real apps observed in notifications and input summaries.
+        Falls back to standard messaging/social packages only if DB is empty.
+        """
+        with self.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT DISTINCT app_pkg AS app FROM notifications WHERE app_pkg IS NOT NULL AND app_pkg != ''
+                UNION
+                SELECT DISTINCT active_app AS app FROM input_summary WHERE active_app IS NOT NULL AND active_app != ''
+                """
+            )
+            apps = [str(r["app"]) for r in cur.fetchall() if r["app"]]
+        if not apps:
+            return [
+                "com.whatsapp",
+                "com.google.android.gm",
+                "com.slack",
+                "com.google.android.apps.messaging",
+                "com.instagram.android",
+            ]
+        return apps
+
+    def get_counts(self) -> Dict[str, int]:
+        with self.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) AS cnt FROM events")
+            events = int(cur.fetchone()["cnt"])
+            cur.execute("SELECT COUNT(*) AS cnt FROM notifications")
+            notifs = int(cur.fetchone()["cnt"])
+            cur.execute("SELECT COUNT(*) AS cnt FROM focus_blocks")
+            blocks = int(cur.fetchone()["cnt"])
+            cur.execute("SELECT COUNT(*) AS cnt FROM input_summary")
+            inputs = int(cur.fetchone()["cnt"])
+            cur.execute("SELECT COUNT(*) AS cnt FROM notif_outcomes")
+            outcomes = int(cur.fetchone()["cnt"])
+        return {
+            "events": events,
+            "notifications": notifs,
+            "focus_blocks": blocks,
+            "input_summaries": inputs,
+            "notif_outcomes": outcomes,
+        }
+
 
 
 _db_instance: Optional[Database] = None

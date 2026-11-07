@@ -11,27 +11,32 @@ class NotificationValueLearner:
     Preserves strict privacy invariants: sender identities are salted SHA-256 hashes only.
     """
 
-    def __init__(self, half_life_days: float = 7.0, prior_alpha: float = 2.0, prior_beta: float = 3.0):
+    def __init__(self, half_life_days: float = 7.0, prior_alpha: float = 1.0, prior_beta: float = 1.0):
         self.half_life_ms = half_life_days * 86400 * 1000.0
         self.decay_lambda = math.log(2.0) / self.half_life_ms
         self.prior_alpha = prior_alpha
         self.prior_beta = prior_beta
 
         # Category level: cat -> (alpha, beta, last_update_ts)
+        # Bayesian shrinkage priors: Beta(1, 1) default uninformative prior: E[V] = (1.0 + successes) / (2.0 + total) = 0.50
+        standard_cats = ["work", "communication", "system", "entertainment", "social", "shopping", "promo"]
         self.category_posteriors: Dict[str, Tuple[float, float, int]] = {
-            "work": (8.0, 2.0, 0),
-            "communication": (6.0, 4.0, 0),
-            "system": (4.0, 4.0, 0),
-            "entertainment": (3.0, 7.0, 0),
-            "social": (2.5, 7.5, 0),
-            "shopping": (1.5, 8.5, 0),
-            "promo": (1.0, 9.0, 0),
+            c: (self.prior_alpha, self.prior_beta, 0) for c in standard_cats
         }
         # Sender hash level: sender_hash -> (alpha, beta, last_update_ts)
         self.sender_posteriors: Dict[str, Tuple[float, float, int]] = {}
+        self.real_notifs_count: int = 0
         self.fitted = False
 
     def fit(self, notifications: List[Dict[str, Any]], now_ms: Optional[int] = None) -> "NotificationValueLearner":
+        self.real_notifs_count = len(notifications)
+        # Reset to base Beta(1,1) priors before re-fitting
+        standard_cats = ["work", "communication", "system", "entertainment", "social", "shopping", "promo"]
+        self.category_posteriors = {
+            c: (self.prior_alpha, self.prior_beta, 0) for c in standard_cats
+        }
+        self.sender_posteriors = {}
+
         if not notifications:
             self.fitted = True
             return self
@@ -53,7 +58,7 @@ class NotificationValueLearner:
             # Utility target: VIP is 1.0, urgency provides base signal
             target = 1.0 if is_vip else min(1.0, max(0.0, urgency))
 
-            # Update category posterior
+            # Update category posterior: BetaValue(1, 1) shrinkage: (1.0 + successes) / (2.0 + total)
             c_alpha, c_beta, _ = self.category_posteriors.get(
                 cat, (self.prior_alpha, self.prior_beta, now_ms)
             )
@@ -106,4 +111,6 @@ class NotificationValueLearner:
             },
             "sender_count": len(self.sender_posteriors),
             "fitted": self.fitted,
+            "real_notifs_count": self.real_notifs_count,
+            "warming_up": self.real_notifs_count < 5,
         }
