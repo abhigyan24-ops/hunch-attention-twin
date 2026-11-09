@@ -1,6 +1,6 @@
 // laptop/src/main/updater.ts
 import { app, Notification } from 'electron';
-import { autoUpdater } from 'electron-updater';
+import electronUpdater from 'electron-updater';
 import log from 'electron-log';
 
 export interface UpdaterDeps {
@@ -11,6 +11,7 @@ export interface UpdaterDeps {
   beta: boolean;
 }
 
+const { autoUpdater } = electronUpdater;
 autoUpdater.logger = log;
 autoUpdater.autoDownload = true;
 autoUpdater.autoInstallOnAppQuit = true; // silent install next time the app quits
