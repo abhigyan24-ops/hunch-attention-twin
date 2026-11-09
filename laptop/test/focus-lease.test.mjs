@@ -79,3 +79,18 @@ test('SidecarManager handles focus lease broadcast and state transitions', async
     await new Promise(resolve => server.close(resolve));
   }
 });
+
+test('SidecarManager injects writable DHYAN_DB_PATH into engine spawn env when dbPath is configured', () => {
+  const customDb = '/tmp/dhyan-userdata/dhyan_twin.db';
+  const configured = new SidecarManager('/tmp/dhyan-app', customDb);
+  const frozenEnv = configured.engineEnv(true, {});
+  assert.equal(frozenEnv.DHYAN_DB_PATH, customDb);
+  assert.equal(frozenEnv.TWIN_TOKEN, 'dhyan-local-twin-token');
+
+  const devEnv = configured.engineEnv(false, {});
+  assert.equal(devEnv.DHYAN_DB_PATH, customDb);
+  assert.equal(devEnv.PYTHONPATH, '/tmp/dhyan-app');
+
+  const fallback = new SidecarManager('/tmp/dhyan-app');
+  assert.equal(fallback.engineEnv(true, {}).DHYAN_DB_PATH, undefined);
+});

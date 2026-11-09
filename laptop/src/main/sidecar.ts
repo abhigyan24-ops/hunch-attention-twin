@@ -46,7 +46,10 @@ export class SidecarManager {
  readonly port = 8765;
  readonly baseUrl = 'http://127.0.0.1:8765';
 
- constructor(private readonly projectRoot: string) {}
+ constructor(
+  private readonly projectRoot: string,
+  private readonly dbPath?: string
+ ) {}
 
  setPhoneLeaseSender(sender: (focus: 'normal' | 'deep', leaseMs: number) => void): void {
   this.phoneLeaseSender = sender;
@@ -97,6 +100,13 @@ export class SidecarManager {
   }
  }
 
+ engineEnv(frozen: boolean, baseEnv: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const dbEnv = this.dbPath ? {DHYAN_DB_PATH: this.dbPath} : {};
+  return frozen
+   ? {...baseEnv, ...dbEnv, TWIN_TOKEN: 'dhyan-local-twin-token'}
+   : {...baseEnv, ...dbEnv, PYTHONPATH: this.projectRoot, PYTHONUNBUFFERED: '1'};
+ }
+
  async start(): Promise<boolean> {
   if (this.running) return true;
   this.running = true;
@@ -117,7 +127,7 @@ export class SidecarManager {
    if (useFrozen) {
     this.process = spawn(frozenExe, [], {
      cwd: packagedDir,
-     env: {...process.env, TWIN_TOKEN: 'dhyan-local-twin-token'},
+     env: this.engineEnv(true),
      stdio: ['ignore', 'pipe', 'pipe'],
     });
    } else {
@@ -127,7 +137,7 @@ export class SidecarManager {
      ['-m', 'uvicorn', 'engine.twin.api.app:app', '--host', '127.0.0.1', '--port', String(this.port), '--no-access-log'],
      {
       cwd: this.projectRoot,
-      env: {...process.env, PYTHONPATH: this.projectRoot, PYTHONUNBUFFERED: '1'},
+      env: this.engineEnv(false),
       stdio: ['ignore', 'pipe', 'pipe'],
      }
     );

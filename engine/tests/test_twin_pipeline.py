@@ -1,4 +1,5 @@
 import os
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -12,7 +13,7 @@ from engine.twin.api.app import app
 from engine.twin.causal.abduction import AbductionEngine
 from engine.twin.causal.cate import CausalForestDML
 from engine.twin.causal.conformal import SplitConformal
-from engine.twin.ingest.db import Database
+from engine.twin.ingest.db import Database, _default_db_path
 from engine.twin.learners.fatigue import FatigueLearner
 from engine.twin.learners.focus import FocusLearner
 from engine.twin.learners.fragmentation import FragmentationLearner
@@ -62,6 +63,28 @@ def test_db_and_ntp_sync(temp_db):
     temp_db.record_device_sync("phone_test", offset_1w, 50)
     stored_offset = temp_db.get_device_offset("phone_test")
     assert stored_offset == 25
+
+
+def test_default_db_path_resolution(monkeypatch, tmp_path):
+    monkeypatch.delenv("DHYAN_DB_PATH", raising=False)
+    monkeypatch.delattr(sys, "frozen", raising=False)
+    assert _default_db_path() == Path("dhyan_twin.db")
+
+    # Packaged / frozen binary falls back to user-writable LocalAppData/AppData, never CWD
+    local_app = tmp_path / "LocalAppData"
+    monkeypatch.setenv("LOCALAPPDATA", str(local_app))
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    frozen_path = _default_db_path()
+    assert frozen_path == local_app / "Dhyan" / "dhyan_twin.db"
+
+    # Explicit DHYAN_DB_PATH overrides even in frozen mode and Database() initializes cleanly
+    override_path = tmp_path / "UserData" / "dhyan_twin.db"
+    monkeypatch.setenv("DHYAN_DB_PATH", str(override_path))
+    assert _default_db_path() == override_path
+    db = Database()
+    assert db.db_path == override_path
+    assert override_path.exists()
+    assert db.get_event_count() == 0
 
 
 def test_synth_persona_generation():

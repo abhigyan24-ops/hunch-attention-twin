@@ -12,7 +12,7 @@ import {app,BrowserWindow,ipcMain,powerMonitor,dialog,Tray,Menu,nativeImage,safe
 import {readFileSync,mkdirSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {fileURLToPath} from 'node:url';import eventSchema from '../../../core-spec/event.schema.json';
 import {startLaptopCore} from './laptopCore';
 import {PetBridge} from './petBridge';
 import {PetPositionController} from './petPosition';
@@ -21,7 +21,8 @@ import {declareLocally,type Declaration} from './declaredSession';
 import {readObservedToday} from './panelHistory';
 import type {UiSnapshot} from '../shared/ui';
 import type {PipBehavior} from '../pet/petStateMachine';
-export const SCHEMA_VERSION=readFileSync(new URL('../../../core-spec/SCHEMA_VERSION',import.meta.url),'utf8').trim();
+function readSchemaVersion():string{try{return readFileSync(new URL('../../../core-spec/SCHEMA_VERSION',import.meta.url),'utf8').trim();}catch{return eventSchema.properties.schemaVersion.const;}}
+export const SCHEMA_VERSION=readSchemaVersion();
 let petWindow:BrowserWindow|null=null,panelWindow:BrowserWindow|null=null,tray:Tray|null=null;
 let petPosition:PetPositionController|null=null;
 let petReaction:PetReactionController|null=null;
@@ -131,6 +132,7 @@ app.on('second-instance',openPanel);
 app.whenReady().then(async()=>{
  if(!ownsLock)return;
  console.log('[Dhyan] app.whenReady starting...');
+ process.env.DHYAN_USER_DATA=app.getPath('userData');
  try{
   loadKeys();
   registerKeyIpcHandlers();
@@ -146,7 +148,7 @@ app.whenReady().then(async()=>{
   core=await startLaptopCore(app.getPath('userData'),SCHEMA_VERSION,()=>powerMonitor.getSystemIdleTime());
   console.log('[Dhyan] Laptop core ready');
   try{
-   sidecar=new SidecarManager(join(app.getAppPath(),'..'));
+   sidecar=new SidecarManager(join(app.getAppPath(),'..'),join(app.getPath('userData'),'dhyan_twin.db'));
    void sidecar.start();
    core.pipeline.onEvent(event=>sidecar?.queueEvent(event));
    console.log('[Dhyan] Sidecar initialized');

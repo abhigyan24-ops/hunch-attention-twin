@@ -1,18 +1,31 @@
 import os
 import shutil
 import sqlite3
+import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 SCHEMA_PATH = Path(__file__).parent / "schema.sql"
-DEFAULT_DB_PATH = Path(os.getenv("DHYAN_DB_PATH", "dhyan_twin.db"))
+
+
+def _default_db_path() -> Path:
+    env_path = os.getenv("DHYAN_DB_PATH")
+    if env_path:
+        return Path(env_path)
+    if getattr(sys, "frozen", False):
+        base = os.getenv("LOCALAPPDATA") or os.getenv("APPDATA") or str(Path.home())
+        return Path(base) / "Dhyan" / "dhyan_twin.db"
+    return Path("dhyan_twin.db")
+
+
+DEFAULT_DB_PATH = _default_db_path()
 CURRENT_SCHEMA_VERSION = 1
 
 
 class Database:
     def __init__(self, db_path: Optional[Path] = None):
-        self.db_path = Path(db_path) if db_path else DEFAULT_DB_PATH
+        self.db_path = Path(db_path) if db_path else _default_db_path()
         self.init_db()
 
     def get_connection(self) -> sqlite3.Connection:
