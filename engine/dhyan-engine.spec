@@ -4,7 +4,7 @@ import sys
 
 block_cipher = None
 
-engine_dir = Path(__file__).resolve().parent
+engine_dir = Path(SPECPATH).resolve()
 
 datas = [
     (str(engine_dir / "twin" / "ingest" / "schema.sql"), "twin/ingest"),
