@@ -1,26 +1,48 @@
-node_modules/
-dist/
-out/
-build/
+# IDE and tooling
+.idea/
+.vscode/
+.vscode-test/
+.codex/
 .gradle/
 .kotlin/
-.idea/
 local.properties
+
+# Dependencies and build output
+node_modules/
+dist/
+dist-installer/
+out/
+build/
+*.vsix
 *.apk
-.env
-.env.*
-!.env.example
-*.log
-tools/dataset/out/*.raw
+*.aab
+*.exe
+
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
+.venv/
+venv/
+
+# Secrets and local data
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+*.pem
+*.p12
+*.pfx
+*.sqlite
+*.sqlite3
 *.db
 *.db-shm
 *.db-wal
-*.vsix
+*.log
+tools/dataset/out/*.raw
 
-.vscode-test/
-*.jks
-*.keystore
+# Agent working notes
+PROGRESS.md
+DECISIONS.md
