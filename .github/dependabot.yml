@@ -1,0 +1,26 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /laptop
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /vscode-ext
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /relay
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
+    directory: /engine
+    schedule:
+      interval: weekly
+  - package-ecosystem: gradle
+    directory: /phone
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
