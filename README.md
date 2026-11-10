@@ -1,7 +1,12 @@
-# Dhyan (ध्यान) — Attention Digital Twin
+# Hunch: your attention digital twin
+
+> Knows what that notification will cost you.
+
+Unrelated to other products named Hunch. Hunch is a working name for a prototype.
+
+Codename note: internal package names, protocol constants and storage names still say `dhyan` so existing data and pairings keep working.
 
 [![CI](https://github.com/abhigyan24-ops/cascade-3.3/actions/workflows/release.yml/badge.svg)](https://github.com/abhigyan24-ops/cascade-3.3/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Android](https://img.shields.io/badge/Android-14%20%7C%2015%20%7C%2016-brightgreen.svg)](phone/)
 [![Electron](https://img.shields.io/badge/Electron-45.0-blue.svg)](laptop/)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](engine/)

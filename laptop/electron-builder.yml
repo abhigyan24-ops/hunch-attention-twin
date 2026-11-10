@@ -17,7 +17,7 @@ win:
   target:
     - target: nsis
       arch: [x64]
-  artifactName: Dhyan-Setup-${version}.${ext}
+  artifactName: Hunch-Setup-${version}.${ext}
 nsis:
   oneClick: false
   perMachine: false

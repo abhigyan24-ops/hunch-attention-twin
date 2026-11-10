@@ -1,4 +1,4 @@
-name: Release Dhyan
+name: Release Hunch
 
 on:
   push:
@@ -228,7 +228,7 @@ jobs:
         shell: pwsh
         run: |
           $d = 'laptop/dist-installer'
-          foreach ($pat in 'Dhyan-Setup-*.exe', 'Dhyan-Setup-*.exe.blockmap', 'latest.yml') {
+          foreach ($pat in 'Hunch-Setup-*.exe', 'Hunch-Setup-*.exe.blockmap', 'latest.yml') {
             if (-not (Get-ChildItem -Path $d -Filter $pat -ErrorAction SilentlyContinue)) { throw "missing $pat in $d" }
           }
           $engine = "$d/win-unpacked/resources/engine/dhyan-engine.exe"
@@ -239,8 +239,8 @@ jobs:
         with:
           name: release-desktop
           path: |
-            laptop/dist-installer/Dhyan-Setup-*.exe
-            laptop/dist-installer/Dhyan-Setup-*.exe.blockmap
+            laptop/dist-installer/Hunch-Setup-*.exe
+            laptop/dist-installer/Hunch-Setup-*.exe.blockmap
             laptop/dist-installer/latest.yml
           retention-days: 3
           if-no-files-found: error
@@ -306,7 +306,7 @@ jobs:
           fi
           BT="$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n1)"
           "$ANDROID_HOME/build-tools/$BT/apksigner" verify --print-certs "${APKS[0]}"
-          NAME="Dhyan-${V}.apk"; [ "$SIGNED" = "true" ] || NAME="Dhyan-${V}-debug-signed.apk"
+          NAME="Hunch-${V}.apk"; [ "$SIGNED" = "true" ] || NAME="Hunch-${V}-debug-signed.apk"
           mkdir -p out && cp "${APKS[0]}" "out/$NAME"
 
       - uses: actions/upload-artifact@v4
@@ -342,7 +342,7 @@ jobs:
       - uses: actions/attest-build-provenance@v2
         continue-on-error: true           # unavailable on private repositories
         with:
-          subject-path: 'artifacts/Dhyan-*'
+          subject-path: 'artifacts/Hunch-*'
 
       - name: Create DRAFT release
         uses: softprops/action-gh-release@v2
@@ -352,9 +352,9 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: |
-            artifacts/Dhyan-Setup-*.exe
-            artifacts/Dhyan-Setup-*.exe.blockmap
+            artifacts/Hunch-Setup-*.exe
+            artifacts/Hunch-Setup-*.exe.blockmap
             artifacts/latest.yml
-            artifacts/Dhyan-*.apk
+            artifacts/Hunch-*.apk
             artifacts/dhyan.vsix
             artifacts/SHA256SUMS.txt
