@@ -1,9 +1,20 @@
-# Releasing Dhyan
+# Releasing Hunch
 
-Use `npm version <version> --no-git-tag-version` in laptop and vscode-ext. Commit the manifests and lockfiles together.
+Instructions for creating official releases:
 
-Push the reviewed CI branch and dispatch release.yml on that branch. Record the run SHA and inspect its logs and artifacts. Manual runs build artifacts and skip release creation. Stop after five failed dry runs and report the failures.
-
-Android builds without signing secrets produce a debug-signed APK for testing. Each ephemeral runner may use a different debug key. Use a stable release keystore for updatable distribution.
-
-After a green run and owner approval, merge the branch and create a new version tag once. v1.0.0 already exists locally, so resolve its remote status with the owner before choosing a tag. Tag runs create draft releases. Install and test the artifacts on clean target machines before publishing the draft manually.
+1. **Verify All Checks Pass:**
+   ```bash
+   node tools/rename-guard.mjs
+   npm test
+   npm run check:contracts
+   ```
+2. **Version Bump:**
+   ```bash
+   # Laptop gets full pre-release version:
+   cd laptop && npm version 1.0.0-beta.1 --no-git-tag-version
+   # VS Code extension gets base version:
+   cd ../vscode-ext && npm version 1.0.0 --no-git-tag-version --allow-same-version
+   ```
+3. **Dry Run on CI:** Trigger `workflow_dispatch` on the release workflow branch.
+4. **Tagging:** Create tag `v1.0.0-beta.1` and push to GitHub.
+5. **Draft Review:** Verify generated binaries on clean virtual machines before publishing the draft GitHub release.

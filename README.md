@@ -6,199 +6,74 @@ Unrelated to other products named Hunch. Hunch is a working name for a prototype
 
 Codename note: internal package names, protocol constants and storage names still say `dhyan` so existing data and pairings keep working.
 
-[![CI](https://github.com/abhigyan24-ops/cascade-3.3/actions/workflows/release.yml/badge.svg)](https://github.com/abhigyan24-ops/cascade-3.3/actions)
+[![CI](https://github.com/<<GITHUB_OWNER>>/<<REPO_NAME>>/actions/workflows/release.yml/badge.svg)](https://github.com/<<GITHUB_OWNER>>/<<REPO_NAME>>/actions)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Android](https://img.shields.io/badge/Android-14%20%7C%2015%20%7C%2016-brightgreen.svg)](phone/)
-[![Electron](https://img.shields.io/badge/Electron-45.0-blue.svg)](laptop/)
+[![Electron](https://img.shields.io/badge/Electron-31.4-blue.svg)](laptop/)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](engine/)
 
-> **Dhyan** is a privacy-first, cross-device attention digital twin. It coordinates your cognitive state between your laptop and Android smartphone in real time—protecting deep work sessions by leasing system-level Do-Not-Disturb, physically intercepting disruptive smartphone notifications, and learning your personal focus dynamics strictly from real telemetry.
+**Status: public beta (`v1.0.0-beta.1`).** Expect rough edges. See [Known limitations](docs/KNOWN_LIMITATIONS.md).
 
 ---
 
-## Architecture Overview
+## What It Does
 
-```
-                                      ┌────────────────────────┐
-                                      │   Android Phone App    │
-                                      │ (Compose + Room DB)    │
-                                      │                        │
-                                      │ • FocusLeaseController │
-                                      │ • NotifCollector       │
-                                      │ • Held Notifs Digest   │
-                                      │ • Simulate Lab         │
-                                      └───────────┬────────────┘
-                                                  │
-                                      E2E Encrypted LAN Sync
-                                      (Local Relay / WebSockets)
-                                                  │
-┌──────────────────────────────┐                  │
-│       Python Sidecar         │                  │
-│        (:8765 engine)        │                  │
-│                              │                  │
-│ • Causal Forest DML (CATE)   │◄── Local IPC ────┴──► ┌────────────────────────┐
-│ • Semi-Markov Simulator      │                       │     Laptop App         │
-│ • Conformal Prediction       │                       │  (Electron + React)    │
-│ • Bayesian Shrinkage Learners│                       │                        │
-│ • Zero Key Leakage Broker    │                       │ • Pip Companion Pet    │
-└──────────────────────────────┘                       │ • Bento Live Dashboard │
-                                                       │ • Window Context Feed  │
-                                                       │ • Focus Lease Manager  │
-                                                       │ • SafeStorage Keys     │
-                                                       │ • Silent Auto-Updater  │
-                                                       └────────────────────────┘
-```
+- **Learns your attention rhythm:** Models when you focus best, what disrupts your flow, which app contexts make you vulnerable to doomscrolling, when fatigue sets in, and what notifications are truly high-value.
+- **Simulates interruption loss:** Computes counterfactual estimates: *"If I show this notification now, how many minutes of focus will be lost, and is the expected cost higher than holding it for a batch digest?"*
+- **Cross-device quiet lease:** Coordinates with your Android phone to hold notifications while you code or write on your laptop, with sub-10ms decision latency and fail-open safety.
+- **Resume assistance:** Captures local editor snapshots in VS Code so you can jump straight back to where you left off after an interruption.
+- **Stays on your devices:** Stays on your devices. No accounts, no telemetry.
 
 ---
 
-## Key Features & Invariants
+## Privacy at a Glance
 
-### 1. Real Laptop <-> Phone Focus Lease & Notification Interception
-- **Cross-Device Focus Lease**: When the laptop detects active productive work (IDE, coding, terminal, docs) or when a focus session is declared, it broadcasts a 90-second focus lease (`STATE { focus: "deep", leaseMs: 90000 }`) every 30 seconds.
-- **Pre-Emptive Android Priority DND**: Upon receiving a focus lease, the phone switches `NotificationManager` into `INTERRUPTION_FILTER_PRIORITY`, suppressing heads-up banners and vibration. A 90-second countdown timer auto-restores prior DND settings if the laptop disconnects or ceases focus.
-- **Physical Notification Snoozing (`snoozeNotification`)**: Incoming notifications that are deferred during focus blocks are physically removed from the screen and notification shade using Android's `snoozeNotification(sbn.key, durationMs)`.
-- **Never-Hold Safety Guarantee**: Phone calls (`CATEGORY_CALL`), alarms (`CATEGORY_ALARM`), OTPs, emergency keywords, and VIP senders always bypass suppression immediately.
-- **Held Notification Digest**: Intercepted notifications are recorded in Room `held_notifs` with counterfactual time saved (`+Xm saved`) and an instant **[Show Now]** release button, synchronized live to the laptop Bento dashboard.
+| Component | What It Records | What It Never Records | Leaves Your Device? |
+|---|---|---|---|
+| **Laptop App** | Foreground app category, hashed task id, idle time, per-10-second activity counts (keys, correction keys, mouse clicks/distance) | Keystroke characters, typed text, window contents, document text, screenshots | No |
+| **Android App** | Foreground app category, screen on/off state, unlock events, notification metadata (category, hashed sender, interaction counts) | Notification text, message bodies, notification titles, contacts, location | Only to your paired laptop via end-to-end encrypted local link or relay |
+| **VS Code Extension** | Per-10-second counts (edits, saves, file switches), diagnostic counts, task category, salted HMAC workspace/branch hash | Source code, file names, file paths, branch names, commit messages, terminal command text | Only to `localhost` |
+| **Optional Cloud Model** | Redacted context summaries sent strictly to the provider you configure with your own API key | Raw screen pixels, code, notification bodies, private keys | Yes, only if explicitly enabled by the user |
 
-### 2. Cold-Start Bayesian Learning from Real Data
-- **Zero Synthetic Pre-Seeding**: Live runtime databases initialize clean with `0` events. Fake persona pre-seeding has been purged from production paths.
-- **ActivityWatch Telemetry & Fallback Collectors**: Queries local ActivityWatch buckets (with automatic fallback to native foreground polling) while strictly enforcing metadata reduction and privacy canary gates.
-- **Bayesian Shrinkage Priors**: Learners smoothly shrink towards uninformative Bayesian priors (`Beta(1,1)` for notification utility; empirical Bayes for hourly focus quality) when fewer than 5 real observations exist.
-- **Dynamic App Extraction**: Telemetry app selectors are populated dynamically from real observed applications on the user's phone and laptop.
-- **Wipe & Reset My Data**: Settings feature that atomically clears phone Room tables, resets unique persistent device IDs (`UUID.randomUUID()`), and clears laptop SQLite tables.
-
-### 3. Hardware-Backed Secret Storage & LLM Broker
-- **No Plaintext Fallback**: Laptop API keys (Groq, Gemini) are encrypted at rest with OS facilities (`safeStorage` via Windows DPAPI / macOS Keychain / Linux libsecret). If secure storage is unavailable, the system refuses to write unencrypted files and operates in session-only memory.
-- **Main Process LLM Broker**: The Python engine never receives, holds, or logs raw API keys. All completions route through Electron main with automatic privacy redaction (stripping emails, passwords, tokens, URLs), rate limiting, and metadata-only audit logging.
-- **Zero Secret Sync to Phone**: Cloud LLM keys are never transmitted over the phone sync link. Android secrets use `AndroidKeyStore` AES-256 GCM (`SecretStore.kt`) and are strictly excluded from Android cloud backups and device-to-device transfers.
-
-### 4. Silent, Focus-Aware Auto-Updates
-- **Zero Modal Interruptions**: Updates are checked 60 seconds after launch and every 6 hours with jitter. New versions download silently in the background.
-- **Focus Awareness**: If deep focus is active, update notifications are deferred until the user takes a break.
-- **Process Tree Safety**: `killTree(pid)` terminates `dhyan-engine.exe` and helper processes before `quitAndInstall()` to prevent NSIS "file in use" conflicts.
+> The table above is strictly enforced by automated regression and drift tests. See [docs/PRIVACY.md](docs/PRIVACY.md).
 
 ---
 
-## Repository Structure
+## Install (Beta)
 
-```
-dhyan/
-├── laptop/                    # Electron desktop app (TypeScript, React, electron-vite)
-│   ├── src/main/              # Lifecycle, Pip pet window, Bento panel, SafeStorage keys, LLM broker, updater
-│   ├── src/adapters/          # Window active trackers, feed clock, fallback collectors
-│   ├── src/pet/               # Pip physics, gazes, expressions, and collision state machine
-│   ├── src/panel/             # Live cognitive dashboard (LiveDigest, SimulateLab, Insights)
-│   └── src/sync/              # E2E encrypted LAN synchronization and pairing
-├── phone/                     # Android Studio project (Kotlin, Jetpack Compose, Room)
-│   └── app/src/main/java/com/dhyan/app/
-│       ├── actuator/          # FocusLeaseController, AndroidNotificationGateway
-│       ├── collectors/        # NotifCollector (snoozing & Never-Hold), UsageCollector
-│       ├── data/              # Room database, HeldNotifDao, DecisionDao, EventDao
-│       ├── privacy/           # SecretStore (AndroidKeyStore AES-GCM)
-│       ├── sync/              # DeviceIdProvider, LAN SyncManager, PhoneEventStore
-│       └── ui/                # LiveDigestTab (permission chips & test button), SimulateTab, InsightsTab
-├── engine/                    # Python FastAPI twin engine & causal inference sidecar
-│   ├── twin/api/app.py        # REST endpoints (:8765), lease state, dynamic apps, reset
-│   ├── twin/causal/           # CATE DML, Conformal prediction, Abduction engine
-│   ├── twin/learners/         # Bayesian shrinkage focus, fatigue, stickiness, interruption learners
-│   ├── twin/sessionize/       # 1s timeline merging and cross-device excursion labeling
-│   ├── dhyan-engine.spec      # PyInstaller freeze configuration
-│   └── requirements.lock.txt  # Pinned reproducible dependencies
-├── relay/                     # In-memory WebSocket pairing and event relay
-├── vscode-ext/                # VS Code attention sensor companion
-└── tools/                     # Architectural and contract verification scripts
-```
+| Platform | Format | Installation Instructions |
+|---|---|---|
+| **Windows** | `Hunch-Setup-<version>.exe` | Download from [Releases](../../releases). The installer is currently **unsigned**, so Windows SmartScreen will prompt. Verify the download with `SHA256SUMS.txt`. |
+| **Android** | `Hunch-<version>.apk` | Download from [Releases](../../releases) and permit installation from storage. (Not distributed via Google Play due to accessibility service policies). |
+| **VS Code** | `dhyan.vsix` | Download from [Releases](../../releases), then run **Extensions: Install from VSIX...** in VS Code. |
 
 ---
 
-## Quick Start Guide
+## Quick Start
 
-### Prerequisites
-- **Node.js**: v20 or v22 LTS
-- **Python**: 3.10 – 3.14 with virtual environment
-- **Java / Android SDK**: JDK 17+ and Android SDK platform tools (API 34–36)
-
-### 1. Run the Laptop Companion & Engine
-```bash
-# Clone the repository
-git clone https://github.com/abhigyan24-ops/cascade-3.3.git
-cd cascade-3.3
-
-# Install root & laptop dependencies
-npm install
-cd laptop && npm install && cd ..
-
-# Setup Python Engine
-cd engine
-python -m venv venv
-source venv/bin/activate  # Or `venv\Scripts\activate` on Windows
-pip install -r requirements.lock.txt
-cd ..
-
-# Start the sync relay
-cd relay && node server.js &
-
-# Start the Laptop Application
-cd laptop
-npm run build
-npm run dev
-```
-
-### 2. Build & Install Android Mobile App
-```bash
-cd phone
-./gradlew assembleDebug
-
-# Install on connected device (e.g. via USB / ADB)
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-
-# Grant required permissions (or tap chips on the Live screen)
-adb shell cmd notification allow_listener com.dhyan.app/com.dhyan.app.collectors.NotifCollector
-adb shell appops set com.dhyan.app ACCESS_NOTIFICATIONS allow
-adb shell appops set com.dhyan.app GET_USAGE_STATS allow
-```
+1. Install and launch the desktop application on Windows.
+2. Install the Android APK on your phone, open Settings, and scan the pairing QR code displayed on desktop.
+3. Install the VS Code extension (`dhyan.vsix`).
+4. Work normally. Hunch initializes with zero prior assumptions and models your personal attention dynamics purely on-device.
 
 ---
 
-## Keyboard Shortcuts & Controls
+## Known Limitations
 
-| Shortcut | Action | Description |
-| :--- | :--- | :--- |
-| `Ctrl` + `Alt` + `P` (or `Alt` + `Shift` + `P`) | **Toggle Pip Pet** | Instantly hides or restores Pip on your desktop |
-| `Ctrl` + `Alt` + `D` (or `Alt` + `Shift` + `D`) | **Toggle Bento Panel** | Opens or focuses the live cognitive dashboard |
-| **System Tray Icon** | **Dhyan Menu** | Access session declarations, Pip controls, and update actions |
-
----
-
-## Verification & Automated Test Suite
-
-All tests across all three runtimes are verified and passing 100% green:
-
-```bash
-# Run Laptop Unit Tests (115 tests)
-npm --prefix laptop test
-
-# Run Android Unit Tests (422 tests)
-cd phone && ./gradlew testDebugUnitTest && cd ..
-
-# Run Python Engine Tests (8 test suites)
-python -m pytest engine/tests
-
-# Run Safety & Contract Purity Checks (6 checks, 0 violations)
-npm run checks
-npm run check:actuator
-npm run check:contracts
-```
+- **Platform Scope:** Windows and Android only. iOS does not permit notification interception or cross-app usage inspection.
+- **Actuation Strength:** Notification holding is strictly enforced on Android via NotificationListener; on desktop, focus alerts are advisory.
+- **Security Audit:** The pairing and synchronization cryptography has **not yet undergone an independent third-party security audit**.
+- **Play Store Eligibility:** Features utilizing the Android Accessibility Service cannot be hosted on Google Play under current store policies.
 
 ---
 
-## Privacy Invariants
+## Intended Use & Ethics
 
-- **Categories and Counts Only**: Zero notification message bodies, titles, sensitive URLs, or keystrokes are stored or transmitted.
-- **Fail-Open Policy**: If the laptop or engine experiences an unexpected crash or disconnection, the phone focus lease automatically expires within 90 seconds and restores the user's prior interruption filter.
-- **Never-Hold Absolute**: Emergency communications (calls, OTPs, critical alarms) are never suppressed or delayed.
+Hunch is built strictly for **individual self-use and self-directed attention agency**. It must never be installed on another individual's device or used for covert employee surveillance or monitoring. Doing so violates our ethical principles and may be unlawful in your jurisdiction.
 
 ---
 
-## License
+## Contributing, Security & License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+- [CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md) · [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) · [SUPPORT.md](SUPPORT.md)
+- Licensed under the **[Apache-2.0 License](LICENSE)**. See [NOTICE](NOTICE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
