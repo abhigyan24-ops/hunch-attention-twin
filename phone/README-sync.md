@@ -1,4 +1,4 @@
-# Dhyan Sync Protocol (Stage 8P1) â€” Runbook & Interoperability Harness
+# Hunch Sync Protocol (Stage 8P1) â€” Runbook & Interoperability Harness
 
 This document describes how to run and verify peer-to-peer sync between the Android phone client and the mock laptop companion / mock relay over a local LAN (or via ADB port forwarding).
 
@@ -43,7 +43,7 @@ The laptop mock peer will generate its P-256 key share, join the rendezvous room
 
 ## 3. Pairing from the Phone App
 
-1. In the Dhyan app, tap the **Settings** pill to open `SettingsBottomSheet`.
+1. In the Hunch app, tap the **Settings** pill to open `SettingsBottomSheet`.
 2. Scroll to the **Cross-Device Sync** section.
 3. Enter the Relay URL: `ws://127.0.0.1:8080/ws` (or your LAN IP).
 4. Enter the Pairing Code: `234567`.

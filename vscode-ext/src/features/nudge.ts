@@ -101,7 +101,7 @@ export class NudgeManager {
     if (allowToast && this.vscodeApi?.window?.showInformationMessage) {
       // Toast presentation with action buttons
       this.vscodeApi.window
-        .showInformationMessage(`Dhyan: ${text}`, 'Take Break', 'Dismiss')
+        .showInformationMessage(`Hunch: ${text}`, 'Take Break', 'Dismiss')
         .then((choice: string) => {
           if (choice === 'Take Break') {
             this.sendFeedback(nudge.id, 'click');
@@ -115,7 +115,7 @@ export class NudgeManager {
         clearTimeout(this.activeNudgeTimeout);
       }
       const messageDisposable = this.vscodeApi.window.setStatusBarMessage(
-        `$(bell) Dhyan: ${text}`,
+        `$(bell) Hunch: ${text}`,
         10_000
       );
 

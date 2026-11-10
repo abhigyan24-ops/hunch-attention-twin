@@ -100,7 +100,7 @@ describe('Extension Activation & Wiring Integration', () => {
 
     assert.ok(outputLines.length > 0);
     const joined = outputLines.join('\n');
-    assert.ok(joined.includes('=== Dhyan Extension Diagnostics ==='));
+    assert.ok(joined.includes('=== Hunch Extension Diagnostics ==='));
     assert.ok(joined.includes('Tracking Paused: false'));
     assert.ok(joined.includes('windowStateActive'));
   });

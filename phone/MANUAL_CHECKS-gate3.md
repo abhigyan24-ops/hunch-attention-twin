@@ -49,7 +49,7 @@
 
 ### Step 1: Secure Pairing Handshake (P-256 ECDH + SAS)
 1. In the laptop companion panel, note the generated 6-character pairing code (e.g., `AB12CD`).
-2. On the Reno 14, open **Dhyan** and tap the **Settings** pill in the top header.
+2. On the Reno 14, open **Hunch** and tap the **Settings** pill in the top header.
 3. Scroll down to **CROSS-DEVICE SYNC & COMPANION**.
 4. Set Relay WebSocket URL:
    - If using `adb reverse`: `ws://127.0.0.1:8080/ws`
@@ -64,7 +64,7 @@
    - Stored credentials are saved into `settings` database table.
 
 ### Step 2: Session Reconnect Without Re-Pairing
-1. Force close the Dhyan app on Reno 14 (`Settings -> Apps -> Dhyan -> Force stop` or swipe away from recent apps).
+1. Force close the Hunch app on Reno 14 (`Settings -> Apps -> Dhyan -> Force stop` or swipe away from recent apps).
 2. Re-open Dhyan on Reno 14.
 3. Open **Settings** -> **CROSS-DEVICE SYNC & COMPANION**.
 4. **Expectation:**

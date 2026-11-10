@@ -41,7 +41,7 @@ class PetOverlayComposeTest {
 
     private fun pet(emotion: String? = null): SemanticsNodeInteraction =
         compose.onNodeWithContentDescription(
-            if (emotion == null) "Dhyan Spirit," else "Dhyan Spirit, $emotion",
+            if (emotion == null) "Pip," else "Pip, $emotion",
             substring = true
         )
 
@@ -196,10 +196,10 @@ class PetOverlayComposeTest {
         }
         frames()
         pet().assertDoesNotExist()
-        compose.onNodeWithContentDescription("Restore Dhyan Spirit").assertExists()
+        compose.onNodeWithContentDescription("Restore Pip").assertExists()
             .performTouchInput { click() }
         frames()
-        compose.onNodeWithContentDescription("Restore Dhyan Spirit").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Restore Pip").assertDoesNotExist()
         pet().assertExists()
     }
 }

@@ -1,6 +1,6 @@
 /**
  * Dhyan VS Code Full-Tab Insights Dashboard Panel
- * Opened via Command Palette ("Dhyan: Open Insights Dashboard")
+ * Opened via Command Palette ("Hunch: Open Insights Dashboard")
  */
 
 export class DhyanInsightsPanel {
@@ -21,7 +21,7 @@ export class DhyanInsightsPanel {
 
     const panel = vscode.window.createWebviewPanel(
       'dhyanInsights',
-      'Dhyan: Attention & Flow Insights',
+      'Hunch: Attention & Flow Insights',
       column || vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -56,7 +56,7 @@ export class DhyanInsightsPanel {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dhyan Attention Insights</title>
+  <title>Hunch Attention Insights</title>
   <style>
     :root {
       --dhyan-bg: var(--vscode-editor-background, #F7F8FA);

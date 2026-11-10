@@ -28,8 +28,8 @@ export class DhyanStatusBar {
     this.currentMode = 'waiting';
     if (this.item) {
       this.item.command = 'dhyan.today';
-      this.item.text = '$(plug) Dhyan: waiting for desktop app';
-      this.item.tooltip = 'Dhyan: Desktop application offline or disconnected';
+      this.item.text = '$(plug) Hunch: waiting for desktop app';
+      this.item.tooltip = 'Hunch: Desktop application offline or disconnected';
     }
   }
 
@@ -37,8 +37,8 @@ export class DhyanStatusBar {
     this.currentMode = 'paused';
     if (this.item) {
       this.item.command = 'dhyan.today';
-      this.item.text = '$(debug-pause) Dhyan paused';
-      this.item.tooltip = 'Dhyan attention tracking is paused';
+      this.item.text = '$(debug-pause) Hunch paused';
+      this.item.tooltip = 'Hunch attention tracking is paused';
     }
   }
 
@@ -46,8 +46,8 @@ export class DhyanStatusBar {
     this.currentMode = 'focused';
     if (this.item) {
       this.item.command = 'dhyan.today';
-      this.item.text = `$(eye) Dhyan · Deep focus ${minutes}m · ${heldCount} held`;
-      this.item.tooltip = 'Dhyan: In deep focus flow';
+      this.item.text = `$(eye) Hunch · Deep focus ${minutes}m · ${heldCount} held`;
+      this.item.tooltip = 'Hunch: In deep focus flow';
     }
   }
 
@@ -64,8 +64,8 @@ export class DhyanStatusBar {
     this.currentMode = 'remote-unsupported';
     if (this.item) {
       this.item.command = 'dhyan.diagnostics';
-      this.item.text = '$(cloud) Dhyan: remote window not supported';
-      this.item.tooltip = 'Dhyan runs locally on your laptop; remote extension host connections are not supported.';
+      this.item.text = '$(cloud) Hunch: remote window not supported';
+      this.item.tooltip = 'Hunch runs locally on your laptop; remote extension host connections are not supported.';
     }
   }
 

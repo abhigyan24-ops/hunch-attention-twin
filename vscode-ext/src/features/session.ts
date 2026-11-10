@@ -85,7 +85,7 @@ export class SessionManager {
   async startSession(intentionInput?: string): Promise<boolean> {
     if (this.currentSession) {
       if (this.vscodeApi?.window?.showInformationMessage) {
-        this.vscodeApi.window.showInformationMessage('Dhyan: A focus session is already in progress.');
+        this.vscodeApi.window.showInformationMessage('Hunch: A focus session is already in progress.');
       }
       return false;
     }
@@ -93,7 +93,7 @@ export class SessionManager {
     let rawIntention = intentionInput;
     if (rawIntention === undefined && this.vscodeApi?.window?.showInputBox) {
       rawIntention = await this.vscodeApi.window.showInputBox({
-        title: 'Dhyan: Start Focus Session',
+        title: 'Hunch: Start Focus Session',
         prompt: 'What is your single focus intention for this session? (Hashed locally, text is never stored):',
         placeHolder: 'e.g., Implement authentication retry logic'
       });
@@ -138,7 +138,7 @@ export class SessionManager {
     }
 
     if (this.vscodeApi?.window?.setStatusBarMessage) {
-      this.vscodeApi.window.setStatusBarMessage('Dhyan: Focus session started.', 3000);
+      this.vscodeApi.window.setStatusBarMessage('Hunch: Focus session started.', 3000);
     }
 
     this.onSessionChange?.();
@@ -151,7 +151,7 @@ export class SessionManager {
   async endSession(ratings?: { focusRating: number; energyRating: number }): Promise<boolean> {
     if (!this.currentSession) {
       if (this.vscodeApi?.window?.showInformationMessage) {
-        this.vscodeApi.window.showInformationMessage('Dhyan: No focus session currently active.');
+        this.vscodeApi.window.showInformationMessage('Hunch: No focus session currently active.');
       }
       return false;
     }
@@ -171,7 +171,7 @@ export class SessionManager {
           { label: '2 - Fragmented', description: 'Hard to maintain focus', value: 2 },
           { label: '1 - Distracted', description: 'Heavy disruption, barely focused', value: 1 }
         ],
-        { title: 'Dhyan: Rate your focus for this session' }
+        { title: 'Hunch: Rate your focus for this session' }
       );
 
       if (focusChoice) {
@@ -186,7 +186,7 @@ export class SessionManager {
           { label: '2 - Tired', description: 'Starting to feel mental fatigue', value: 2 },
           { label: '1 - Exhausted', description: 'Depleted, need a break', value: 1 }
         ],
-        { title: 'Dhyan: Rate your current energy level' }
+        { title: 'Hunch: Rate your current energy level' }
       );
 
       if (energyChoice) {
@@ -235,7 +235,7 @@ export class SessionManager {
     if (this.vscodeApi?.window?.setStatusBarMessage) {
       const mins = Math.round(durationMs / 60_000);
       this.vscodeApi.window.setStatusBarMessage(
-        `Dhyan: Session complete (${mins}m · Focus: ${focusRating}/5).`,
+        `Hunch: Session complete (${mins}m · Focus: ${focusRating}/5).`,
         4000
       );
     }

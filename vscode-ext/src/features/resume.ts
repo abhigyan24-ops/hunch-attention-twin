@@ -155,7 +155,7 @@ export class ResumeManager {
     if (!snapshot || !snapshot.filePath) {
       if (this.vscodeApi?.window?.showInformationMessage) {
         this.vscodeApi.window.showInformationMessage(
-          'Dhyan: No previous interrupted location found in this workspace.'
+          'Hunch: No previous interrupted location found in this workspace.'
         );
       }
       return false;
@@ -186,7 +186,7 @@ export class ResumeManager {
 
       if (this.vscodeApi?.window?.setStatusBarMessage) {
         this.vscodeApi.window.setStatusBarMessage(
-          `Dhyan: Resumed at ${snapshot.fileName}:${snapshot.line + 1}`,
+          `Hunch: Resumed at ${snapshot.fileName}:${snapshot.line + 1}`,
           3000
         );
       }
@@ -206,7 +206,7 @@ export class ResumeManager {
       if (!this.vscodeApi?.window?.showInputBox) return;
 
       const note = await this.vscodeApi.window.showInputBox({
-        title: 'Dhyan: Park Intention',
+        title: 'Hunch: Park Intention',
         prompt: 'Note where you are leaving off (stored locally in workspace only, never transmitted):',
         placeHolder: 'e.g., Implementing auth token retry backoff'
       });
@@ -219,7 +219,7 @@ export class ResumeManager {
       this.captureSnapshot(taskKey, note.trim());
 
       if (this.vscodeApi?.window?.setStatusBarMessage) {
-        this.vscodeApi.window.setStatusBarMessage('Dhyan: Intention note parked locally.', 3000);
+        this.vscodeApi.window.setStatusBarMessage('Hunch: Intention note parked locally.', 3000);
       }
     } catch {}
   }

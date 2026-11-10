@@ -322,7 +322,7 @@ private fun SpiritInteractionLayer(
                         }
                         .size(28.dp)
                         .semantics {
-                            contentDescription = "Restore Dhyan Spirit"
+                            contentDescription = "Restore Pip"
                             role = Role.Button
                             onClick { restore(); true }
                         }

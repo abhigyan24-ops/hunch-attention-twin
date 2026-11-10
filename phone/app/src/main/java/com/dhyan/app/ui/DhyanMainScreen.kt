@@ -12,6 +12,7 @@ import com.dhyan.app.ui.model.DhyanStateHolder
 import com.dhyan.app.ui.settings.SettingsBottomSheet
 import com.dhyan.app.ui.tabs.*
 import com.dhyan.app.ui.components.FloatingCapsuleNavBar
+import com.dhyan.app.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,8 +60,8 @@ fun DhyanMainScreen(stateHolder: DhyanStateHolder? = null) {
         topBar = {
             TopAppBar(
                 title = { Column {
-                    Text("Dhyan", style = MaterialTheme.typography.titleLarge)
-                    Text("A little space to focus", style = MaterialTheme.typography.bodySmall,
+                    Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge)
+                    Text(stringResource(R.string.brand_descriptor), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } },
                 actions = {

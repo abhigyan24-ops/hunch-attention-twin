@@ -6,6 +6,7 @@ import android.graphics.drawable.Icon
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
+import com.dhyan.app.R
 import androidx.annotation.RequiresApi
 
 /**
@@ -33,7 +34,7 @@ class DhyanTileService : TileService() {
 
     private fun updateTile() {
         val tile = qsTile ?: return
-        tile.label = "Dhyan"
+        tile.label = getString(R.string.qs_tile_label)
         tile.state = Tile.STATE_ACTIVE // default active (monitoring)
         tile.updateTile()
     }

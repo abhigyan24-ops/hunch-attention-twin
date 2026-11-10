@@ -7,7 +7,7 @@ class Explainer {
     fun allow(reason:String,safety:String?=null):String="Allowed: "+when {
         safety=="vip" -> "a contact you marked important."
         safety!=null -> "a call, alarm, code or configured safety rule."
-        reason=="mode_off" -> "Dhyan is off."
+        reason=="mode_off" -> "Hunch is off."
         reason=="kill_switch" -> "kill switch is on."
         reason=="high_importance" -> "high importance."
         reason=="low_evidence" -> "not enough evidence yet."

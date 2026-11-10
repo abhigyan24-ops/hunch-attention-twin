@@ -32,7 +32,7 @@ This runbook guides manual target-hardware verification for Stage 9 (cross-devic
 - **Goal:** Verify phone dwell and laptop resumption combine into an attributed outcome with `OBSERVED` snapshot provenance.
 - **Procedure:**
   1. Start local relay (`npm run relay`) and laptop sync client (`npm run dev:laptop`).
-  2. Launch Dhyan on Reno 14. Confirm pairing status shows `Connected (Live Companion)`.
+  2. Launch Hunch on Reno 14. Confirm pairing status shows `Connected (Live Companion)`.
   3. On laptop: Open VS Code and focus a Kotlin/TypeScript file (laptop state becomes `FLOWING`).
   4. Trigger a test notification on phone (or receive real messaging notification).
   5. Pick up phone, unlock, and interact with the app for 1 to 2 minutes.

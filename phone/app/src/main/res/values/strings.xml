@@ -1,8 +1,18 @@
 <resources>
-    <string name="app_name">Dhyan</string>
-    <string name="a11y_service_description">Dhyan tracks scroll counts and app switches to model your attention. It never reads screen content.</string>
-    <string name="notif_channel_name">Dhyan Service</string>
-    <string name="notif_channel_desc">Dhyan attention monitoring runs in the foreground</string>
-    <string name="notif_title">Dhyan is active</string>
+    <string name="app_name">Hunch</string>
+    <string name="brand_descriptor">your attention digital twin</string>
+    <string name="brand_tagline">Knows what that notification will cost you.</string>
+    <string name="brand_disclaimer">Unrelated to other products named Hunch. A working name for a prototype.</string>
+    <string name="brand_codename_note">Internal package names, protocol constants and storage names still say \'dhyan\' so existing data and pairings keep working.</string>
+    <string name="about_title">About Hunch</string>
+    <string name="notif_listener_label">Hunch Notifications</string>
+    <string name="a11y_service_label">Hunch Accessibility</string>
+    <string name="a11y_service_description">Hunch tracks scroll counts and app switches to model your attention. It never reads screen content.</string>
+    <string name="notif_channel_name">Hunch Service</string>
+    <string name="notif_channel_desc">Hunch attention monitoring runs in the foreground</string>
+    <string name="notif_title">Hunch is active</string>
     <string name="notif_text">Monitoring attention patterns (no content read)</string>
+    <string name="digest_channel_name">Hunch digest</string>
+    <string name="digest_channel_desc">Batched notifications held by Hunch</string>
+    <string name="qs_tile_label">Hunch</string>
 </resources>

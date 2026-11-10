@@ -65,7 +65,7 @@ export class DhyanCompanionViewProvider {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dhyan Companion</title>
+  <title>Hunch Companion</title>
   <style>
     :root {
       --dhyan-bg: var(--vscode-sideBar-background, #F7F8FA);

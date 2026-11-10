@@ -220,7 +220,7 @@ class SettingsViewModel(
         digestPoster?.post(
             DigestBuilder.DigestContent(
                 title = "1 test notification held",
-                summaryLine = "test · Dhyan debug tool",
+                summaryLine = "test · ${HunchBrand.PRODUCT_NAME} debug tool",
                 items = listOf(
                     DigestBuilder.DigestItem(
                         keyHash = "test_key_hash",

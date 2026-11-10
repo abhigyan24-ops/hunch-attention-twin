@@ -1,20 +1,19 @@
-# Dhyan: On-Device Attention-Aware Notification Manager
+# Hunch: your attention digital twin
 ## Mid-Evaluation Pitch & Technical Briefing Document
 **Confidential / Evaluation Ready**  
-*Project Codename:* **Dhyan** (Hindi: *ध्यान* — Attention / Deep Focus)  
 *Target Platforms:* Android (Phone), Electron / VS Code / Browser MV3 (Workstation), Node.js (Encrypted In-Memory Relay)
 
 ---
 
 > ### One-Liner for Evaluators
-> *"Dhyan is an on-device attention manager that uses a probabilistic digital twin of your notification behavior — learned purely from your usage cadence, never from message content — to hold distracting notifications during deep work and release them in batch digests, with zero cloud dependency, mathematical privacy guarantees, and sub-10ms decision latency."*
+> *"Hunch is an on-device attention manager that uses a probabilistic digital twin of your notification behavior — learned purely from your usage cadence, never from message content — to hold distracting notifications during deep work and release them in batch digests, with zero cloud dependency, mathematical privacy guarantees, and sub-10ms decision latency."*
 
 ---
 
 ## Table of Contents
 1. [2-Minute Verbal Pitch Script](#1-2-minute-verbal-pitch-script)
 2. [Executive Problem Statement](#2-executive-problem-statement)
-3. [The Dhyan Paradigm: Probabilistic Twin vs. Binary Filters](#3-the-dhyan-paradigm-probabilistic-twin-vs-binary-filters)
+3. [The Hunch Paradigm: Probabilistic Twin vs. Binary Filters](#3-the-hunch-paradigm-probabilistic-twin-vs-binary-filters)
 4. [System Architecture](#4-system-architecture)
    - [Phone Subsystem (Kotlin + Jetpack Compose)](#41-phone-subsystem-android--kotlin--jetpack-compose)
    - [Digital Twin Engine (Pure Kotlin Mathematical Core)](#42-digital-twin-engine-pure-kotlin-mathematical-core)
@@ -39,18 +38,18 @@
 > 
 > *Today’s operating systems offer crude solutions: Do Not Disturb and Focus Modes. They are binary hammers. If you turn them on, you risk missing a bank OTP, an urgent server alert, or a call from family. If you turn them off, your attention is fragmented by group chats, e-commerce sales, and social media likes.*
 > 
-> *We built **Dhyan** — an on-device, attention-aware notification manager that replaces static rules with an adaptive **probabilistic digital twin**.*
+> *We built **Hunch** — an on-device, attention-aware notification manager that replaces static rules with an adaptive **probabilistic digital twin**.*
 > 
-> *When a notification arrives, Dhyan doesn't inspect its text. Instead, it evaluates the user's focus state, active task, and past interaction dynamics. Using an on-device paired counterfactual simulation, Dhyan computes: **'What is the expected loss of focus if we show this notification now, versus if we hold it for a natural break?'** If the attention cost outweighs the urgency, the notification is held in a local encrypted queue and surfaced later as a bundled digest.*
+> *When a notification arrives, Hunch doesn't inspect its text. Instead, it evaluates the user's focus state, active task, and past interaction dynamics. Using an on-device paired counterfactual simulation, Hunch computes: **'What is the expected loss of focus if we show this notification now, versus if we hold it for a natural break?'** If the attention cost outweighs the urgency, the notification is held in a local encrypted queue and surfaced later as a bundled digest.*
 > 
-> *Three things make Dhyan technically unique:*
-> 1. ***Mathematical Privacy:*** *Dhyan operates with zero cloud footprint. We enforce a strict **23-forbidden-field AST scanner** at build time. We never store, log, or transmit raw notification text, sender names, URLs, or keystrokes. Only abstract categories and frequency counts.*
+> *Three things make Hunch technically unique:*
+> 1. ***Mathematical Privacy:*** *Hunch operates with zero cloud footprint. We enforce a strict **23-forbidden-field AST scanner** at build time. We never store, log, or transmit raw notification text, sender names, URLs, or keystrokes. Only abstract categories and frequency counts.*
 > 2. ***A Pure-Kotlin Bayesian Twin:*** *Our probabilistic model uses conjugate Beta and Log-Normal distributions. It personalizes continuously without needing massive neural networks or GPU accelerators. In our host benchmarks (Windows x86_64 JVM test runner), it achieves a median decision latency of **7.07 milliseconds** (p95 is **15.4 ms**, which exceeds the 10 ms budget at p95; host JVM runner; not verified on the Reno 14 target device).*
 > 3. ***Fail-Open Safety & Never-Hold Guarantees:*** *System safety is absolute. Emergency keywords, alarms, and OTPs bypass the model completely. And if any component crashes, the system fails open immediately, releasing all held notifications.*
 > 
 > *We have completed Stages 1 through 6, passing all **253 unit tests**, 74 contract test suites, and 6 actuator contract invariants. We have a working 3-tab Jetpack Compose app, synthetic persona replaying, and cross-device sensors for VS Code and Chrome.*
 > 
-> *Let us now demonstrate Dhyan running live."*
+> *Let us now demonstrate Hunch running live."*
 
 ---
 
@@ -75,9 +74,9 @@ Modern knowledge work takes place in an adversarial attentional environment:
 
 ---
 
-## 3. The Dhyan Paradigm: Probabilistic Twin vs. Binary Filters
+## 3. The Hunch Paradigm: Probabilistic Twin vs. Binary Filters
 
-Instead of rule-based heuristics (*"mute app X between 9 AM and 5 PM"*), Dhyan simulates the **counterfactual consequence** of an intervention.
+Instead of rule-based heuristics (*"mute app X between 9 AM and 5 PM"*), Hunch simulates the **counterfactual consequence** of an intervention.
 
 ### 3.1 Paired Counterfactual Formulation
 For every incoming event $e$, the Digital Twin evaluates the expected attention loss $\Delta L$:
@@ -113,7 +112,7 @@ All outputs displayed by the Twin simulator are generated live by the pure Kotli
 
 ## 4. System Architecture
 
-Dhyan features a tiered architecture spanning the mobile device, workstation environment, and a zero-knowledge relay bridge:
+Hunch features a tiered architecture spanning the mobile device, workstation environment, and a zero-knowledge relay bridge:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
@@ -240,7 +239,7 @@ Incoming Notif ──► [Safety Gate] ────Pass────► Surface I
 
 ### 4.4 Workstation & Browser Sensors (Stage 9)
 
-Attention is cross-device. Dhyan captures workstation context via privacy-preserving sensors:
+Attention is cross-device. Hunch captures workstation context via privacy-preserving sensors:
 - **VS Code Extension (9X1):**
   - Monitors code churn rate (edit bursts), syntax language category (`code/typescript`, `code/kotlin`), and resumption delays.
   - **Zero Content Policy:** Never inspects code buffers, variable names, Git history, or file paths.
@@ -260,7 +259,7 @@ Attention is cross-device. Dhyan captures workstation context via privacy-preser
 
 ## 5. Privacy Architecture: 23 Forbidden Fields by Design
 
-Dhyan does not rely on developer discipline or terms of service for privacy; privacy is **algorithmically enforced** at the CI/tooling level.
+Hunch does not rely on developer discipline or terms of service for privacy; privacy is **algorithmically enforced** at the CI/tooling level.
 
 ```
        ┌────────────────────────────────────────────────────────┐
@@ -289,7 +288,7 @@ Dhyan does not rely on developer discipline or terms of service for privacy; pri
 
 ## 6. Key Technical Decisions & Justifications
 
-| Technical Decision | Alternatives Considered | Why Dhyan's Approach is Superior |
+| Technical Decision | Alternatives Considered | Why Hunch's Approach is Superior |
 |---|---|---|
 | **Pure Kotlin Twin Engine** | Android-coupled Service / NDK C++ | Isolating the twin to pure Kotlin allows running 45 JUnit tests on host JVM in milliseconds without Android emulators, ensuring mathematically proven determinism. |
 | **Conjugate Beta Priors** | On-device Neural Network (e.g. TFLite) | Beta/LogNormal updates require zero matrix multiplications, consume zero GPU cycles, cannot hallucinate, and adapt instantaneously to individual user patterns. |
@@ -324,7 +323,7 @@ All metrics reported below have been verified via test suites executed in this c
 
 ## 8. Live Demonstration Script for Evaluators
 
-When presenting Dhyan on the target evaluation device, follow this sequence:
+When presenting Hunch on the target evaluation device, follow this sequence:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -360,7 +359,7 @@ When presenting Dhyan on the target evaluation device, follow this sequence:
 ### Step 4: Focus Windows & Provenance (Tab 3 — Insights)
 1. Open the **Insights** tab.
 2. Highlight the **Attention Saved** chart (estimated focus hours preserved).
-3. Show the **Provenance Labels**: every single metric in Dhyan is explicitly marked with its origin (`[Simulated]`, `[Observed]`, `[Learned]`, or `[Low Evidence]`), demonstrating scientific integrity without misleading hardcoded claims.
+3. Show the **Provenance Labels**: every single metric in Hunch is explicitly marked with its origin (`[Simulated]`, `[Observed]`, `[Learned]`, or `[Low Evidence]`), demonstrating scientific integrity without misleading hardcoded claims.
 
 ---
 
@@ -391,8 +390,8 @@ When presenting Dhyan on the target evaluation device, follow this sequence:
 
 #### Q1: "Why not use a modern Large Language Model (e.g. Gemini Nano) to understand notification importance?"
 > **Presenter Response:** *"LLMs are inappropriate for this task for three fundamental reasons:*
-> 1. *Privacy: Using an LLM requires passing raw text through neural weights. Dhyan guarantees privacy by design — we mathematically forbid raw text from entering the decision pipeline.*
-> 2. *Latency & Battery: Gemini Nano requires 2 to 4 seconds and consumes over 500mA of peak battery current per inference. Dhyan’s twin runs in **7 milliseconds** with negligible micro-watt CPU usage.*
+> 1. *Privacy: Using an LLM requires passing raw text through neural weights. Hunch guarantees privacy by design — we mathematically forbid raw text from entering the decision pipeline.*
+> 2. *Latency & Battery: Gemini Nano requires 2 to 4 seconds and consumes over 500mA of peak battery current per inference. Hunch’s twin runs in **7 milliseconds** with negligible micro-watt CPU usage.*
 > 3. *Predictability: LLMs suffer from non-deterministic hallucination. Our Bayesian conjugate update provides provable bounds, reproducible behavior, and deterministic fail-open safety."*
 
 #### Q2: "What if a user's family member is hospitalized and texts them via WhatsApp?"
@@ -402,10 +401,12 @@ When presenting Dhyan on the target evaluation device, follow this sequence:
 > - *Third, rapid repeat messages (e.g. 3 messages within 2 minutes) automatically elevate urgency and break through any active hold."*
 
 #### Q3: "Does holding notifications violate Android platform policies?"
-> **Presenter Response:** *"No. Dhyan uses Android's official `NotificationListenerService.snoozeNotification()` and standard foreground notification management APIs. We do not use private reflection, root access, or accessibility exploits. Dhyan complies fully with Google Play developer policies."*
+> **Presenter Response:** *"No. Hunch uses Android's official `NotificationListenerService.snoozeNotification()` and standard foreground notification management APIs. We do not use private reflection, root access, or accessibility exploits. Hunch complies fully with Google Play developer policies."*
 
-#### Q4: "How does Dhyan handle notifications when the phone is in airplane mode or offline?"
-> **Presenter Response:** *"Dhyan is 100% on-device. The Room database, Bayesian twin, and actuation pipeline run entirely on local CPU and storage. It functions identically whether the device has 5G, Wi-Fi, or no network connectivity at all."*
+#### Q4: "How does Hunch handle notifications when the phone is in airplane mode or offline?"
+> **Presenter Response:** *"Hunch is 100% on-device. The Room database, Bayesian twin, and actuation pipeline run entirely on local CPU and storage. It functions identically whether the device has 5G, Wi-Fi, or no network connectivity at all."*
 
 ---
-*Document compiled and verified against Dhyan Codebase Milestone 6.*
+*Document compiled and verified against Hunch Codebase Milestone 6.*
+
+*Codename footnote:* Internal package names, database/storage keys, and protocol constants retain `dhyan` (Hindi: *ध्यान* — attention / deep focus) for compatibility.

@@ -1,5 +1,7 @@
 package com.dhyan.app.actuator.digest
 
+import com.dhyan.app.ui.brand.HunchBrand
+
 import com.dhyan.app.data.HeldNotifEntity
 
 /**
@@ -37,7 +39,7 @@ object DigestBuilder {
         }
         val total = held.size
         val title = if (total == 1) "1 notification held" else "$total notifications held"
-        val summary = items.joinToString(", ") { it.appCat }.ifEmpty { "Dhyan digest" }
+        val summary = items.joinToString(", ") { it.appCat }.ifEmpty { HunchBrand.DIGEST_FALLBACK_SUMMARY }
         return DigestContent(title = title, summaryLine = summary, items = items)
     }
 

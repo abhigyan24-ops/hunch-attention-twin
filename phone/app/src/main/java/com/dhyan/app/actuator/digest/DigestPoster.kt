@@ -9,7 +9,7 @@ import android.content.Intent
 import androidx.core.app.NotificationCompat
 import com.dhyan.app.actuator.ActuatorConfig
 
-/** Posts the grouped Dhyan digest notification. */
+/** Posts the grouped Hunch digest notification. */
 interface DigestPoster {
     fun post(content: DigestBuilder.DigestContent)
     fun cancel()
@@ -30,13 +30,12 @@ class AndroidDigestPoster(private val context: Context) : DigestPoster {
 
     private fun createChannel() {
         val nm = context.getSystemService(NotificationManager::class.java)
-        if (nm.getNotificationChannel(ActuatorConfig.CHANNEL_DIGEST) != null) return
         val ch = NotificationChannel(
             ActuatorConfig.CHANNEL_DIGEST,
-            "Dhyan digest",
+            context.getString(R.string.digest_channel_name),
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Batched notifications held by Dhyan"
+            description = context.getString(R.string.digest_channel_desc)
             setShowBadge(true)
             lockscreenVisibility = Notification.VISIBILITY_PRIVATE
         }

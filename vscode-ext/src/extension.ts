@@ -1,4 +1,5 @@
 import type * as vscodeTypes from 'vscode';
+import { HUNCH_BRAND } from './brand.js';
 import { randomBytes } from 'node:crypto';
 import { probeCapabilities, type ExtensionCapabilities } from './capabilities.ts';
 import { PrivacyFilter } from './privacy/exclude.ts';
@@ -487,7 +488,7 @@ export function activate(
       }
       if (vscodeApi?.window?.showInformationMessage) {
         vscodeApi.window.showInformationMessage(
-          `Dhyan attention tracking is now ${isPaused ? 'PAUSED' : 'RESUMED'}.`
+          `Hunch attention tracking is now ${isPaused ? 'PAUSED' : 'RESUMED'}.`
         );
       }
     }
@@ -497,14 +498,14 @@ export function activate(
     try {
       if (vscodeApi?.window?.createOutputChannel) {
         if (!diagOutputChannel) {
-          const ch = vscodeApi.window.createOutputChannel('Dhyan Diagnostics');
+          const ch = vscodeApi.window.createOutputChannel(HUNCH_BRAND.diagnosticsChannelName);
           diagOutputChannel = ch;
           context.subscriptions.push(ch);
         }
         const activeChannel = diagOutputChannel;
         if (activeChannel) {
           activeChannel.clear();
-          activeChannel.appendLine('=== Dhyan Extension Diagnostics ===');
+          activeChannel.appendLine(HUNCH_BRAND.diagnosticsBanner);
           activeChannel.appendLine(`Timestamp: ${new Date(clock.now()).toISOString()}`);
           activeChannel.appendLine(`Window ID: ${currentWindowId}`);
           activeChannel.appendLine(`Remote Window: ${isRemote ? `YES (${currentCapabilities?.remoteName}) - connection disabled` : 'NO'}`);
@@ -556,7 +557,7 @@ export function activate(
     resumeManager?.clearSnapshot();
     digestManager?.clearItems();
     if (vscodeApi?.window?.setStatusBarMessage) {
-      vscodeApi.window.setStatusBarMessage("Dhyan: Today's history forgotten.", 3000);
+      vscodeApi.window.setStatusBarMessage("Hunch: Today's history forgotten.", 3000);
     }
   });
 

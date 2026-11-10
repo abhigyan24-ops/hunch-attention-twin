@@ -150,7 +150,7 @@ fun DhyanPetCharacter(
     val ink = Color(0xFF182127)
 
     Canvas(modifier.size(96.dp).onSizeChanged { canvasSize = it }.semantics {
-        contentDescription = "Dhyan Spirit, ${emotion.name.lowercase()}" +
+        contentDescription = "Pip, ${emotion.name.lowercase()}" +
             if (bubbleVisible) ". ${bubbleContent?.text.orEmpty()}" else ""
     }) {
         if (size.minDimension <= 0f) return@Canvas

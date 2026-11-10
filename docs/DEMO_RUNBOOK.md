@@ -1,4 +1,4 @@
-# Dhyan: 4–5 Minute Live Demonstration Runbook & Rehearsal Script
+# Hunch: 4–5 Minute Live Demonstration Runbook & Rehearsal Script
 
 **Spec Reference:** §19 (Demo Script) & §20 (Pitch Q&A)  
 **Target Setup:** Oppo Reno 14 (Android App) + Laptop Workstation (Desktop App & VS Code Extension) + Local/Cloud Encrypted Relay
@@ -14,7 +14,7 @@
    adb reverse tcp:8080 tcp:8080
    ```
 3. Launch **Dhyan** (`com.dhyan.app`).
-4. Ensure **Foreground Service** notification is running (*"Dhyan Active · Monitoring attention"*).
+4. Ensure **Foreground Service** notification is running (*"Hunch Active · Monitoring attention"*).
 5. Verify in **Settings** (bottom sheet) that:
    - Policy Mode is set to **POLICY MODE: LIVE** (or **DRY_RUN** if testing without notification interception).
    - Kill Switch is **OFF**.
@@ -29,9 +29,9 @@
    cd laptop
    npm run dev
    ```
-3. Open **VS Code** with the Dhyan Extension enabled:
-   - Check the bottom status bar: `$(pulse) Dhyan: 24:15 • Focused (92%)`.
-   - Check Activity Bar: Click the Dhyan icon to display the **Dhyan Companion** panel with the Cloud Spirit pet.
+3. Open **VS Code** with the Hunch Extension enabled:
+   - Check the bottom status bar: `$(pulse) Hunch: 24:15 • Focused (92%)`.
+   - Check Activity Bar: Click the Hunch icon to display the **Hunch Companion** panel with the Cloud Spirit pet.
 
 ### 1.3 Pairing Check
 - In Desktop App Settings or Reno 14 Settings, ensure paired status displays: `● Connected · Confirmed SAS [607 383]`.
@@ -65,14 +65,14 @@
   >
   > Today’s operating systems offer crude Do Not Disturb toggles that either block everything or let everything through.
   >
-  > We built **Dhyan** — an on-device digital twin that simulates both futures: what happens if we show you this notification right now, versus what happens if we hold it for a scheduled digest. And it does this in under half a millisecond without ever reading your message text."*
+  > We built **Hunch** — an on-device digital twin that simulates both futures: what happens if we show you this notification right now, versus what happens if we hold it for a scheduled digest. And it does this in under half a millisecond without ever reading your message text."*
 
 ---
 
 ### Phase 2: Cross-Device Presence — Meet the Cloud Spirit (0:20 – 0:40)
 * **Presenter Action:** Type a few lines in VS Code. Point to the VS Code sidebar companion panel and the Desktop Bento widget.
 * **Verbal Script:**
-  > *"Meet our companion pet, the Dhyan Cloud Spirit. Notice how as I type in VS Code, its eyes track my cursor saccades and it stays in deep focus. 
+  > *"Meet our companion pet, the Hunch Cloud Spirit. Notice how as I type in VS Code, its eyes track my cursor saccades and it stays in deep focus.
   >
   > Across both my laptop and the Reno 14 phone in my hand, the attention state is synchronized in real-time over an end-to-end encrypted relay using P-256 ECDH keys."*
 
@@ -87,7 +87,7 @@
 * **Verbal Script:**
   > *"Here is Rahul, a software engineer 4 hours into a coding sprint. A social media ping arrives.
   >
-  > Dhyan’s twin instantly simulates the counterfactual:
+  > Hunch’s twin instantly simulates the counterfactual:
   > - If shown now: 62% pickup probability leads to an expected focus loss of 24 minutes.
   > - If held: only 2 minutes of baseline hazard.
   >
@@ -102,7 +102,7 @@
   1. On the phone Simulate tab, fire *"Mom: Call me, urgent"* or a Bank OTP.
   2. The notification passes through instantly as **ALLOW**.
 * **Verbal Script:**
-  > *"Dhyan is not a blocker. When an urgent message arrives — an emergency keyword, a family member, or a bank authentication OTP — the twin does not hold it. 
+  > *"Hunch is not a blocker. When an urgent message arrives — an emergency keyword, a family member, or a bank authentication OTP — the twin does not hold it.
   >
   > Our safety rules are absolute: across 9,072 stress-test decisions across all modes, zero urgent notifications were ever held. The system fails open unconditionally."*
 
@@ -115,7 +115,7 @@
   >
   > When we switch to Kabir, who has a high spontaneous self-distraction rate, the twin predicts only 1.2 minutes saved by suppressing the notification, because Kabir is likely to self-interrupt anyway. 
   >
-  > Dhyan doesn't use generic heuristics — it models individual attention probability."*
+  > Hunch doesn't use generic heuristics — it models individual attention probability."*
 
 ---
 
@@ -125,9 +125,9 @@
   2. Tap **"That was important"** on a held card.
   3. Switch to the **Insights** tab and expand the **Twin Lab (Posterior Convergence)** drawer.
 * **Verbal Script:**
-  > *"Dhyan personalizes without heavy neural networks or cloud training. 
+  > *"Hunch personalizes without heavy neural networks or cloud training.
   >
-  > When the user provides feedback by tapping 'That was important', Dhyan performs conjugate Bayesian updating on the Beta distribution parameters. 
+  > When the user provides feedback by tapping 'That was important', Hunch performs conjugate Bayesian updating on the Beta distribution parameters.
   >
   > In the Twin Lab, you can see the posterior probability curve shift to the right in real-time, increasing effective observations $n_{\text{eff}}$. Tomorrow, similar notifications will be weighted accordingly."*
 
@@ -136,7 +136,7 @@
 ### Phase 7: Intentionality vs Compulsion (3:25 – 3:55)
 * **Presenter Action:** Point to the **Intentional vs. Compulsive** ratio bar ($68\%$ vs $32\%$) and the Circadian Fatigue curve on the Insights tab.
 * **Verbal Script:**
-  > *"Dhyan also differentiates between deep, intentional media engagement and compulsive short-form scrolling.
+  > *"Hunch also differentiates between deep, intentional media engagement and compulsive short-form scrolling.
   >
   > Long lecture videos on YouTube maintain stable dwell with low app-switching, scoring high on intentionality. In contrast, short-form reels trigger high fragmentation and are surfaced for break boundaries."*
 
@@ -172,13 +172,13 @@
 ## 3. Evaluator Q&A Cheat Sheet (Prepared Answers)
 
 1. **Q: Why not just use Android Do Not Disturb or Focus Mode?**
-   * *Answer:* DND is a static binary hammer. It blocks everything or nothing. Dhyan is a probabilistic twin that calculates the counterfactual cost of interruption in *this specific moment* based on your current task and circadian rhythm, holding only low-urgency distractions while guaranteeing emergency delivery.
+   * *Answer:* DND is a static binary hammer. It blocks everything or nothing. Hunch is a probabilistic twin that calculates the counterfactual cost of interruption in *this specific moment* based on your current task and circadian rhythm, holding only low-urgency distractions while guaranteeing emergency delivery.
 
 2. **Q: How can you guarantee privacy if you monitor notifications?**
-   * *Answer:* Dhyan enforces a 23-forbidden-field AST scanner at build time. We never store, log, or transmit raw notification text, sender names, URLs, or keystrokes. Only categorical tokens (e.g. `social_notif`, `coding`) and mathematical count frequencies are processed.
+   * *Answer:* Hunch enforces a 23-forbidden-field AST scanner at build time. We never store, log, or transmit raw notification text, sender names, URLs, or keystrokes. Only categorical tokens (e.g. `social_notif`, `coding`) and mathematical count frequencies are processed.
 
 3. **Q: What if the app crashes? Will I miss an emergency call or OTP?**
-   * *Answer:* Dhyan is built fail-open by design. If any component encounters an exception or delay, all holds fail open instantly and the notification is displayed normally. Alarms, phone calls, and OTPs completely bypass the twin engine through our hardcoded Never-Hold rules.
+   * *Answer:* Hunch is built fail-open by design. If any component encounters an exception or delay, all holds fail open instantly and the notification is displayed normally. Alarms, phone calls, and OTPs completely bypass the twin engine through our hardcoded Never-Hold rules.
 
 4. **Q: Why use Bayesian conjugate priors instead of a deep neural network or LLM?**
    * *Answer:* Conjugate Beta and Log-Normal distributions update in $O(1)$ time with zero matrix multiplications. They consume near-zero CPU and battery, provide exact mathematical confidence bounds (epistemic uncertainty), and achieve a decision latency of under 0.5 ms without requiring cloud GPUs.

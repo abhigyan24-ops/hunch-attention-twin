@@ -1,12 +1,12 @@
 # Dhyan VS Code Sensor & Attention Companion
 
-A privacy-preserving telemetry sensor, resume assist engine, and quiet attention actuator for **Dhyan (ध्यान)** — the local-first cross-device attention digital twin.
+A privacy-preserving telemetry sensor, resume assist engine, and quiet attention actuator for **Hunch** (*your attention digital twin*). Unrelated to other products named Hunch. Internal `dhyan.*` setting keys and command IDs remain unchanged for compatibility.
 
 ---
 
 ## 1. Overview & Capabilities
 
-The Dhyan VS Code extension serves three strictly bounded responsibilities:
+The Hunch VS Code extension serves three strictly bounded responsibilities:
 
 1. **Sensor**: Periodically observes and reports coarse coding activity summaries (counts and durations only, zero code or document text) to a local desktop engine over localhost (`127.0.0.1`).
 2. **Resume Assist**: Captures local editor snapshots in `workspaceState` upon window blur or idle periods; when returning from an interruption, calculates resumption delay and helps users return seamlessly to where they left off.

@@ -1,8 +1,8 @@
 {
   "name": "dhyan-vscode",
-  "displayName": "Dhyan VS Code Sensor & Attention Companion",
+  "displayName": "Hunch VS Code Sensor & Attention Companion",
   "type": "module",
-  "description": "Privacy-preserving telemetry sensor, resume assist, and quiet actuator for the Dhyan attention digital twin",
+  "description": "Privacy-preserving telemetry sensor, resume assist, and quiet actuator for Hunch, your attention digital twin",
   "version": "1.0.0",
   "publisher": "dhyan",
   "repository": { "type": "git", "url": "https://github.com/abhigyan24-ops/cascade-3.3.git", "directory": "vscode-ext" },
@@ -31,7 +31,7 @@
       "activitybar": [
         {
           "id": "dhyan-container",
-          "title": "Dhyan",
+          "title": "Hunch",
           "icon": "resources/dhyan-icon.svg"
         }
       ]
@@ -41,7 +41,7 @@
         {
           "type": "webview",
           "id": "dhyan.companion",
-          "name": "Dhyan Companion"
+          "name": "Hunch Companion"
         },
         {
           "id": "dhyan.today",
@@ -60,55 +60,55 @@
     "commands": [
       {
         "command": "dhyan.pause",
-        "title": "Dhyan: Pause Tracking"
+        "title": "Hunch: Pause Tracking"
       },
       {
         "command": "dhyan.startSession",
-        "title": "Dhyan: Start Focus Session"
+        "title": "Hunch: Start Focus Session"
       },
       {
         "command": "dhyan.endSession",
-        "title": "Dhyan: End Focus Session"
+        "title": "Hunch: End Focus Session"
       },
       {
         "command": "dhyan.park",
-        "title": "Dhyan: Park Intention / Note"
+        "title": "Hunch: Park Intention / Note"
       },
       {
         "command": "dhyan.resume",
-        "title": "Dhyan: Resume Interrupted Task"
+        "title": "Hunch: Resume Interrupted Task"
       },
       {
         "command": "dhyan.openDigest",
-        "title": "Dhyan: Open Held Items Digest"
+        "title": "Hunch: Open Held Items Digest"
       },
       {
         "command": "dhyan.connect",
-        "title": "Dhyan: Connect to Desktop Engine"
+        "title": "Hunch: Connect to Desktop Engine"
       },
       {
         "command": "dhyan.diagnostics",
-        "title": "Dhyan: Show Diagnostics"
+        "title": "Hunch: Show Diagnostics"
       },
       {
         "command": "dhyan.forgetToday",
-        "title": "Dhyan: Forget Today's History"
+        "title": "Hunch: Forget Today's History"
       },
       {
         "command": "dhyan.openInsights",
-        "title": "Dhyan: Open Insights Dashboard"
+        "title": "Hunch: Open Insights Dashboard"
       },
       {
         "command": "dhyan.toggleTimer",
-        "title": "Dhyan: Toggle Focus Session"
+        "title": "Hunch: Toggle Focus Session"
       },
       {
         "command": "dhyan.reconnect",
-        "title": "Dhyan: Reconnect Sensor"
+        "title": "Hunch: Reconnect Sensor"
       },
       {
         "command": "dhyan.showStatus",
-        "title": "Dhyan: Show Sensor Status"
+        "title": "Hunch: Show Sensor Status"
       }
     ],
     "keybindings": [
@@ -124,7 +124,7 @@
       }
     ],
     "configuration": {
-      "title": "Dhyan Sensor & Twin",
+      "title": "Hunch Sensor & Twin",
       "properties": {
         "dhyan.endpointFile": {
           "type": "string",
@@ -134,12 +134,12 @@
         "dhyan.ingestPort": {
           "type": "number",
           "default": 47821,
-          "description": "Port of the local Dhyan ingest server (127.0.0.1)"
+          "description": "Port of the local Hunch ingest server (127.0.0.1)"
         },
         "dhyan.token": {
           "type": "string",
           "default": "",
-          "description": "Authentication token shown in the Dhyan laptop app"
+          "description": "Authentication token shown in the Hunch laptop app"
         },
         "dhyan.assistProbability": {
           "type": "number",

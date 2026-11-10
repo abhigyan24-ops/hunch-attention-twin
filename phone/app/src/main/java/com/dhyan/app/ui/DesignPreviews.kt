@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dhyan.app.ui.components.*
+import com.dhyan.app.ui.brand.HunchBrand
 import com.dhyan.app.ui.model.ActionVerdict
 import com.dhyan.app.ui.model.AttentionState
 import com.dhyan.app.ui.theme.DhyanTheme
@@ -29,7 +30,7 @@ private fun DesignPreview(dark: Boolean) {
     DhyanTheme(darkTheme = dark) {
         Surface(color = MaterialTheme.colorScheme.background) {
             Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                Text("Dhyan", style = MaterialTheme.typography.titleLarge)
+                Text(HunchBrand.PRODUCT_NAME, style = MaterialTheme.typography.titleLarge)
                 Text("Make room\nfor focus.", style = MaterialTheme.typography.headlineLarge)
                 Text("Synthetic preview · not live data", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 FocusRing(AttentionState.WORKING, 12)

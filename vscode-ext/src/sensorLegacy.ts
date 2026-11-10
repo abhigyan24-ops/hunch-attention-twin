@@ -305,7 +305,7 @@ export class DhyanVsCodeSensor {
 
   startSession(_preset: string, minutes: number) {
     if (this.statusBarItem) {
-      this.statusBarItem.text = `$(pulse) Dhyan: ${minutes}:00 • Deep Focus (100%)`;
+      this.statusBarItem.text = `$(pulse) Hunch: ${minutes}:00 • Deep Focus (100%)`;
     }
     if (this.companionProvider) {
       this.companionProvider.updateEmotion('FOCUSED');

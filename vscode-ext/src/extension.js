@@ -286,7 +286,7 @@ export class DhyanVsCodeSensor {
 
   startSession(preset, minutes) {
     if (this.statusBarItem) {
-      this.statusBarItem.text = `$(pulse) Dhyan: ${minutes}:00 • ${preset} (100%)`;
+      this.statusBarItem.text = `$(pulse) Hunch: ${minutes}:00 • ${preset} (100%)`;
     }
     if (this.companionProvider) {
       this.companionProvider.updateEmotion('FOCUSED');
@@ -395,8 +395,8 @@ export function activate(context) {
   // 1. Surface 1: Status Bar Focus Pill
   if (context && context.window && context.window.createStatusBarItem) {
     const statusBar = context.window.createStatusBarItem(1, 100);
-    statusBar.text = '$(pulse) Dhyan: 24:15 • Focused (92%)';
-    statusBar.tooltip = 'Dhyan Attention Companion — Click to view sidebar or toggle session';
+    statusBar.text = '$(pulse) Hunch: 24:15 • Focused (92%)';
+    statusBar.tooltip = 'Hunch Attention Companion — Click to view sidebar or toggle session';
     statusBar.command = 'dhyan.openInsights';
     statusBar.show();
     sensorInstance.statusBarItem = statusBar;

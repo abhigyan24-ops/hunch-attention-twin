@@ -18,6 +18,9 @@ import com.dhyan.app.ui.components.*
 import com.dhyan.app.ui.model.DhyanStateHolder
 import com.dhyan.app.ui.viewmodel.SettingsViewModel
 import java.util.Locale
+import com.dhyan.app.ui.brand.HunchBrand
+import com.dhyan.app.R
+import androidx.compose.ui.res.stringResource
 
 @Composable
 fun SettingsBottomSheet(stateHolder: DhyanStateHolder? = null, onDismiss: () -> Unit) {
@@ -211,6 +214,19 @@ fun SettingsBottomSheet(viewModel: SettingsViewModel, onDismiss: () -> Unit) {
                     Text("Posts a synthetic notification for local testing.", style = MaterialTheme.typography.bodySmall)
                     OutlinedButton(onClick = viewModel::postTestNotification) { Text("Post test notification") }
                 }
+            }
+            SettingsCard(stringResource(R.string.about_title)) {
+                Text(HunchBrand.PRODUCT_NAME, style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.brand_descriptor), style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(8.dp))
+                Text(stringResource(R.string.brand_tagline), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(4.dp))
+                Text(stringResource(R.string.brand_disclaimer), style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(4.dp))
+                Text(stringResource(R.string.brand_codename_note), style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(Modifier.height(24.dp))
         }

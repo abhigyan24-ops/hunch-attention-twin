@@ -70,7 +70,7 @@ export class DigestManager {
     if (allowToast && this.vscodeApi?.window?.showInformationMessage) {
       this.vscodeApi.window
         .showInformationMessage(
-          `Dhyan: ${this.items.length} notification${this.items.length > 1 ? 's were' : ' was'} held during your focus.`,
+          `Hunch: ${this.items.length} notification${this.items.length > 1 ? 's were' : ' was'} held during your focus.`,
           'Review Digest',
           'Dismiss'
         )
@@ -89,7 +89,7 @@ export class DigestManager {
     if (this.items.length === 0) {
       if (this.vscodeApi?.window?.showInformationMessage) {
         this.vscodeApi.window.showInformationMessage(
-          'Dhyan: No held notifications. Your attention was completely uninterrupted.'
+          'Hunch: No held notifications. Your attention was completely uninterrupted.'
         );
       }
       return;
@@ -112,7 +112,7 @@ export class DigestManager {
     });
 
     const selected = await this.vscodeApi.window.showQuickPick(pickItems, {
-      title: `Dhyan: Held Notifications (${this.items.length})`
+      title: `Hunch: Held Notifications (${this.items.length})`
     });
 
     if (selected) {

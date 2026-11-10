@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Dhyan Browser Focus Sensor",
+  "name": "Hunch Browser Focus Sensor",
   "version": "1.0.0",
-  "description": "Privacy-preserving telemetry sensor for Dhyan (counts and categories only, zero URLs or page text)",
+  "description": "Privacy-preserving telemetry sensor for Hunch (counts and categories only, zero URLs or page text)",
   "permissions": [
     "tabs",
     "idle",

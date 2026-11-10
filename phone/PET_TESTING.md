@@ -1,4 +1,4 @@
-# Dhyan Spirit test reference
+# Pip test reference
 
 ## Coverage audit
 
