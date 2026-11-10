@@ -5,7 +5,11 @@
   "description": "Privacy-preserving telemetry sensor, resume assist, and quiet actuator for Hunch, your attention digital twin",
   "version": "1.0.0",
   "publisher": "dhyan",
-  "repository": { "type": "git", "url": "https://github.com/abhigyan24-ops/cascade-3.3.git", "directory": "vscode-ext" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/abhigyan24-ops/cascade-3.3.git",
+    "directory": "vscode-ext"
+  },
   "engines": {
     "vscode": "^1.93.0"
   },
@@ -221,5 +225,6 @@
     "mocha": "^11.1.0",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3"
-  }
+  },
+  "license": "Apache-2.0"
 }
