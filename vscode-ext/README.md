@@ -1,4 +1,4 @@
-# Dhyan VS Code Sensor & Attention Companion
+# Hunch VS Code Sensor & Attention Companion
 
 A privacy-preserving telemetry sensor, resume assist engine, and quiet attention actuator for **Hunch** (*your attention digital twin*). Unrelated to other products named Hunch. Internal `dhyan.*` setting keys and command IDs remain unchanged for compatibility.
 

@@ -1,4 +1,4 @@
-// Dhyan Content Script: Measures activity metrics and surfaces locally.
+// Hunch Content Script: Measures activity metrics and surfaces locally.
 // Privacy: Zero document text, titles, URLs or search strings.
 
 (function () {
