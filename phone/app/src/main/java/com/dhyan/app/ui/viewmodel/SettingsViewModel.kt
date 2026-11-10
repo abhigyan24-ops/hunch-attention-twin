@@ -3,6 +3,7 @@ package com.dhyan.app.ui.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dhyan.app.ui.brand.HunchBrand
 import com.dhyan.app.actuator.ActuatorConfig
 import com.dhyan.app.actuator.KillSwitchController
 import com.dhyan.app.actuator.digest.DigestBuilder

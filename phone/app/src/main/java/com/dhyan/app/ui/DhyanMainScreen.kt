@@ -13,6 +13,7 @@ import com.dhyan.app.ui.settings.SettingsBottomSheet
 import com.dhyan.app.ui.tabs.*
 import com.dhyan.app.ui.components.FloatingCapsuleNavBar
 import com.dhyan.app.R
+import androidx.compose.ui.res.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
