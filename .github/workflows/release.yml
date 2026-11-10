@@ -66,10 +66,11 @@ jobs:
         env:
           V: ${{ needs.meta.outputs.version }}
         run: |
-          for f in laptop/package.json vscode-ext/package.json; do
-            X="$(node -p "require('./$f').version")"
-            [ "$X" = "$V" ] || { echo "::error file=$f::version is $X but release version is $V"; exit 1; }
-          done
+          BASE="${V%%-*}"
+          L="$(node -p "require('./laptop/package.json').version")"
+          E="$(node -p "require('./vscode-ext/package.json').version")"
+          [ "$L" = "$V" ] || { echo "::error file=laptop/package.json::version is $L but release version is $V"; exit 1; }
+          [ "$E" = "$BASE" ] || { echo "::error file=vscode-ext/package.json::version is $E but base version is $BASE"; exit 1; }
 
       - name: Install shared test dependencies
         run: npm ci
@@ -177,7 +178,11 @@ jobs:
           npm run compile
           npm run test:unit
           xvfb-run -a npm run test:e2e
-          npm run package -- --out dhyan.vsix --skip-license
+          if [[ "${{ needs.meta.outputs.version }}" == *-* ]]; then
+            npm run package -- --out dhyan.vsix --pre-release --skip-license
+          else
+            npm run package -- --out dhyan.vsix --skip-license
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
@@ -228,9 +233,9 @@ jobs:
         shell: pwsh
         run: |
           $d = 'laptop/dist-installer'
-          foreach ($pat in 'Hunch-Setup-*.exe', 'Hunch-Setup-*.exe.blockmap', 'latest.yml') {
-            if (-not (Get-ChildItem -Path $d -Filter $pat -ErrorAction SilentlyContinue)) { throw "missing $pat in $d" }
-          }
+          if (-not (Get-ChildItem -Path $d -Filter 'Hunch-Setup-*.exe' -ErrorAction SilentlyContinue)) { throw "missing Hunch-Setup-*.exe in $d" }
+          if (-not (Get-ChildItem -Path $d -Filter 'Hunch-Setup-*.exe.blockmap' -ErrorAction SilentlyContinue)) { throw "missing Hunch-Setup-*.exe.blockmap in $d" }
+          if (-not ((Test-Path "$d/latest.yml") -or (Test-Path "$d/beta.yml"))) { throw "missing latest.yml or beta.yml in $d" }
           $engine = "$d/win-unpacked/resources/engine/dhyan-engine.exe"
           if (-not (Test-Path $engine)) { throw "engine not bundled: $engine" }
           Write-Host 'installer files and bundled engine OK'
@@ -242,6 +247,7 @@ jobs:
             laptop/dist-installer/Hunch-Setup-*.exe
             laptop/dist-installer/Hunch-Setup-*.exe.blockmap
             laptop/dist-installer/latest.yml
+            laptop/dist-installer/beta.yml
           retention-days: 3
           if-no-files-found: error
 
@@ -354,7 +360,7 @@ jobs:
           files: |
             artifacts/Hunch-Setup-*.exe
             artifacts/Hunch-Setup-*.exe.blockmap
-            artifacts/latest.yml
+            artifacts/*.yml
             artifacts/Hunch-*.apk
             artifacts/dhyan.vsix
             artifacts/SHA256SUMS.txt
