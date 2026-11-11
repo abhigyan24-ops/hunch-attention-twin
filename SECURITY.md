@@ -1,4 +1,4 @@
-# Security Policy
+﻿# Security Policy
 
 ## Supported Versions
 Hunch is in **public beta**. Only the latest beta release receives security fixes.
@@ -11,7 +11,7 @@ Hunch is in **public beta**. Only the latest beta release receives security fixe
 ## Reporting a Vulnerability
 **Please do not open a public issue for security problems.**
 
-Use GitHub's **Report a vulnerability** button on the repository's *Security* tab, or email **<<SECURITY_CONTACT_EMAIL>>**.
+Use GitHub's **Report a vulnerability** button on the repository's *Security* tab, or email **hunch_support@googlegroups.com**.
 
 Please include:
 - A clear description of what you found
