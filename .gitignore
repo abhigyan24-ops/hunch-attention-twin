@@ -78,3 +78,5 @@ phone/MANUAL_CHECKS*.md
 phone/VERIFICATION_*.md
 phone/PET_TESTING.md
 relay/VERIFICATION_*.md
+
+artifacts-downloaded/

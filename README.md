@@ -6,7 +6,8 @@ Unrelated to other products named Hunch. Hunch is a working name for a prototype
 
 Codename note: internal package names, protocol constants and storage names still say `dhyan` so existing data and pairings keep working.
 
-[![CI](https://github.com/abhigyan24-ops/hunch-attention-twin/actions/workflows/release.yml/badge.svg)](https://github.com/abhigyan24-ops/hunch-attention-twin/actions)
+[![Release CI](https://github.com/abhigyan24-ops/hunch-attention-twin/actions/workflows/release.yml/badge.svg?branch=v1.0.0-beta.1)](https://github.com/abhigyan24-ops/hunch-attention-twin/actions/workflows/release.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/abhigyan24-ops/hunch-attention-twin?include_prereleases&color=brightgreen&label=release)](https://github.com/abhigyan24-ops/hunch-attention-twin/releases)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Android](https://img.shields.io/badge/Android-14%20%7C%2015%20%7C%2016-brightgreen.svg)](phone/)
 [![Electron](https://img.shields.io/badge/Electron-31.4-blue.svg)](laptop/)

@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hunch — Your Attention Digital Twin</title>
+  <meta name="description" content="Hunch is an on-device attention digital twin that predicts what a notification will cost your focus before it interrupts you. 100% private, zero cloud.">
+  <meta name="theme-color" content="#07090E">
+
+  <!-- Open Graph / Social Media -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Hunch — Your Attention Digital Twin">
+  <meta property="og:description" content="Predicts what a notification will cost your focus before it interrupts you. Sub-10ms causal engine, 100% local privacy.">
+  <meta property="og:url" content="https://abhigyan24-ops.github.io/hunch-attention-twin/">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons via CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#F0FDF4',
+              100: '#DCFCE7',
+              400: '#34D399',
+              500: '#10B981',
+              600: '#059669',
+              emerald: '#10B981',
+              purple: '#8B5CF6',
+              cyan: '#06B6D4',
+              amber: '#F59E0B',
+              dark: '#07090E',
+              card: '#0D1117',
+              border: '#1F2937',
+            }
+          },
+          animation: {
+            'blob': 'blob 12s infinite cubic-bezier(0.4, 0, 0.2, 1)',
+            'float': 'float 6s ease-in-out infinite',
+            'pulse-subtle': 'pulseSubtle 3s ease-in-out infinite',
+            'shimmer': 'shimmer 2.5s linear infinite',
+          },
+          keyframes: {
+            blob: {
+              '0%, 100%': { transform: 'translate(0px, 0px) scale(1)' },
+              '33%': { transform: 'translate(30px, -40px) scale(1.1)' },
+              '66%': { transform: 'translate(-25px, 20px) scale(0.95)' },
+            },
+            float: {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-12px)' },
+            },
+            pulseSubtle: {
+              '0%, 100%': { opacity: '0.9', transform: 'scale(1)' },
+              '50%': { opacity: '0.6', transform: 'scale(0.98)' },
+            },
+            shimmer: {
+              'from': { backgroundPosition: '0 0' },
+              'to': { backgroundPosition: '-200% 0' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Background aurora glow */
+    .radial-glow {
+      background: radial-gradient(circle at 50% 0%, rgba(139, 92, 246, 0.15) 0%, rgba(16, 185, 129, 0.08) 35%, transparent 70%);
+    }
+    .grid-pattern {
+      background-size: 40px 40px;
+      background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                        linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    }
+    .glass-panel {
+      background: rgba(15, 20, 28, 0.7);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glass-panel-hover:hover {
+      background: rgba(22, 28, 38, 0.85);
+      border-color: rgba(255, 255, 255, 0.16);
+    }
+    .text-gradient {
+      background: linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 50%, #94A3B8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .text-gradient-emerald {
+      background: linear-gradient(135deg, #34D399 0%, #10B981 50%, #06B6D4 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .text-gradient-purple {
+      background: linear-gradient(135deg, #C084FC 0%, #8B5CF6 50%, #6366F1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    /* Pip Mascot Eye animation */
+    @keyframes blink {
+      0%, 96%, 100% { transform: scaleY(1); }
+      98% { transform: scaleY(0.1); }
+    }
+    .pip-eye {
+      animation: blink 4s infinite;
+      transform-origin: center;
+    }
+  </style>
+</head>
+
+<body class="bg-[#07090E] text-slate-100 antialiased selection:bg-emerald-500/30 selection:text-emerald-200 min-h-screen relative overflow-x-hidden">
+
+  <!-- Ambient Aurora Orbs -->
+  <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+    <div class="absolute -top-[20%] left-1/2 -translate-x-1/2 w-[800px] h-[550px] bg-purple-600/15 rounded-full blur-[140px] animate-blob"></div>
+    <div class="absolute top-[25%] -left-[10%] w-[550px] h-[550px] bg-emerald-500/10 rounded-full blur-[130px] animate-blob animation-delay-4000"></div>
+    <div class="absolute top-[45%] -right-[10%] w-[600px] h-[600px] bg-sky-500/10 rounded-full blur-[150px] animate-blob animation-delay-2000"></div>
+    <div class="absolute inset-0 grid-pattern opacity-60"></div>
+  </div>
+
+  <!-- Sticky Navbar -->
+  <header class="fixed top-0 left-0 right-0 z-50 px-4 sm:px-6 lg:px-8 pt-4">
+    <div class="max-w-6xl mx-auto glass-panel rounded-2xl px-5 py-3.5 flex items-center justify-between shadow-2xl border border-white/10 transition-all duration-300">
+      
+      <!-- Brand Logo -->
+      <a href="#" class="flex items-center gap-3 group">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-purple-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform duration-300">
+          <!-- Pip mini face -->
+          <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 13c-.83 0-1.5-.67-1.5-1.5S9.17 12 10 12s1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm4 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+          </svg>
+        </div>
+        <div class="flex flex-col">
+          <div class="flex items-center gap-2">
+            <span class="font-display font-extrabold text-lg tracking-tight text-white">Hunch</span>
+            <span class="px-2 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-full">Beta 1.0</span>
+          </div>
+          <span class="text-[11px] text-slate-400 -mt-0.5 hidden sm:inline">your attention digital twin</span>
+        </div>
+      </a>
+
+      <!-- Desktop Nav Links -->
+      <nav class="hidden md:flex items-center gap-7 text-sm font-medium text-slate-300">
+        <a href="#simulator" class="hover:text-emerald-400 transition-colors">Live Twin Lab</a>
+        <a href="#features" class="hover:text-emerald-400 transition-colors">Features</a>
+        <a href="#privacy" class="hover:text-emerald-400 transition-colors">Privacy Promise</a>
+        <a href="#downloads" class="hover:text-emerald-400 transition-colors">Download</a>
+        <a href="https://github.com/abhigyan24-ops/hunch-attention-twin" target="_blank" class="hover:text-white transition-colors flex items-center gap-1.5">
+          <span>Docs</span>
+          <i data-lucide="external-link" class="w-3.5 h-3.5 opacity-60"></i>
+        </a>
+      </nav>
+
+      <!-- Right Actions -->
+      <div class="flex items-center gap-3">
+        <a href="https://github.com/abhigyan24-ops/hunch-attention-twin" target="_blank" class="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-slate-200">
+          <i data-lucide="github" class="w-4 h-4"></i>
+          <span>Star on GitHub</span>
+        </a>
+        <a href="#downloads" class="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:opacity-95 shadow-lg shadow-emerald-500/20 text-slate-950 transition-all duration-300 transform active:scale-95 flex items-center gap-1.5">
+          <i data-lucide="download" class="w-3.5 h-3.5"></i>
+          <span>Get Beta</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="relative z-10 pt-32 sm:pt-40 pb-24 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
+
+    <!-- HERO SECTION -->
+    <section class="text-center max-w-4xl mx-auto mb-20 sm:mb-28">
+      
+      <!-- Eyebrow Pill -->
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full glass-panel border-white/10 mb-8 animate-pulse-subtle">
+        <span class="flex h-2 w-2 rounded-full bg-emerald-400"></span>
+        <span class="text-xs font-medium text-slate-300">Public Beta Live on Android & Windows</span>
+        <span class="text-slate-500">•</span>
+        <span class="text-xs font-mono font-medium text-emerald-400">100% On-Device</span>
+      </div>
+
+      <!-- Main Headline -->
+      <h1 class="text-4xl sm:text-6xl lg:text-7xl font-display font-extrabold tracking-tight leading-[1.1] mb-6 text-white">
+        Knows what that notification <br>
+        <span class="text-gradient-emerald">will cost your focus.</span>
+      </h1>
+
+      <!-- Subtitle -->
+      <p class="text-base sm:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed font-normal mb-10">
+        Hunch is your attention digital twin. It computes counterfactual interruption costs in sub-10ms, synchronizes a quiet lease between your phone and laptop, and stays entirely on your devices.
+      </p>
+
+      <!-- CTA Buttons -->
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+        <a href="#downloads" class="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-bold text-sm tracking-wide shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2.5 transition-all duration-200 transform hover:-translate-y-0.5">
+          <i data-lucide="smartphone" class="w-4 h-4"></i>
+          <span>Download Android APK</span>
+        </a>
+
+        <a href="#downloads" class="w-full sm:w-auto px-7 py-3.5 rounded-2xl glass-panel glass-panel-hover text-white font-semibold text-sm tracking-wide border border-white/15 flex items-center justify-center gap-2.5 transition-all duration-200 transform hover:-translate-y-0.5">
+          <i data-lucide="monitor" class="w-4 h-4"></i>
+          <span>Download Windows Setup</span>
+        </a>
+
+        <a href="https://github.com/abhigyan24-ops/hunch-attention-twin" target="_blank" class="w-full sm:w-auto px-5 py-3.5 rounded-2xl glass-panel text-slate-300 hover:text-white font-medium text-sm flex items-center justify-center gap-2 border border-white/10 hover:border-white/20 transition-all">
+          <i data-lucide="github" class="w-4 h-4"></i>
+          <span>Source Code</span>
+        </a>
+      </div>
+
+      <!-- Quick Trust Indicators -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto text-left">
+        <div class="glass-panel p-3.5 rounded-xl flex items-center gap-3">
+          <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400"><i data-lucide="shield-check" class="w-4 h-4"></i></div>
+          <div>
+            <div class="text-xs font-semibold text-white">Zero Telemetry</div>
+            <div class="text-[11px] text-slate-400">Zero cloud logging</div>
+          </div>
+        </div>
+        <div class="glass-panel p-3.5 rounded-xl flex items-center gap-3">
+          <div class="p-2 rounded-lg bg-purple-500/10 text-purple-400"><i data-lucide="cpu" class="w-4 h-4"></i></div>
+          <div>
+            <div class="text-xs font-semibold text-white">Causal ML Engine</div>
+            <div class="text-[11px] text-slate-400">Local EconML twin</div>
+          </div>
+        </div>
+        <div class="glass-panel p-3.5 rounded-xl flex items-center gap-3">
+          <div class="p-2 rounded-lg bg-sky-500/10 text-sky-400"><i data-lucide="zap" class="w-4 h-4"></i></div>
+          <div>
+            <div class="text-xs font-semibold text-white">&lt;10ms Decision</div>
+            <div class="text-[11px] text-slate-400">Sub-perceptual latency</div>
+          </div>
+        </div>
+        <div class="glass-panel p-3.5 rounded-xl flex items-center gap-3">
+          <div class="p-2 rounded-lg bg-teal-500/10 text-teal-400"><i data-lucide="lock" class="w-4 h-4"></i></div>
+          <div>
+            <div class="text-xs font-semibold text-white">P256 Encrypted</div>
+            <div class="text-[11px] text-slate-400">Ephemeral local sync</div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- LIVE INTERACTIVE DIGITAL TWIN LAB (Simulator) -->
+    <section id="simulator" class="mb-28 scroll-mt-28">
+      <div class="glass-panel rounded-3xl p-6 sm:p-10 border border-white/10 relative overflow-hidden shadow-2xl">
+        
+        <!-- Background decorative gradient inside simulator -->
+        <div class="absolute -top-32 -right-32 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-32 -left-32 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <!-- Section Header -->
+        <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4 pb-6 border-b border-white/10">
+          <div>
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/25 text-purple-300 text-xs font-mono mb-2">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+              <span>Interactive Digital Twin Sandbox</span>
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight">Test the Causal Decision Engine</h2>
+          </div>
+          <div class="text-xs text-slate-400 font-mono flex items-center gap-2">
+            <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>Running local causal simulation</span>
+          </div>
+        </div>
+
+        <!-- Simulator Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+
+          <!-- Left Controls (Input Parameters) -->
+          <div class="lg:col-span-7 space-y-6">
+            
+            <!-- Focus Activity State -->
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2.5">
+                Current Laptop Work Context
+              </label>
+              <div class="grid grid-cols-3 gap-2.5" id="context-selector">
+                <button onclick="setContext('deep', this)" class="context-btn active px-3.5 py-3 rounded-xl border border-emerald-500/40 bg-emerald-500/15 text-white text-xs font-medium text-left transition-all">
+                  <div class="font-bold flex items-center gap-1.5 mb-1">
+                    <i data-lucide="code-2" class="w-3.5 h-3.5 text-emerald-400"></i>
+                    <span>Deep Code Flow</span>
+                  </div>
+                  <div class="text-[10px] text-slate-300">VS Code • Rust compiler</div>
+                </button>
+                <button onclick="setContext('writing', this)" class="context-btn px-3.5 py-3 rounded-xl border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 text-xs font-medium text-left transition-all">
+                  <div class="font-bold flex items-center gap-1.5 mb-1">
+                    <i data-lucide="file-text" class="w-3.5 h-3.5 text-purple-400"></i>
+                    <span>Architecture</span>
+                  </div>
+                  <div class="text-[10px] text-slate-400">Spec drafting & notes</div>
+                </button>
+                <button onclick="setContext('triage', this)" class="context-btn px-3.5 py-3 rounded-xl border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 text-xs font-medium text-left transition-all">
+                  <div class="font-bold flex items-center gap-1.5 mb-1">
+                    <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-sky-400"></i>
+                    <span>Light Triage</span>
+                  </div>
+                  <div class="text-[10px] text-slate-400">Browser & email checking</div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Notification Trigger -->
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2.5">
+                Incoming Phone Notification
+              </label>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2" id="notif-selector">
+                <button onclick="setNotif('social', this)" class="notif-btn active px-3 py-2.5 rounded-xl border border-purple-500/40 bg-purple-500/15 text-white text-xs text-left transition-all">
+                  <div class="font-semibold text-slate-200">Instagram</div>
+                  <div class="text-[10px] text-purple-300 truncate">Friend sent a Reel</div>
+                </button>
+                <button onclick="setNotif('slack', this)" class="notif-btn px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 text-xs text-left transition-all">
+                  <div class="font-semibold text-slate-200">Slack</div>
+                  <div class="text-[10px] text-slate-400 truncate">@channel in #random</div>
+                </button>
+                <button onclick="setNotif('promo', this)" class="notif-btn px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 text-xs text-left transition-all">
+                  <div class="font-semibold text-slate-200">Food App</div>
+                  <div class="text-[10px] text-slate-400 truncate">50% off discount!</div>
+                </button>
+                <button onclick="setNotif('family', this)" class="notif-btn px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 text-xs text-left transition-all">
+                  <div class="font-semibold text-slate-200">Mom (Call)</div>
+                  <div class="text-[10px] text-slate-400 truncate">VIP Phone Call</div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Fatigue Slider -->
+            <div>
+              <div class="flex justify-between items-center mb-2">
+                <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">Hours in Session</label>
+                <span id="hours-display" class="text-xs font-mono font-bold text-emerald-400">3.5 hrs (Peak Flow)</span>
+              </div>
+              <input type="range" id="hours-slider" min="0.5" max="8.0" step="0.5" value="3.5" oninput="updateHours(this.value)" class="w-full accent-emerald-400 bg-slate-800 rounded-lg cursor-pointer h-2">
+              <div class="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
+                <span>0.5h (Fresh)</span>
+                <span>4.0h (Deep Flow)</span>
+                <span>8.0h (Fatigued)</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Right: Twin Decision Live Card (Output) -->
+          <div class="lg:col-span-5">
+            <div class="bg-[#0B0F17] rounded-2xl p-6 border border-white/10 relative shadow-2xl flex flex-col justify-between">
+              
+              <!-- Mascot Header -->
+              <div class="flex items-center justify-between pb-4 border-b border-white/10 mb-5">
+                <div class="flex items-center gap-3">
+                  <!-- Animated Procedural Pip Mascot -->
+                  <div id="pip-container" class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600/40 to-emerald-500/40 border border-white/10 flex items-center justify-center relative shadow-inner overflow-hidden">
+                    <svg viewBox="0 0 100 100" class="w-9 h-9 text-white">
+                      <!-- Cloud body -->
+                      <path d="M 25,60 A 20,20 0 0,1 45,35 A 25,25 0 0,1 75,40 A 18,18 0 0,1 85,65 A 15,15 0 0,1 70,80 L 30,80 A 15,15 0 0,1 25,60 Z" fill="white" fill-opacity="0.9" />
+                      <!-- Eyes -->
+                      <ellipse class="pip-eye" cx="48" cy="55" rx="3" ry="4" fill="#0B0F17" />
+                      <ellipse class="pip-eye" cx="62" cy="55" rx="3" ry="4" fill="#0B0F17" />
+                      <!-- Blush -->
+                      <circle cx="42" cy="62" r="3" fill="#F472B6" opacity="0.6"/>
+                      <circle cx="68" cy="62" r="3" fill="#F472B6" opacity="0.6"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="text-xs font-semibold text-white">Pip — Attention Spirit</div>
+                    <div id="pip-state" class="text-[11px] text-emerald-400 font-mono">Guarding Deep Flow</div>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="text-[10px] text-slate-500 font-mono">LATENCY</div>
+                  <div class="text-xs font-mono font-bold text-sky-400">4.2 ms</div>
+                </div>
+              </div>
+
+              <!-- Main Decision Display -->
+              <div class="mb-5 text-center py-4 bg-white/[0.02] rounded-xl border border-white/5">
+                <div class="text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1">Causal Twin Decision</div>
+                <div id="decision-badge" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-display font-extrabold text-sm sm:text-base">
+                  <i data-lucide="shield" class="w-4 h-4"></i>
+                  <span>HOLD FOR BATCH DIGEST</span>
+                </div>
+              </div>
+
+              <!-- Metrics Readout -->
+              <div class="grid grid-cols-2 gap-3 mb-4">
+                <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+                  <div class="text-[10px] font-mono text-slate-400">EXPECTED FOCUS COST</div>
+                  <div id="cost-value" class="text-lg font-display font-bold text-amber-400">~18.4 mins</div>
+                  <div class="text-[10px] text-slate-500">Recovery penalty</div>
+                </div>
+                <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+                  <div class="text-[10px] font-mono text-slate-400">TWIN CONFIDENCE</div>
+                  <div class="text-lg font-display font-bold text-purple-400">97.8%</div>
+                  <div class="text-[10px] text-slate-500">Posterior weight</div>
+                </div>
+              </div>
+
+              <!-- Reason Explanation -->
+              <div id="decision-reason" class="text-xs text-slate-300 leading-relaxed font-sans bg-black/40 p-3 rounded-xl border border-white/5">
+                "Instagram Reel during an active Rust coding burst poses an 88% distraction probability. Held silently on phone; grouped into your 1:00 PM Focus Digest."
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- CORE FEATURES SECTION -->
+    <section id="features" class="mb-28 scroll-mt-28">
+      <div class="text-center max-w-2xl mx-auto mb-16">
+        <h2 class="text-xs font-mono font-bold uppercase tracking-widest text-emerald-400 mb-3">Architectural Pillars</h2>
+        <p class="text-3xl sm:text-4xl font-display font-extrabold text-white tracking-tight">How your attention twin guards flow</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- Card 1 -->
+        <div class="glass-panel glass-panel-hover p-7 rounded-3xl transition-all duration-300 flex flex-col justify-between">
+          <div>
+            <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-6">
+              <i data-lucide="brain-circuit" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-xl font-display font-bold text-white mb-3">Causal Disruption Engine</h3>
+            <p class="text-sm text-slate-400 leading-relaxed mb-6">
+              Hunch uses on-device causal inference (EconML-style double machine learning) to learn your specific attention curves: when you are resilient, when fatigue hits, and what each interruption truly costs.
+            </p>
+          </div>
+          <div class="pt-4 border-t border-white/5 text-xs font-mono text-emerald-400 flex items-center gap-1.5">
+            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+            <span>Purely local mathematical twin</span>
+          </div>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="glass-panel glass-panel-hover p-7 rounded-3xl transition-all duration-300 flex flex-col justify-between">
+          <div>
+            <div class="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 mb-6">
+              <i data-lucide="radio" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-xl font-display font-bold text-white mb-3">Quiet Lease Sync</h3>
+            <p class="text-sm text-slate-400 leading-relaxed mb-6">
+              When deep editor activity begins in VS Code, your laptop issues an ephemeral <strong>Quiet Lease</strong> to your phone via local end-to-end encrypted WebSocket. Non-critical alerts are buffered in silent digests.
+            </p>
+          </div>
+          <div class="pt-4 border-t border-white/5 text-xs font-mono text-purple-400 flex items-center gap-1.5">
+            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+            <span>Fail-open safety protocol</span>
+          </div>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="glass-panel glass-panel-hover p-7 rounded-3xl transition-all duration-300 flex flex-col justify-between">
+          <div>
+            <div class="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 mb-6">
+              <i data-lucide="history" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-xl font-display font-bold text-white mb-3">Editor Resume Assistance</h3>
+            <p class="text-sm text-slate-400 leading-relaxed mb-6">
+              When interruptions do break through, the VS Code extension logs salt-hashed file transition milestones. Returning to your editor restores your breadcrumbs without scanning any private code or file paths.
+            </p>
+          </div>
+          <div class="pt-4 border-t border-white/5 text-xs font-mono text-sky-400 flex items-center gap-1.5">
+            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+            <span>Instant context re-activation</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- PRIVACY GUARANTEE TABLE -->
+    <section id="privacy" class="mb-28 scroll-mt-28">
+      <div class="glass-panel rounded-3xl p-8 sm:p-12 border border-white/10">
+        
+        <div class="max-w-2xl mb-10">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-mono mb-3">
+            <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+            <span>Verifiable Zero-Knowledge Contract</span>
+          </div>
+          <h2 class="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight mb-2">Privacy at a Glance</h2>
+          <p class="text-sm text-slate-400">
+            Hunch is designed for personal self-use and self-directed attention agency. It is structurally incapable of spying on you.
+          </p>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs sm:text-sm">
+            <thead>
+              <tr class="border-b border-white/10 text-slate-400 uppercase font-mono text-[11px]">
+                <th class="py-4 pr-4">Component</th>
+                <th class="py-4 px-4 text-emerald-400">What It Records</th>
+                <th class="py-4 px-4 text-rose-400">What It NEVER Records</th>
+                <th class="py-4 pl-4">Leaves Your Device?</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-white/5 text-slate-300">
+              <tr>
+                <td class="py-4 pr-4 font-semibold text-white">Laptop App</td>
+                <td class="py-4 px-4">Foreground category, hashed task ID, activity counts</td>
+                <td class="py-4 px-4 text-rose-300">Typed text, keystrokes, window text, screenshots</td>
+                <td class="py-4 pl-4 font-mono text-emerald-400 font-bold">NO</td>
+              </tr>
+              <tr>
+                <td class="py-4 pr-4 font-semibold text-white">Android App</td>
+                <td class="py-4 px-4">Notification category, hashed sender ID, unlock events</td>
+                <td class="py-4 px-4 text-rose-300">Notification titles, message body, contacts, location</td>
+                <td class="py-4 pl-4 font-mono text-emerald-400">Local sync only (E2EE)</td>
+              </tr>
+              <tr>
+                <td class="py-4 pr-4 font-semibold text-white">VS Code Sensor</td>
+                <td class="py-4 px-4">Activity frequency, file save rate, salted workspace hash</td>
+                <td class="py-4 px-4 text-rose-300">Source code, file names, paths, git branch, terminal commands</td>
+                <td class="py-4 pl-4 font-mono text-emerald-400 font-bold">NO (127.0.0.1 only)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="mt-8 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-slate-400">
+          <div class="flex items-center gap-2">
+            <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
+            <span>Enforced by automated CI drift test <code class="font-mono text-slate-300 bg-white/5 px-1.5 py-0.5 rounded">tools/test/privacy-table-drift.test.mjs</code></span>
+          </div>
+          <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/blob/main/docs/PRIVACY.md" target="_blank" class="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-semibold">
+            <span>Read docs/PRIVACY.md</span>
+            <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+          </a>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- DOWNLOAD HUB (Release Beta.1) -->
+    <section id="downloads" class="mb-28 scroll-mt-28">
+      <div class="text-center max-w-2xl mx-auto mb-16">
+        <h2 class="text-xs font-mono font-bold uppercase tracking-widest text-emerald-400 mb-3">Public Beta Releases</h2>
+        <p class="text-3xl sm:text-4xl font-display font-extrabold text-white tracking-tight">Get Hunch v1.0.0-beta.1</p>
+        <p class="text-sm text-slate-400 mt-2">Download signed builds directly from GitHub Releases.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        <!-- Android Download Card -->
+        <div class="glass-panel p-8 rounded-3xl border border-white/10 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-6">
+              <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                <i data-lucide="smartphone" class="w-6 h-6"></i>
+              </div>
+              <span class="px-2.5 py-1 text-xs font-mono bg-emerald-500/15 text-emerald-400 rounded-full border border-emerald-500/30">Android 14+</span>
+            </div>
+            <h3 class="text-xl font-display font-bold text-white mb-2">Android APK</h3>
+            <p class="text-xs text-slate-400 leading-relaxed mb-6">
+              Notification listener, accessibility focus shield, and grouped digest delivery.
+            </p>
+          </div>
+
+          <div>
+            <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/Hunch-1.0.0-beta.1-debug-signed.apk" class="w-full py-3.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all mb-3">
+              <i data-lucide="download" class="w-4 h-4"></i>
+              <span>Download .apk (9.0 MB)</span>
+            </a>
+
+            <!-- Helper toggle for Restricted Settings -->
+            <details class="text-[11px] text-slate-400 group">
+              <summary class="cursor-pointer text-emerald-400 hover:text-emerald-300 font-semibold list-none flex items-center gap-1">
+                <i data-lucide="info" class="w-3.5 h-3.5"></i>
+                <span>"Permission denied" on install?</span>
+              </summary>
+              <div class="mt-2.5 p-3 rounded-lg bg-black/40 border border-white/5 space-y-1.5 text-slate-300">
+                <p>Android 13/14/15 restricts sideloaded APK permissions by default:</p>
+                <ol class="list-decimal list-inside space-y-1 text-slate-400">
+                  <li>Long-press app icon → <strong class="text-white">App info (ⓘ)</strong></li>
+                  <li>Tap <strong class="text-white">three dots ⋮</strong> in top right</li>
+                  <li>Tap <strong class="text-white">"Allow restricted settings"</strong></li>
+                  <li>Grant Notification Access toggle.</li>
+                </ol>
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <!-- Windows Desktop Download Card -->
+        <div class="glass-panel p-8 rounded-3xl border border-white/10 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-6">
+              <div class="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400">
+                <i data-lucide="monitor" class="w-6 h-6"></i>
+              </div>
+              <span class="px-2.5 py-1 text-xs font-mono bg-sky-500/15 text-sky-400 rounded-full border border-sky-500/30">Windows 10/11</span>
+            </div>
+            <h3 class="text-xl font-display font-bold text-white mb-2">Windows Desktop</h3>
+            <p class="text-xs text-slate-400 leading-relaxed mb-6">
+              Electron tray host, local attention engine, pairing QR server, and focus analytics panel.
+            </p>
+          </div>
+
+          <div>
+            <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/Hunch-Setup-1.0.0-beta.1.exe" class="w-full py-3.5 px-4 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20 transition-all mb-3">
+              <i data-lucide="download" class="w-4 h-4"></i>
+              <span>Download .exe (227 MB)</span>
+            </a>
+
+            <!-- SmartScreen note -->
+            <details class="text-[11px] text-slate-400 group">
+              <summary class="cursor-pointer text-sky-400 hover:text-sky-300 font-semibold list-none flex items-center gap-1">
+                <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
+                <span>Windows SmartScreen Warning?</span>
+              </summary>
+              <div class="mt-2.5 p-3 rounded-lg bg-black/40 border border-white/5 space-y-1 text-slate-300">
+                <p>The beta installer is currently unsigned. Click <strong class="text-white">"More info"</strong> → <strong class="text-white">"Run anyway"</strong>. You can verify the checksum with SHA256SUMS.txt.</p>
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <!-- VS Code Extension Card -->
+        <div class="glass-panel p-8 rounded-3xl border border-white/10 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-6">
+              <div class="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                <i data-lucide="code" class="w-6 h-6"></i>
+              </div>
+              <span class="px-2.5 py-1 text-xs font-mono bg-purple-500/15 text-purple-400 rounded-full border border-purple-500/30">VS Code</span>
+            </div>
+            <h3 class="text-xl font-display font-bold text-white mb-2">VS Code Sensor</h3>
+            <p class="text-xs text-slate-400 leading-relaxed mb-6">
+              Activity sensor extension capturing editor focus telemetry without inspecting source code.
+            </p>
+          </div>
+
+          <div>
+            <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/dhyan-1.0.0.vsix" class="w-full py-3.5 px-4 rounded-xl bg-purple-500 hover:bg-purple-400 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 transition-all mb-3">
+              <i data-lucide="download" class="w-4 h-4"></i>
+              <span>Download .vsix (60 KB)</span>
+            </a>
+
+            <div class="p-2.5 rounded-lg bg-black/40 border border-white/5 font-mono text-[10px] text-slate-400 text-center truncate">
+              Install via: <span class="text-slate-200">Extensions: Install from VSIX...</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Verification Hash note -->
+      <div class="mt-8 text-center">
+        <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/tag/v1.0.0-beta.1" target="_blank" class="inline-flex items-center gap-2 text-xs font-mono text-slate-400 hover:text-white transition-colors">
+          <i data-lucide="file-check" class="w-4 h-4 text-emerald-400"></i>
+          <span>Verify all download hashes via SHA256SUMS.txt on GitHub Releases</span>
+          <i data-lucide="external-link" class="w-3 h-3"></i>
+        </a>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-white/10 relative z-10 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+      
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-500 to-purple-600 flex items-center justify-center font-bold text-white text-xs">
+          H
+        </div>
+        <div>
+          <div class="text-sm font-display font-bold text-white">Hunch</div>
+          <div class="text-[11px] text-slate-400">your attention digital twin • Apache-2.0 License</div>
+        </div>
+      </div>
+
+      <!-- Footer Links -->
+      <div class="flex flex-wrap items-center justify-center gap-6 text-xs text-slate-400">
+        <a href="https://github.com/abhigyan24-ops/hunch-attention-twin" target="_blank" class="hover:text-white transition-colors">GitHub</a>
+        <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/issues/28" target="_blank" class="hover:text-white transition-colors">Troubleshooting Guide</a>
+        <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/discussions" target="_blank" class="hover:text-white transition-colors">Discussions</a>
+        <a href="mailto:hunch_support@googlegroups.com" class="hover:text-white transition-colors">hunch_support@googlegroups.com</a>
+      </div>
+
+      <div class="text-xs text-slate-500 font-mono">
+        v1.0.0-beta.1 (2026)
+      </div>
+
+    </div>
+  </footer>
+
+  <!-- Interactive JavaScript logic for simulator -->
+  <script>
+    // Initialize Lucide Icons
+    lucide.createIcons();
+
+    // Twin Simulator State
+    let currentContext = 'deep';
+    let currentNotif = 'social';
+    let currentHours = 3.5;
+
+    const contextData = {
+      deep: { name: 'Deep Code Flow', multiplier: 2.2, base: 14.0 },
+      writing: { name: 'Architecture & Writing', multiplier: 1.5, base: 9.0 },
+      triage: { name: 'Light Triage', multiplier: 0.8, base: 4.0 }
+    };
+
+    const notifData = {
+      social: { name: 'Instagram Reel', app: 'Instagram', severity: 1.6, action: 'HOLD', reason: 'High distraction probability during active focus burst. Buffered for scheduled batch digest.' },
+      slack: { name: 'Slack @channel', app: 'Slack', severity: 1.2, action: 'HOLD', reason: 'Broad broadcast mention in non-critical channel. Held silently until focus session finishes.' },
+      promo: { name: 'Food 50% Off', app: 'Food Delivery', severity: 2.0, action: 'HOLD', reason: 'Commercial marketing push. Strictly held to preserve editor momentum.' },
+      family: { name: 'Mom (Phone Call)', app: 'Phone', severity: 0.1, action: 'ALLOW', reason: 'Trusted VIP contact priority. Bypasses quiet lease immediately with fail-open pass.' }
+    };
+
+    function setContext(type, btn) {
+      currentContext = type;
+      document.querySelectorAll('#context-selector button').forEach(b => {
+        b.classList.remove('border-emerald-500/40', 'bg-emerald-500/15', 'text-white');
+        b.classList.add('border-white/10', 'bg-white/5', 'text-slate-300');
+      });
+      btn.classList.add('border-emerald-500/40', 'bg-emerald-500/15', 'text-white');
+      btn.classList.remove('border-white/10', 'bg-white/5', 'text-slate-300');
+      recalculateTwin();
+    }
+
+    function setNotif(type, btn) {
+      currentNotif = type;
+      document.querySelectorAll('#notif-selector button').forEach(b => {
+        b.classList.remove('border-purple-500/40', 'bg-purple-500/15', 'text-white');
+        b.classList.add('border-white/10', 'bg-white/5', 'text-slate-400');
+      });
+      btn.classList.add('border-purple-500/40', 'bg-purple-500/15', 'text-white');
+      btn.classList.remove('border-white/10', 'bg-white/5', 'text-slate-400');
+      recalculateTwin();
+    }
+
+    function updateHours(val) {
+      currentHours = parseFloat(val);
+      const label = currentHours < 2.5 ? 'Fresh' : currentHours < 6.0 ? 'Peak Flow' : 'Fatigued';
+      document.getElementById('hours-display').textContent = `${currentHours.toFixed(1)} hrs (${label})`;
+      recalculateTwin();
+    }
+
+    function recalculateTwin() {
+      const c = contextData[currentContext];
+      const n = notifData[currentNotif];
+      
+      // Compute estimated focus cost
+      const costMinutes = (c.base * n.severity * (currentHours > 5.5 ? 1.4 : 1.0)).toFixed(1);
+
+      const badge = document.getElementById('decision-badge');
+      const pipState = document.getElementById('pip-state');
+      const costEl = document.getElementById('cost-value');
+      const reasonEl = document.getElementById('decision-reason');
+
+      if (n.action === 'ALLOW') {
+        badge.className = "inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-display font-extrabold text-sm sm:text-base";
+        badge.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i><span>ALLOW THROUGH IMMEDIATELY</span>`;
+        pipState.textContent = "VIP Escalation Pass";
+        pipState.className = "text-[11px] text-amber-400 font-mono";
+        costEl.textContent = "0.0 mins";
+        costEl.className = "text-lg font-display font-bold text-slate-300";
+      } else {
+        badge.className = "inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-display font-extrabold text-sm sm:text-base";
+        badge.innerHTML = `<i data-lucide="shield" class="w-4 h-4"></i><span>HOLD FOR BATCH DIGEST</span>`;
+        pipState.textContent = "Guarding Deep Flow";
+        pipState.className = "text-[11px] text-emerald-400 font-mono";
+        costEl.textContent = `~${costMinutes} mins`;
+        costEl.className = "text-lg font-display font-bold text-amber-400";
+      }
+
+      reasonEl.textContent = `"${n.reason}"`;
+      lucide.createIcons();
+    }
+  </script>
+
+</body>
+</html>
