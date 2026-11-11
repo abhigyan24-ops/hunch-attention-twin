@@ -7,17 +7,23 @@
   <meta name="description" content="Hunch is an on-device attention digital twin that predicts what a notification will cost your focus before it interrupts you. 100% private, zero cloud.">
   <meta name="theme-color" content="#07090E">
 
-  <!-- Open Graph / Social Media -->
+  <!-- Open Graph / Social Sharing -->
   <meta property="og:type" content="website">
   <meta property="og:title" content="Hunch — Your Attention Digital Twin">
-  <meta property="og:description" content="Predicts what a notification will cost your focus before it interrupts you. Sub-10ms causal engine, 100% local privacy.">
+  <meta property="og:description" content="Predicts what that notification will cost your focus before it interrupts you. Sub-10ms causal engine, 100% local privacy, zero cloud.">
   <meta property="og:url" content="https://abhigyan24-ops.github.io/hunch-attention-twin/">
-  
-  <!-- Fonts -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Hunch — Your Attention Digital Twin">
+  <meta name="twitter:description" content="Predicts what that notification will cost your focus before it interrupts you. 100% on-device AI.">
+
+  <!-- Favicon with inline SVG Pip -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%2310B981'/><circle cx='11' cy='14' r='2' fill='%23FFFFFF'/><circle cx='21' cy='14' r='2' fill='%23FFFFFF'/><path d='M12 20 Q16 23 20 20' stroke='%23FFFFFF' stroke-width='2' fill='none' stroke-linecap='round'/></svg>">
+
+  <!-- Google Fonts: Plus Jakarta Sans (Headings), Inter (Body), JetBrains Mono (Code/HUD) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
   <!-- Tailwind CSS via CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lucide Icons via CDN -->
@@ -41,37 +47,45 @@
               500: '#10B981',
               600: '#059669',
               emerald: '#10B981',
-              purple: '#8B5CF6',
               cyan: '#06B6D4',
+              purple: '#8B5CF6',
               amber: '#F59E0B',
+              rose: '#F43F5E',
               dark: '#07090E',
+              darker: '#040508',
               card: '#0D1117',
-              border: '#1F2937',
+              cardborder: 'rgba(255, 255, 255, 0.08)',
             }
           },
           animation: {
-            'blob': 'blob 12s infinite cubic-bezier(0.4, 0, 0.2, 1)',
+            'blob': 'blob 16s infinite cubic-bezier(0.4, 0, 0.2, 1)',
             'float': 'float 6s ease-in-out infinite',
-            'pulse-subtle': 'pulseSubtle 3s ease-in-out infinite',
+            'float-fast': 'float 3.5s ease-in-out infinite',
+            'pulse-glow': 'pulseGlow 3s ease-in-out infinite',
             'shimmer': 'shimmer 2.5s linear infinite',
+            'radar': 'radar 4s linear infinite',
           },
           keyframes: {
             blob: {
               '0%, 100%': { transform: 'translate(0px, 0px) scale(1)' },
-              '33%': { transform: 'translate(30px, -40px) scale(1.1)' },
-              '66%': { transform: 'translate(-25px, 20px) scale(0.95)' },
+              '33%': { transform: 'translate(40px, -50px) scale(1.12)' },
+              '66%': { transform: 'translate(-30px, 30px) scale(0.92)' },
             },
             float: {
               '0%, 100%': { transform: 'translateY(0px)' },
               '50%': { transform: 'translateY(-12px)' },
             },
-            pulseSubtle: {
-              '0%, 100%': { opacity: '0.9', transform: 'scale(1)' },
-              '50%': { opacity: '0.6', transform: 'scale(0.98)' },
+            pulseGlow: {
+              '0%, 100%': { opacity: '0.8', transform: 'scale(1)' },
+              '50%': { opacity: '0.4', transform: 'scale(0.97)' },
             },
             shimmer: {
               'from': { backgroundPosition: '0 0' },
               'to': { backgroundPosition: '-200% 0' },
+            },
+            radar: {
+              '0%': { transform: 'rotate(0deg)' },
+              '100%': { transform: 'rotate(360deg)' }
             }
           }
         }
@@ -80,680 +94,1262 @@
   </script>
 
   <style>
-    /* Background aurora glow */
-    .radial-glow {
-      background: radial-gradient(circle at 50% 0%, rgba(139, 92, 246, 0.15) 0%, rgba(16, 185, 129, 0.08) 35%, transparent 70%);
+    /* Grain Overlay for Tactile Film Feel */
+    .noise-bg {
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.035'/%3E%3C/svg%3E");
     }
+
+    /* Grid pattern */
     .grid-pattern {
-      background-size: 40px 40px;
+      background-size: 48px 48px;
       background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
                         linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
     }
-    .glass-panel {
-      background: rgba(15, 20, 28, 0.7);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
+
+    /* Glass Panels */
+    .glass-card {
+      background: rgba(13, 17, 24, 0.72);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
       border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
     }
-    .glass-panel-hover:hover {
-      background: rgba(22, 28, 38, 0.85);
-      border-color: rgba(255, 255, 255, 0.16);
+
+    .glass-card-hover {
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    .text-gradient {
-      background: linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 50%, #94A3B8 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+    .glass-card-hover:hover {
+      background: rgba(18, 24, 36, 0.88);
+      border-color: rgba(16, 185, 129, 0.35);
+      box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.7), 0 0 35px -5px rgba(16, 185, 129, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      transform: translateY(-3px);
     }
-    .text-gradient-emerald {
-      background: linear-gradient(135deg, #34D399 0%, #10B981 50%, #06B6D4 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+
+    /* Interactive 3D Tilt */
+    .tilt-element {
+      transform-style: preserve-3d;
+      transition: transform 0.15s ease-out;
+      will-change: transform;
     }
-    .text-gradient-purple {
-      background: linear-gradient(135deg, #C084FC 0%, #8B5CF6 50%, #6366F1 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
     }
-    /* Pip Mascot Eye animation */
-    @keyframes blink {
-      0%, 96%, 100% { transform: scaleY(1); }
-      98% { transform: scaleY(0.1); }
+    ::-webkit-scrollbar-track {
+      background: #07090E;
     }
-    .pip-eye {
-      animation: blink 4s infinite;
-      transform-origin: center;
+    ::-webkit-scrollbar-thumb {
+      background: #1F2937;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #10B981;
+    }
+
+    /* Smooth glow text */
+    .text-glow {
+      text-shadow: 0 0 30px rgba(16, 185, 129, 0.35);
+    }
+    .text-glow-purple {
+      text-shadow: 0 0 30px rgba(139, 92, 246, 0.35);
     }
   </style>
 </head>
+<body class="bg-brand-dark text-slate-200 antialiased font-sans selection:bg-brand-emerald selection:text-black overflow-x-hidden min-h-screen relative noise-bg">
 
-<body class="bg-[#07090E] text-slate-100 antialiased selection:bg-emerald-500/30 selection:text-emerald-200 min-h-screen relative overflow-x-hidden">
-
-  <!-- Ambient Aurora Orbs -->
-  <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-    <div class="absolute -top-[20%] left-1/2 -translate-x-1/2 w-[800px] h-[550px] bg-purple-600/15 rounded-full blur-[140px] animate-blob"></div>
-    <div class="absolute top-[25%] -left-[10%] w-[550px] h-[550px] bg-emerald-500/10 rounded-full blur-[130px] animate-blob animation-delay-4000"></div>
-    <div class="absolute top-[45%] -right-[10%] w-[600px] h-[600px] bg-sky-500/10 rounded-full blur-[150px] animate-blob animation-delay-2000"></div>
-    <div class="absolute inset-0 grid-pattern opacity-60"></div>
+  <!-- Ambient Animated Gradient Mesh Orbs -->
+  <div class="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden="true">
+    <div class="absolute -top-40 left-1/4 w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[130px] animate-blob"></div>
+    <div class="absolute top-1/3 -right-40 w-[650px] h-[650px] bg-purple-600/10 rounded-full blur-[140px] animate-blob" style="animation-delay: 5s;"></div>
+    <div class="absolute bottom-10 left-10 w-[550px] h-[550px] bg-cyan-500/10 rounded-full blur-[130px] animate-blob" style="animation-delay: 9s;"></div>
   </div>
 
-  <!-- Sticky Navbar -->
-  <header class="fixed top-0 left-0 right-0 z-50 px-4 sm:px-6 lg:px-8 pt-4">
-    <div class="max-w-6xl mx-auto glass-panel rounded-2xl px-5 py-3.5 flex items-center justify-between shadow-2xl border border-white/10 transition-all duration-300">
-      
+  <!-- Background Grid -->
+  <div class="fixed inset-0 grid-pattern pointer-events-none z-0" aria-hidden="true"></div>
+
+  <!-- ==================================================================== -->
+  <!-- FLOATING NAVIGATION BAR                                               -->
+  <!-- ==================================================================== -->
+  <header class="fixed top-0 left-0 right-0 z-50 flex justify-center px-4 pt-4 sm:pt-6">
+    <nav class="max-w-6xl w-full glass-card rounded-2xl px-4 sm:px-6 py-3 flex items-center justify-between border border-white/10 shadow-2xl">
       <!-- Brand Logo -->
-      <a href="#" class="flex items-center gap-3 group">
-        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-purple-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform duration-300">
-          <!-- Pip mini face -->
-          <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 13c-.83 0-1.5-.67-1.5-1.5S9.17 12 10 12s1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm4 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
-          </svg>
-        </div>
-        <div class="flex flex-col">
-          <div class="flex items-center gap-2">
-            <span class="font-display font-extrabold text-lg tracking-tight text-white">Hunch</span>
-            <span class="px-2 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-full">Beta 1.0</span>
+      <a href="#" class="flex items-center gap-3 group" onclick="AudioEngine.playPop(700)">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-cyan-400 p-[1.5px] shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
+          <div class="w-full h-full bg-brand-darker rounded-[10px] flex items-center justify-center">
+            <!-- Mini mascot face icon -->
+            <svg class="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
+              <circle cx="10" cy="13" r="1" fill="currentColor"/>
+              <circle cx="15" cy="13" r="1" fill="currentColor"/>
+            </svg>
           </div>
-          <span class="text-[11px] text-slate-400 -mt-0.5 hidden sm:inline">your attention digital twin</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="font-display font-extrabold text-lg sm:text-xl tracking-tight text-white group-hover:text-emerald-400 transition-colors">Hunch</span>
+          <span class="px-2 py-0.5 text-[10px] font-mono font-bold tracking-wider uppercase rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">v1.0.0-beta.1</span>
         </div>
       </a>
 
-      <!-- Desktop Nav Links -->
-      <nav class="hidden md:flex items-center gap-7 text-sm font-medium text-slate-300">
-        <a href="#simulator" class="hover:text-emerald-400 transition-colors">Live Twin Lab</a>
-        <a href="#features" class="hover:text-emerald-400 transition-colors">Features</a>
-        <a href="#privacy" class="hover:text-emerald-400 transition-colors">Privacy Promise</a>
-        <a href="#downloads" class="hover:text-emerald-400 transition-colors">Download</a>
-        <a href="https://github.com/abhigyan24-ops/hunch-attention-twin" target="_blank" class="hover:text-white transition-colors flex items-center gap-1.5">
-          <span>Docs</span>
-          <i data-lucide="external-link" class="w-3.5 h-3.5 opacity-60"></i>
-        </a>
-      </nav>
+      <!-- Navigation Links (Desktop) -->
+      <div class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
+        <a href="#simulator" class="hover:text-emerald-400 transition-colors" onclick="AudioEngine.playPop(500)">Twin Lab</a>
+        <a href="#pipeline" class="hover:text-emerald-400 transition-colors" onclick="AudioEngine.playPop(550)">Architecture</a>
+        <a href="#privacy" class="hover:text-emerald-400 transition-colors" onclick="AudioEngine.playPop(600)">Privacy</a>
+        <a href="#calculator" class="hover:text-emerald-400 transition-colors" onclick="AudioEngine.playPop(650)">Cost Calculator</a>
+        <a href="#downloads" class="hover:text-emerald-400 transition-colors" onclick="AudioEngine.playPop(700)">Releases</a>
+      </div>
 
-      <!-- Right Actions -->
-      <div class="flex items-center gap-3">
-        <a href="https://github.com/abhigyan24-ops/hunch-attention-twin" target="_blank" class="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-slate-200">
-          <i data-lucide="github" class="w-4 h-4"></i>
-          <span>Star on GitHub</span>
+      <!-- Action Cluster -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Sound Toggle -->
+        <button id="soundToggle" onclick="AudioEngine.toggleSound()" class="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-mono text-slate-300 flex items-center gap-1.5 transition-colors" title="Toggle UI Sound Effects">
+          <span id="soundIcon">🔊</span>
+          <span class="hidden sm:inline" id="soundLabel">SFX</span>
+        </button>
+
+        <!-- GitHub Repo Link with Release Badge -->
+        <a href="https://github.com/abhigyan24-ops/hunch-attention-twin" target="_blank" rel="noopener noreferrer" class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-medium text-slate-300 hover:text-white transition-all" onclick="AudioEngine.playPop(650)">
+          <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          <span>Star</span>
         </a>
-        <a href="#downloads" class="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:opacity-95 shadow-lg shadow-emerald-500/20 text-slate-950 transition-all duration-300 transform active:scale-95 flex items-center gap-1.5">
-          <i data-lucide="download" class="w-3.5 h-3.5"></i>
+
+        <!-- Primary Download Button -->
+        <a href="#downloads" class="px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-black font-display font-bold text-xs sm:text-sm shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-1.5" onclick="AudioEngine.playChime()">
           <span>Get Beta</span>
+          <i data-lucide="arrow-down-to-line" class="w-4 h-4"></i>
         </a>
       </div>
-    </div>
+    </nav>
   </header>
 
-  <main class="relative z-10 pt-32 sm:pt-40 pb-24 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
+  <!-- ==================================================================== -->
+  <!-- HERO SECTION WITH INTERACTIVE 3D PIP STAGE                           -->
+  <!-- ==================================================================== -->
+  <section class="relative z-10 pt-32 sm:pt-40 pb-20 sm:pb-28 px-4 max-w-7xl mx-auto flex flex-col items-center text-center">
+    
+    <!-- Release Tag Announcement Pill -->
+    <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/tag/v1.0.0-beta.1" target="_blank" class="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full glass-card border border-emerald-500/30 hover:border-emerald-500/60 shadow-lg shadow-emerald-500/10 mb-8 group hover:scale-[1.02] transition-all" onclick="AudioEngine.playPop(800)">
+      <span class="flex h-2 w-2 relative">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+      </span>
+      <span class="text-xs sm:text-sm font-medium text-slate-300">
+        <strong class="text-white font-semibold">Hunch v1.0.0-beta.1 Released</strong> — Windows & Android APK
+      </span>
+      <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-emerald-400 group-hover:translate-x-0.5 transition-transform"></i>
+    </a>
 
-    <!-- HERO SECTION -->
-    <section class="text-center max-w-4xl mx-auto mb-20 sm:mb-28">
-      
-      <!-- Eyebrow Pill -->
-      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full glass-panel border-white/10 mb-8 animate-pulse-subtle">
-        <span class="flex h-2 w-2 rounded-full bg-emerald-400"></span>
-        <span class="text-xs font-medium text-slate-300">Public Beta Live on Android & Windows</span>
-        <span class="text-slate-500">•</span>
-        <span class="text-xs font-mono font-medium text-emerald-400">100% On-Device</span>
+    <!-- Main Punchline Headline -->
+    <h1 class="font-display font-extrabold text-4xl sm:text-6xl lg:text-7xl tracking-tight text-white max-w-5xl leading-[1.1] mb-6">
+      Stop paying the cognitive tax.<br>
+      <span class="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent text-glow">Your attention has a digital twin.</span>
+    </h1>
+
+    <!-- Subheading -->
+    <p class="max-w-2xl text-base sm:text-lg lg:text-xl text-slate-400 leading-relaxed mb-10">
+      Every irrelevant ping destroys up to <strong class="text-slate-200">23 minutes of deep work</strong>. 
+      Hunch runs an on-device, sub-10ms causal engine that predicts notification disruption before your phone buzzes—silently guarding your focus.
+    </p>
+
+    <!-- Call to Actions -->
+    <div class="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mb-14">
+      <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/Hunch-Setup-1.0.0-beta.1.exe" class="px-6 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-black font-display font-bold text-sm sm:text-base shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2" onclick="AudioEngine.playChime()">
+        <i data-lucide="download" class="w-5 h-5"></i>
+        <span>Download for Windows (Beta)</span>
+      </a>
+
+      <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/Hunch-1.0.0-beta.1-debug-signed.apk" class="px-5 py-3.5 rounded-xl glass-card hover:bg-white/10 border border-white/10 text-white font-display font-semibold text-sm sm:text-base hover:border-emerald-500/40 transition-all flex items-center gap-2" onclick="AudioEngine.playPop(600)">
+        <i data-lucide="smartphone" class="w-5 h-5 text-emerald-400"></i>
+        <span>Download Android APK</span>
+      </a>
+
+      <a href="#simulator" class="px-5 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-display font-medium text-sm sm:text-base hover:text-white transition-all flex items-center gap-2" onclick="AudioEngine.playPop(500)">
+        <i data-lucide="sparkles" class="w-5 h-5 text-purple-400"></i>
+        <span>Try Interactive Simulator</span>
+      </a>
+    </div>
+
+    <!-- Quick Terminal Snippet -->
+    <div class="glass-card rounded-xl px-4 py-2.5 max-w-lg w-full flex items-center justify-between gap-3 text-xs font-mono text-slate-400 border border-white/10 mb-16">
+      <div class="flex items-center gap-2 truncate">
+        <span class="text-emerald-400 select-none">$</span>
+        <span class="text-slate-200 truncate select-all">git clone https://github.com/abhigyan24-ops/hunch-attention-twin.git</span>
       </div>
+      <button onclick="copyInstallCmd(this)" class="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-emerald-400 transition-colors" title="Copy Clone Command">
+        <i data-lucide="copy" class="w-4 h-4"></i>
+      </button>
+    </div>
 
-      <!-- Main Headline -->
-      <h1 class="text-4xl sm:text-6xl lg:text-7xl font-display font-extrabold tracking-tight leading-[1.1] mb-6 text-white">
-        Knows what that notification <br>
-        <span class="text-gradient-emerald">will cost your focus.</span>
-      </h1>
+    <!-- ==================================================================== -->
+    <!-- PIP HERO STAGE: INTERACTIVE 3D HOLOGRAPHIC FOCUS THEATER            -->
+    <!-- ==================================================================== -->
+    <div class="w-full max-w-4xl tilt-element" id="pipHeroStageContainer">
+      <div class="glass-card rounded-3xl p-6 sm:p-8 border border-white/15 relative overflow-hidden shadow-2xl group">
+        
+        <!-- Subtle Interior Hologram Grid / Ring -->
+        <div class="absolute inset-0 bg-gradient-to-b from-emerald-500/5 via-transparent to-purple-500/5 pointer-events-none"></div>
+        <div class="absolute -top-32 -left-32 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-32 -right-32 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-      <!-- Subtitle -->
-      <p class="text-base sm:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed font-normal mb-10">
-        Hunch is your attention digital twin. It computes counterfactual interruption costs in sub-10ms, synchronizes a quiet lease between your phone and laptop, and stays entirely on your devices.
+        <!-- Stage Header & State HUD -->
+        <div class="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
+          <div class="flex items-center gap-3 text-left">
+            <div class="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></div>
+            <div>
+              <div class="font-display font-bold text-sm sm:text-base text-white flex items-center gap-2">
+                <span>Pip • The Attention Spirit</span>
+                <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">AI TWIN COMPANION</span>
+              </div>
+              <p class="text-xs text-slate-400 font-mono">Move cursor to interact • Click to pet • Tracks your gaze</p>
+            </div>
+          </div>
+
+          <!-- Live Telemetry Tag -->
+          <div class="hidden sm:flex flex-col text-right font-mono text-[11px]">
+            <span class="text-emerald-400 flex items-center justify-end gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> 100% LOCAL PRIVACY
+            </span>
+            <span class="text-slate-400">LATENCY: 4.8ms • 0 BYTES CLOUD</span>
+          </div>
+        </div>
+
+        <!-- Canvas Container with Interactive Spring Physics -->
+        <div class="relative flex flex-col items-center justify-center py-4 cursor-pointer select-none" id="pipHeroInteractiveArea" title="Click to pet Pip!">
+          
+          <!-- Orbiting particle rings -->
+          <div class="absolute w-72 h-72 sm:w-80 sm:h-80 rounded-full border border-dashed border-emerald-500/20 animate-spin-slow pointer-events-none"></div>
+          <div class="absolute w-60 h-60 sm:w-64 sm:h-64 rounded-full border border-cyan-500/15 animate-spin-slow pointer-events-none" style="animation-direction: reverse; animation-duration: 25s;"></div>
+
+          <!-- Pip Main Stage Canvas -->
+          <canvas id="pipHeroCanvas" width="400" height="300" class="relative z-10 max-w-full drop-shadow-2xl"></canvas>
+
+          <!-- Speech / Thought Bubble -->
+          <div id="pipHeroBubble" class="absolute -top-3 z-20 px-4 py-2 rounded-2xl glass-card border border-emerald-500/40 text-xs sm:text-sm font-medium text-white shadow-xl opacity-0 translate-y-3 transition-all duration-300 pointer-events-none">
+            <span id="pipHeroText">"Sub-10ms causal twin armed! Guarding your flow ✨"</span>
+            <div class="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-brand-dark rotate-45 border-r border-b border-emerald-500/40"></div>
+          </div>
+        </div>
+
+        <!-- Emotion Selector Chips -->
+        <div class="mt-4 pt-4 border-t border-white/10 flex flex-wrap items-center justify-center gap-2">
+          <span class="text-xs font-mono text-slate-400 mr-2">PIP MOOD:</span>
+          <button onclick="setHeroEmotion('FOCUSED', this)" class="pip-hero-btn px-3 py-1 rounded-lg text-xs font-medium font-mono border border-emerald-500/40 bg-emerald-500/15 text-emerald-300 transition-all">🧘 Focused</button>
+          <button onclick="setHeroEmotion('CURIOUS', this)" class="pip-hero-btn px-3 py-1 rounded-lg text-xs font-medium font-mono border border-white/10 bg-white/5 text-slate-400 hover:text-white transition-all">✨ Curious</button>
+          <button onclick="setHeroEmotion('HAPPY', this)" class="pip-hero-btn px-3 py-1 rounded-lg text-xs font-medium font-mono border border-white/10 bg-white/5 text-slate-400 hover:text-white transition-all">💖 Joy</button>
+          <button onclick="setHeroEmotion('SHIELDING', this)" class="pip-hero-btn px-3 py-1 rounded-lg text-xs font-medium font-mono border border-white/10 bg-white/5 text-slate-400 hover:text-white transition-all">🛡️ Shielding</button>
+          <button onclick="setHeroEmotion('SLEEPY', this)" class="pip-hero-btn px-3 py-1 rounded-lg text-xs font-medium font-mono border border-white/10 bg-white/5 text-slate-400 hover:text-white transition-all">💤 Nap</button>
+          <button onclick="setHeroEmotion('SURPRISED', this)" class="pip-hero-btn px-3 py-1 rounded-lg text-xs font-medium font-mono border border-white/10 bg-white/5 text-slate-400 hover:text-white transition-all">⚡ Alert</button>
+        </div>
+
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ==================================================================== -->
+  <!-- STATS BAR                                                            -->
+  <!-- ==================================================================== -->
+  <section class="border-y border-white/10 bg-brand-darker/60 backdrop-blur-lg relative z-10 py-10 px-4">
+    <div class="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+      <div class="flex flex-col">
+        <span class="font-display font-extrabold text-3xl sm:text-4xl text-emerald-400 mb-1">&lt; 10ms</span>
+        <span class="text-xs sm:text-sm text-slate-400 font-medium">On-Device Inference</span>
+      </div>
+      <div class="flex flex-col">
+        <span class="font-display font-extrabold text-3xl sm:text-4xl text-cyan-400 mb-1">0 bytes</span>
+        <span class="text-xs sm:text-sm text-slate-400 font-medium">Sent to Cloud Servers</span>
+      </div>
+      <div class="flex flex-col">
+        <span class="font-display font-extrabold text-3xl sm:text-4xl text-purple-400 mb-1">~2.4 hrs</span>
+        <span class="text-xs sm:text-sm text-slate-400 font-medium">Deep Work Saved / Day</span>
+      </div>
+      <div class="flex flex-col">
+        <span class="font-display font-extrabold text-3xl sm:text-4xl text-amber-400 mb-1">Fail-Open</span>
+        <span class="text-xs sm:text-sm text-slate-400 font-medium">Zero Missed Phone Calls</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================================================================== -->
+  <!-- INTERACTIVE TWIN LAB: THE LIVE NOTIFICATION COST SIMULATOR          -->
+  <!-- ==================================================================== -->
+  <section id="simulator" class="py-24 sm:py-32 px-4 max-w-7xl mx-auto relative z-10">
+    <div class="text-center max-w-3xl mx-auto mb-16">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20 text-xs font-mono uppercase tracking-wider mb-4">
+        Interactive Heuristic Sandbox
+      </div>
+      <h2 class="font-display font-extrabold text-3xl sm:text-5xl text-white tracking-tight mb-4">
+        Simulate your attention cost in real time.
+      </h2>
+      <p class="text-base sm:text-lg text-slate-400">
+        Choose your focus context and incoming alert to see how Hunch's sub-10ms causal engine decides whether to hold or allow.
       </p>
+    </div>
 
-      <!-- CTA Buttons -->
-      <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-        <a href="#downloads" class="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-bold text-sm tracking-wide shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2.5 transition-all duration-200 transform hover:-translate-y-0.5">
-          <i data-lucide="smartphone" class="w-4 h-4"></i>
-          <span>Download Android APK</span>
-        </a>
-
-        <a href="#downloads" class="w-full sm:w-auto px-7 py-3.5 rounded-2xl glass-panel glass-panel-hover text-white font-semibold text-sm tracking-wide border border-white/15 flex items-center justify-center gap-2.5 transition-all duration-200 transform hover:-translate-y-0.5">
-          <i data-lucide="monitor" class="w-4 h-4"></i>
-          <span>Download Windows Setup</span>
-        </a>
-
-        <a href="https://github.com/abhigyan24-ops/hunch-attention-twin" target="_blank" class="w-full sm:w-auto px-5 py-3.5 rounded-2xl glass-panel text-slate-300 hover:text-white font-medium text-sm flex items-center justify-center gap-2 border border-white/10 hover:border-white/20 transition-all">
-          <i data-lucide="github" class="w-4 h-4"></i>
-          <span>Source Code</span>
-        </a>
-      </div>
-
-      <!-- Quick Trust Indicators -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto text-left">
-        <div class="glass-panel p-3.5 rounded-xl flex items-center gap-3">
-          <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400"><i data-lucide="shield-check" class="w-4 h-4"></i></div>
-          <div>
-            <div class="text-xs font-semibold text-white">Zero Telemetry</div>
-            <div class="text-[11px] text-slate-400">Zero cloud logging</div>
-          </div>
-        </div>
-        <div class="glass-panel p-3.5 rounded-xl flex items-center gap-3">
-          <div class="p-2 rounded-lg bg-purple-500/10 text-purple-400"><i data-lucide="cpu" class="w-4 h-4"></i></div>
-          <div>
-            <div class="text-xs font-semibold text-white">Causal ML Engine</div>
-            <div class="text-[11px] text-slate-400">Local EconML twin</div>
-          </div>
-        </div>
-        <div class="glass-panel p-3.5 rounded-xl flex items-center gap-3">
-          <div class="p-2 rounded-lg bg-sky-500/10 text-sky-400"><i data-lucide="zap" class="w-4 h-4"></i></div>
-          <div>
-            <div class="text-xs font-semibold text-white">&lt;10ms Decision</div>
-            <div class="text-[11px] text-slate-400">Sub-perceptual latency</div>
-          </div>
-        </div>
-        <div class="glass-panel p-3.5 rounded-xl flex items-center gap-3">
-          <div class="p-2 rounded-lg bg-teal-500/10 text-teal-400"><i data-lucide="lock" class="w-4 h-4"></i></div>
-          <div>
-            <div class="text-xs font-semibold text-white">P256 Encrypted</div>
-            <div class="text-[11px] text-slate-400">Ephemeral local sync</div>
-          </div>
-        </div>
-      </div>
-
-    </section>
-
-    <!-- LIVE INTERACTIVE DIGITAL TWIN LAB (Simulator) -->
-    <section id="simulator" class="mb-28 scroll-mt-28">
-      <div class="glass-panel rounded-3xl p-6 sm:p-10 border border-white/10 relative overflow-hidden shadow-2xl">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      
+      <!-- Control Panel (Left 7 Cols) -->
+      <div class="lg:col-span-7 space-y-6">
         
-        <!-- Background decorative gradient inside simulator -->
-        <div class="absolute -top-32 -right-32 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
-        <div class="absolute -bottom-32 -left-32 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-        <!-- Section Header -->
-        <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4 pb-6 border-b border-white/10">
-          <div>
-            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/25 text-purple-300 text-xs font-mono mb-2">
-              <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
-              <span>Interactive Digital Twin Sandbox</span>
-            </div>
-            <h2 class="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight">Test the Causal Decision Engine</h2>
-          </div>
-          <div class="text-xs text-slate-400 font-mono flex items-center gap-2">
-            <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>Running local causal simulation</span>
+        <!-- 1. Work Context Selector -->
+        <div class="glass-card rounded-2xl p-6 border border-white/10">
+          <label class="block text-xs font-mono text-slate-400 uppercase tracking-wider mb-3">
+            1. Current Flow State Context
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="context-selector">
+            <button onclick="setContext('deep', this)" class="px-4 py-3 rounded-xl border border-emerald-500/40 bg-emerald-500/15 text-white font-medium text-xs sm:text-sm flex flex-col items-start gap-1 transition-all">
+              <span class="font-bold flex items-center gap-1.5"><i data-lucide="code-2" class="w-4 h-4 text-emerald-400"></i> Deep Code Flow</span>
+              <span class="text-[11px] text-slate-300">Active IDE edits, high AST velocity</span>
+            </button>
+            <button onclick="setContext('writing', this)" class="px-4 py-3 rounded-xl border border-white/10 bg-white/5 text-slate-400 hover:text-white font-medium text-xs sm:text-sm flex flex-col items-start gap-1 transition-all">
+              <span class="font-bold flex items-center gap-1.5"><i data-lucide="file-text" class="w-4 h-4 text-cyan-400"></i> Architecture Doc</span>
+              <span class="text-[11px] text-slate-400">Medium cadence, browser research</span>
+            </button>
+            <button onclick="setContext('triage', this)" class="px-4 py-3 rounded-xl border border-white/10 bg-white/5 text-slate-400 hover:text-white font-medium text-xs sm:text-sm flex flex-col items-start gap-1 transition-all">
+              <span class="font-bold flex items-center gap-1.5"><i data-lucide="inbox" class="w-4 h-4 text-purple-400"></i> Inbox Triage</span>
+              <span class="text-[11px] text-slate-400">Low cognitive load, receptive to pings</span>
+            </button>
           </div>
         </div>
 
-        <!-- Simulator Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-
-          <!-- Left Controls (Input Parameters) -->
-          <div class="lg:col-span-7 space-y-6">
-            
-            <!-- Focus Activity State -->
-            <div>
-              <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2.5">
-                Current Laptop Work Context
-              </label>
-              <div class="grid grid-cols-3 gap-2.5" id="context-selector">
-                <button onclick="setContext('deep', this)" class="context-btn active px-3.5 py-3 rounded-xl border border-emerald-500/40 bg-emerald-500/15 text-white text-xs font-medium text-left transition-all">
-                  <div class="font-bold flex items-center gap-1.5 mb-1">
-                    <i data-lucide="code-2" class="w-3.5 h-3.5 text-emerald-400"></i>
-                    <span>Deep Code Flow</span>
-                  </div>
-                  <div class="text-[10px] text-slate-300">VS Code • Rust compiler</div>
-                </button>
-                <button onclick="setContext('writing', this)" class="context-btn px-3.5 py-3 rounded-xl border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 text-xs font-medium text-left transition-all">
-                  <div class="font-bold flex items-center gap-1.5 mb-1">
-                    <i data-lucide="file-text" class="w-3.5 h-3.5 text-purple-400"></i>
-                    <span>Architecture</span>
-                  </div>
-                  <div class="text-[10px] text-slate-400">Spec drafting & notes</div>
-                </button>
-                <button onclick="setContext('triage', this)" class="context-btn px-3.5 py-3 rounded-xl border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 text-xs font-medium text-left transition-all">
-                  <div class="font-bold flex items-center gap-1.5 mb-1">
-                    <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-sky-400"></i>
-                    <span>Light Triage</span>
-                  </div>
-                  <div class="text-[10px] text-slate-400">Browser & email checking</div>
-                </button>
-              </div>
-            </div>
-
-            <!-- Notification Trigger -->
-            <div>
-              <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2.5">
-                Incoming Phone Notification
-              </label>
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2" id="notif-selector">
-                <button onclick="setNotif('social', this)" class="notif-btn active px-3 py-2.5 rounded-xl border border-purple-500/40 bg-purple-500/15 text-white text-xs text-left transition-all">
-                  <div class="font-semibold text-slate-200">Instagram</div>
-                  <div class="text-[10px] text-purple-300 truncate">Friend sent a Reel</div>
-                </button>
-                <button onclick="setNotif('slack', this)" class="notif-btn px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 text-xs text-left transition-all">
-                  <div class="font-semibold text-slate-200">Slack</div>
-                  <div class="text-[10px] text-slate-400 truncate">@channel in #random</div>
-                </button>
-                <button onclick="setNotif('promo', this)" class="notif-btn px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 text-xs text-left transition-all">
-                  <div class="font-semibold text-slate-200">Food App</div>
-                  <div class="text-[10px] text-slate-400 truncate">50% off discount!</div>
-                </button>
-                <button onclick="setNotif('family', this)" class="notif-btn px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 text-xs text-left transition-all">
-                  <div class="font-semibold text-slate-200">Mom (Call)</div>
-                  <div class="text-[10px] text-slate-400 truncate">VIP Phone Call</div>
-                </button>
-              </div>
-            </div>
-
-            <!-- Fatigue Slider -->
-            <div>
-              <div class="flex justify-between items-center mb-2">
-                <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">Hours in Session</label>
-                <span id="hours-display" class="text-xs font-mono font-bold text-emerald-400">3.5 hrs (Peak Flow)</span>
-              </div>
-              <input type="range" id="hours-slider" min="0.5" max="8.0" step="0.5" value="3.5" oninput="updateHours(this.value)" class="w-full accent-emerald-400 bg-slate-800 rounded-lg cursor-pointer h-2">
-              <div class="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
-                <span>0.5h (Fresh)</span>
-                <span>4.0h (Deep Flow)</span>
-                <span>8.0h (Fatigued)</span>
-              </div>
-            </div>
-
+        <!-- 2. Incoming Notification Selector -->
+        <div class="glass-card rounded-2xl p-6 border border-white/10">
+          <label class="block text-xs font-mono text-slate-400 uppercase tracking-wider mb-3">
+            2. Incoming Mobile Notification
+          </label>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" id="notif-selector">
+            <button onclick="setNotif('social', this)" class="p-3 rounded-xl border border-purple-500/40 bg-purple-500/15 text-white text-xs font-medium flex flex-col items-center text-center gap-2 transition-all">
+              <i data-lucide="heart" class="w-5 h-5 text-rose-400"></i>
+              <span class="font-semibold">Instagram Reel</span>
+              <span class="text-[10px] text-slate-400 font-mono">Social DM</span>
+            </button>
+            <button onclick="setNotif('slack', this)" class="p-3 rounded-xl border border-white/10 bg-white/5 text-slate-400 hover:text-white text-xs font-medium flex flex-col items-center text-center gap-2 transition-all">
+              <i data-lucide="message-square" class="w-5 h-5 text-amber-400"></i>
+              <span class="font-semibold">Slack @channel</span>
+              <span class="text-[10px] text-slate-400 font-mono">Broadcast</span>
+            </button>
+            <button onclick="setNotif('promo', this)" class="p-3 rounded-xl border border-white/10 bg-white/5 text-slate-400 hover:text-white text-xs font-medium flex flex-col items-center text-center gap-2 transition-all">
+              <i data-lucide="tag" class="w-5 h-5 text-cyan-400"></i>
+              <span class="font-semibold">50% Off Food</span>
+              <span class="text-[10px] text-slate-400 font-mono">Marketing</span>
+            </button>
+            <button onclick="setNotif('family', this)" class="p-3 rounded-xl border border-white/10 bg-white/5 text-slate-400 hover:text-white text-xs font-medium flex flex-col items-center text-center gap-2 transition-all">
+              <i data-lucide="phone-call" class="w-5 h-5 text-emerald-400"></i>
+              <span class="font-semibold">Mom (Phone Call)</span>
+              <span class="text-[10px] text-slate-400 font-mono">VIP Whitelist</span>
+            </button>
           </div>
+        </div>
 
-          <!-- Right: Twin Decision Live Card (Output) -->
-          <div class="lg:col-span-5">
-            <div class="bg-[#0B0F17] rounded-2xl p-6 border border-white/10 relative shadow-2xl flex flex-col justify-between">
-              
-              <!-- Mascot Header -->
-              <div class="flex items-center justify-between pb-4 border-b border-white/10 mb-5">
-                <div class="flex items-center gap-3">
-                  <!-- Animated Procedural Pip Mascot -->
-                  <div id="pip-container" class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600/40 to-emerald-500/40 border border-white/10 flex items-center justify-center relative shadow-inner overflow-hidden">
-                    <svg viewBox="0 0 100 100" class="w-9 h-9 text-white">
-                      <!-- Cloud body -->
-                      <path d="M 25,60 A 20,20 0 0,1 45,35 A 25,25 0 0,1 75,40 A 18,18 0 0,1 85,65 A 15,15 0 0,1 70,80 L 30,80 A 15,15 0 0,1 25,60 Z" fill="white" fill-opacity="0.9" />
-                      <!-- Eyes -->
-                      <ellipse class="pip-eye" cx="48" cy="55" rx="3" ry="4" fill="#0B0F17" />
-                      <ellipse class="pip-eye" cx="62" cy="55" rx="3" ry="4" fill="#0B0F17" />
-                      <!-- Blush -->
-                      <circle cx="42" cy="62" r="3" fill="#F472B6" opacity="0.6"/>
-                      <circle cx="68" cy="62" r="3" fill="#F472B6" opacity="0.6"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <div class="text-xs font-semibold text-white">Pip — Attention Spirit</div>
-                    <div id="pip-state" class="text-[11px] text-emerald-400 font-mono">Guarding Deep Flow</div>
-                  </div>
-                </div>
-                <div class="text-right">
-                  <div class="text-[10px] text-slate-500 font-mono">LATENCY</div>
-                  <div class="text-xs font-mono font-bold text-sky-400">4.2 ms</div>
-                </div>
-              </div>
-
-              <!-- Main Decision Display -->
-              <div class="mb-5 text-center py-4 bg-white/[0.02] rounded-xl border border-white/5">
-                <div class="text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1">Causal Twin Decision</div>
-                <div id="decision-badge" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-display font-extrabold text-sm sm:text-base">
-                  <i data-lucide="shield" class="w-4 h-4"></i>
-                  <span>HOLD FOR BATCH DIGEST</span>
-                </div>
-              </div>
-
-              <!-- Metrics Readout -->
-              <div class="grid grid-cols-2 gap-3 mb-4">
-                <div class="bg-white/5 p-3 rounded-xl border border-white/5">
-                  <div class="text-[10px] font-mono text-slate-400">EXPECTED FOCUS COST</div>
-                  <div id="cost-value" class="text-lg font-display font-bold text-amber-400">~18.4 mins</div>
-                  <div class="text-[10px] text-slate-500">Recovery penalty</div>
-                </div>
-                <div class="bg-white/5 p-3 rounded-xl border border-white/5">
-                  <div class="text-[10px] font-mono text-slate-400">TWIN CONFIDENCE</div>
-                  <div class="text-lg font-display font-bold text-purple-400">97.8%</div>
-                  <div class="text-[10px] text-slate-500">Posterior weight</div>
-                </div>
-              </div>
-
-              <!-- Reason Explanation -->
-              <div id="decision-reason" class="text-xs text-slate-300 leading-relaxed font-sans bg-black/40 p-3 rounded-xl border border-white/5">
-                "Instagram Reel during an active Rust coding burst poses an 88% distraction probability. Held silently on phone; grouped into your 1:00 PM Focus Digest."
-              </div>
-
-            </div>
+        <!-- 3. Fatigue / Session Duration Slider -->
+        <div class="glass-card rounded-2xl p-6 border border-white/10">
+          <div class="flex items-center justify-between mb-3">
+            <label class="text-xs font-mono text-slate-400 uppercase tracking-wider">
+              3. Continuous Focus Duration
+            </label>
+            <span id="hours-display" class="font-mono text-xs font-bold text-emerald-400">3.5 hrs (Peak Flow)</span>
           </div>
-
+          <input type="range" min="0.5" max="8" step="0.5" value="3.5" oninput="updateHours(this.value)" class="w-full accent-emerald-500 bg-white/10 rounded-lg h-2 cursor-pointer">
+          <div class="flex justify-between text-[10px] font-mono text-slate-400 mt-2">
+            <span>0.5h (Fresh)</span>
+            <span>3.5h (Optimal Flow)</span>
+            <span>8.0h (High Fatigue)</span>
+          </div>
         </div>
 
       </div>
-    </section>
 
-    <!-- CORE FEATURES SECTION -->
-    <section id="features" class="mb-28 scroll-mt-28">
-      <div class="text-center max-w-2xl mx-auto mb-16">
-        <h2 class="text-xs font-mono font-bold uppercase tracking-widest text-emerald-400 mb-3">Architectural Pillars</h2>
-        <p class="text-3xl sm:text-4xl font-display font-extrabold text-white tracking-tight">How your attention twin guards flow</p>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
-        <!-- Card 1 -->
-        <div class="glass-panel glass-panel-hover p-7 rounded-3xl transition-all duration-300 flex flex-col justify-between">
-          <div>
-            <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-6">
-              <i data-lucide="brain-circuit" class="w-6 h-6"></i>
+      <!-- Decision Engine Output Terminal (Right 5 Cols) -->
+      <div class="lg:col-span-5">
+        <div class="glass-card rounded-2xl p-6 sm:p-7 border border-white/15 relative overflow-hidden shadow-2xl">
+          <div class="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+              <span class="font-mono text-xs text-slate-300 font-bold uppercase">Decision Engine Verdict</span>
             </div>
-            <h3 class="text-xl font-display font-bold text-white mb-3">Causal Disruption Engine</h3>
-            <p class="text-sm text-slate-400 leading-relaxed mb-6">
-              Hunch uses on-device causal inference (EconML-style double machine learning) to learn your specific attention curves: when you are resilient, when fatigue hits, and what each interruption truly costs.
+            <span class="text-[11px] font-mono text-slate-400">&lt; 8.4ms</span>
+          </div>
+
+          <!-- Pip Reaction Avatar in Lab -->
+          <div class="flex items-center gap-4 mb-6 p-3 rounded-xl bg-white/5 border border-white/5">
+            <canvas id="pipLabCanvas" width="110" height="100" class="w-14 h-14 shrink-0"></canvas>
+            <div>
+              <div class="font-display font-bold text-sm text-white">Pip Companion Status</div>
+              <div id="pip-state" class="text-xs text-emerald-400 font-mono">Guarding Deep Flow</div>
+            </div>
+          </div>
+
+          <!-- Decision Badge -->
+          <div class="mb-6">
+            <span class="text-xs text-slate-400 font-mono block mb-2">DECISION:</span>
+            <div id="decision-badge" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-display font-extrabold text-sm sm:text-base">
+              <i data-lucide="shield" class="w-4 h-4"></i>
+              <span>HOLD FOR BATCH DIGEST</span>
+            </div>
+          </div>
+
+          <!-- Cost Metric -->
+          <div class="mb-6 p-4 rounded-xl bg-brand-dark/80 border border-white/5">
+            <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+              <span>Predicted Attention Recovery Penalty:</span>
+              <span id="cost-value" class="text-lg font-display font-bold text-amber-400">~16.8 mins</span>
+            </div>
+            <p class="text-[11px] text-slate-400">Bayesian cost based on active keystroke frequency and context switch penalty.</p>
+          </div>
+
+          <!-- Causal Rationale -->
+          <div>
+            <span class="text-xs text-slate-400 font-mono block mb-2">CAUSAL REASONING:</span>
+            <p id="decision-reason" class="text-xs sm:text-sm text-slate-300 italic font-mono bg-white/5 p-3.5 rounded-xl border border-white/5 leading-relaxed">
+              "High distraction probability during active focus burst. Buffered for scheduled batch digest."
             </p>
           </div>
-          <div class="pt-4 border-t border-white/5 text-xs font-mono text-emerald-400 flex items-center gap-1.5">
-            <i data-lucide="check" class="w-3.5 h-3.5"></i>
-            <span>Purely local mathematical twin</span>
-          </div>
         </div>
-
-        <!-- Card 2 -->
-        <div class="glass-panel glass-panel-hover p-7 rounded-3xl transition-all duration-300 flex flex-col justify-between">
-          <div>
-            <div class="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 mb-6">
-              <i data-lucide="radio" class="w-6 h-6"></i>
-            </div>
-            <h3 class="text-xl font-display font-bold text-white mb-3">Quiet Lease Sync</h3>
-            <p class="text-sm text-slate-400 leading-relaxed mb-6">
-              When deep editor activity begins in VS Code, your laptop issues an ephemeral <strong>Quiet Lease</strong> to your phone via local end-to-end encrypted WebSocket. Non-critical alerts are buffered in silent digests.
-            </p>
-          </div>
-          <div class="pt-4 border-t border-white/5 text-xs font-mono text-purple-400 flex items-center gap-1.5">
-            <i data-lucide="check" class="w-3.5 h-3.5"></i>
-            <span>Fail-open safety protocol</span>
-          </div>
-        </div>
-
-        <!-- Card 3 -->
-        <div class="glass-panel glass-panel-hover p-7 rounded-3xl transition-all duration-300 flex flex-col justify-between">
-          <div>
-            <div class="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 mb-6">
-              <i data-lucide="history" class="w-6 h-6"></i>
-            </div>
-            <h3 class="text-xl font-display font-bold text-white mb-3">Editor Resume Assistance</h3>
-            <p class="text-sm text-slate-400 leading-relaxed mb-6">
-              When interruptions do break through, the VS Code extension logs salt-hashed file transition milestones. Returning to your editor restores your breadcrumbs without scanning any private code or file paths.
-            </p>
-          </div>
-          <div class="pt-4 border-t border-white/5 text-xs font-mono text-sky-400 flex items-center gap-1.5">
-            <i data-lucide="check" class="w-3.5 h-3.5"></i>
-            <span>Instant context re-activation</span>
-          </div>
-        </div>
-
       </div>
-    </section>
 
-    <!-- PRIVACY GUARANTEE TABLE -->
-    <section id="privacy" class="mb-28 scroll-mt-28">
-      <div class="glass-panel rounded-3xl p-8 sm:p-12 border border-white/10">
-        
-        <div class="max-w-2xl mb-10">
-          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-mono mb-3">
-            <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
-            <span>Verifiable Zero-Knowledge Contract</span>
-          </div>
-          <h2 class="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight mb-2">Privacy at a Glance</h2>
-          <p class="text-sm text-slate-400">
-            Hunch is designed for personal self-use and self-directed attention agency. It is structurally incapable of spying on you.
+    </div>
+  </section>
+
+  <!-- ==================================================================== -->
+  <!-- CAUSAL PIPELINE & ARCHITECTURE                                       -->
+  <!-- ==================================================================== -->
+  <section id="pipeline" class="py-24 sm:py-32 px-4 max-w-7xl mx-auto border-t border-white/10 relative z-10">
+    <div class="text-center max-w-3xl mx-auto mb-20">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-xs font-mono uppercase tracking-wider mb-4">
+        Zero Cloud • Local Pipeline
+      </div>
+      <h2 class="font-display font-extrabold text-3xl sm:text-5xl text-white tracking-tight mb-4">
+        How the causal engine protects your flow.
+      </h2>
+      <p class="text-base sm:text-lg text-slate-400">
+        Engineered for sub-10ms evaluation across Android, desktop, and IDE without exposing a single byte to an external server.
+      </p>
+    </div>
+
+    <!-- 4 Pipeline Stages Bento -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      
+      <!-- Step 1: Collectors -->
+      <div class="glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
+        <div>
+          <div class="w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-5 font-mono font-bold text-lg">01</div>
+          <h3 class="font-display font-bold text-lg text-white mb-2">Daemon Collectors</h3>
+          <p class="text-xs sm:text-sm text-slate-400 leading-relaxed mb-4">
+            Passively measures typing tempo, active window state, and IDE file diffs. Raw data is stored locally in SQLite with rolling TTL expiration.
           </p>
         </div>
-
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs sm:text-sm">
-            <thead>
-              <tr class="border-b border-white/10 text-slate-400 uppercase font-mono text-[11px]">
-                <th class="py-4 pr-4">Component</th>
-                <th class="py-4 px-4 text-emerald-400">What It Records</th>
-                <th class="py-4 px-4 text-rose-400">What It NEVER Records</th>
-                <th class="py-4 pl-4">Leaves Your Device?</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-white/5 text-slate-300">
-              <tr>
-                <td class="py-4 pr-4 font-semibold text-white">Laptop App</td>
-                <td class="py-4 px-4">Foreground category, hashed task ID, activity counts</td>
-                <td class="py-4 px-4 text-rose-300">Typed text, keystrokes, window text, screenshots</td>
-                <td class="py-4 pl-4 font-mono text-emerald-400 font-bold">NO</td>
-              </tr>
-              <tr>
-                <td class="py-4 pr-4 font-semibold text-white">Android App</td>
-                <td class="py-4 px-4">Notification category, hashed sender ID, unlock events</td>
-                <td class="py-4 px-4 text-rose-300">Notification titles, message body, contacts, location</td>
-                <td class="py-4 pl-4 font-mono text-emerald-400">Local sync only (E2EE)</td>
-              </tr>
-              <tr>
-                <td class="py-4 pr-4 font-semibold text-white">VS Code Sensor</td>
-                <td class="py-4 px-4">Activity frequency, file save rate, salted workspace hash</td>
-                <td class="py-4 px-4 text-rose-300">Source code, file names, paths, git branch, terminal commands</td>
-                <td class="py-4 pl-4 font-mono text-emerald-400 font-bold">NO (127.0.0.1 only)</td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="pt-4 border-t border-white/5 text-[11px] font-mono text-emerald-400 flex items-center gap-1.5">
+          <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> VS Code & Desktop Daemon
         </div>
-
-        <div class="mt-8 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-slate-400">
-          <div class="flex items-center gap-2">
-            <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
-            <span>Enforced by automated CI drift test <code class="font-mono text-slate-300 bg-white/5 px-1.5 py-0.5 rounded">tools/test/privacy-table-drift.test.mjs</code></span>
-          </div>
-          <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/blob/main/docs/PRIVACY.md" target="_blank" class="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-semibold">
-            <span>Read docs/PRIVACY.md</span>
-            <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
-          </a>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- DOWNLOAD HUB (Release Beta.1) -->
-    <section id="downloads" class="mb-28 scroll-mt-28">
-      <div class="text-center max-w-2xl mx-auto mb-16">
-        <h2 class="text-xs font-mono font-bold uppercase tracking-widest text-emerald-400 mb-3">Public Beta Releases</h2>
-        <p class="text-3xl sm:text-4xl font-display font-extrabold text-white tracking-tight">Get Hunch v1.0.0-beta.1</p>
-        <p class="text-sm text-slate-400 mt-2">Download signed builds directly from GitHub Releases.</p>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-        <!-- Android Download Card -->
-        <div class="glass-panel p-8 rounded-3xl border border-white/10 flex flex-col justify-between">
-          <div>
-            <div class="flex items-center justify-between mb-6">
-              <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                <i data-lucide="smartphone" class="w-6 h-6"></i>
-              </div>
-              <span class="px-2.5 py-1 text-xs font-mono bg-emerald-500/15 text-emerald-400 rounded-full border border-emerald-500/30">Android 14+</span>
-            </div>
-            <h3 class="text-xl font-display font-bold text-white mb-2">Android APK</h3>
-            <p class="text-xs text-slate-400 leading-relaxed mb-6">
-              Notification listener, accessibility focus shield, and grouped digest delivery.
-            </p>
-          </div>
-
-          <div>
-            <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/Hunch-1.0.0-beta.1-debug-signed.apk" class="w-full py-3.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all mb-3">
-              <i data-lucide="download" class="w-4 h-4"></i>
-              <span>Download .apk (9.0 MB)</span>
-            </a>
-
-            <!-- Helper toggle for Restricted Settings -->
-            <details class="text-[11px] text-slate-400 group">
-              <summary class="cursor-pointer text-emerald-400 hover:text-emerald-300 font-semibold list-none flex items-center gap-1">
-                <i data-lucide="info" class="w-3.5 h-3.5"></i>
-                <span>"Permission denied" on install?</span>
-              </summary>
-              <div class="mt-2.5 p-3 rounded-lg bg-black/40 border border-white/5 space-y-1.5 text-slate-300">
-                <p>Android 13/14/15 restricts sideloaded APK permissions by default:</p>
-                <ol class="list-decimal list-inside space-y-1 text-slate-400">
-                  <li>Long-press app icon → <strong class="text-white">App info (ⓘ)</strong></li>
-                  <li>Tap <strong class="text-white">three dots ⋮</strong> in top right</li>
-                  <li>Tap <strong class="text-white">"Allow restricted settings"</strong></li>
-                  <li>Grant Notification Access toggle.</li>
-                </ol>
-              </div>
-            </details>
-          </div>
+      <!-- Step 2: Causal Twin -->
+      <div class="glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
+        <div>
+          <div class="w-12 h-12 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mb-5 font-mono font-bold text-lg">02</div>
+          <h3 class="font-display font-bold text-lg text-white mb-2">Causal Estimator</h3>
+          <p class="text-xs sm:text-sm text-slate-400 leading-relaxed mb-4">
+            Runs sub-10ms Bayesian evaluation with LightGBM and rule priors to predict interruption cost before the operating system posts the notification.
+          </p>
         </div>
-
-        <!-- Windows Desktop Download Card -->
-        <div class="glass-panel p-8 rounded-3xl border border-white/10 flex flex-col justify-between">
-          <div>
-            <div class="flex items-center justify-between mb-6">
-              <div class="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400">
-                <i data-lucide="monitor" class="w-6 h-6"></i>
-              </div>
-              <span class="px-2.5 py-1 text-xs font-mono bg-sky-500/15 text-sky-400 rounded-full border border-sky-500/30">Windows 10/11</span>
-            </div>
-            <h3 class="text-xl font-display font-bold text-white mb-2">Windows Desktop</h3>
-            <p class="text-xs text-slate-400 leading-relaxed mb-6">
-              Electron tray host, local attention engine, pairing QR server, and focus analytics panel.
-            </p>
-          </div>
-
-          <div>
-            <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/Hunch-Setup-1.0.0-beta.1.exe" class="w-full py-3.5 px-4 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20 transition-all mb-3">
-              <i data-lucide="download" class="w-4 h-4"></i>
-              <span>Download .exe (227 MB)</span>
-            </a>
-
-            <!-- SmartScreen note -->
-            <details class="text-[11px] text-slate-400 group">
-              <summary class="cursor-pointer text-sky-400 hover:text-sky-300 font-semibold list-none flex items-center gap-1">
-                <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
-                <span>Windows SmartScreen Warning?</span>
-              </summary>
-              <div class="mt-2.5 p-3 rounded-lg bg-black/40 border border-white/5 space-y-1 text-slate-300">
-                <p>The beta installer is currently unsigned. Click <strong class="text-white">"More info"</strong> → <strong class="text-white">"Run anyway"</strong>. You can verify the checksum with SHA256SUMS.txt.</p>
-              </div>
-            </details>
-          </div>
+        <div class="pt-4 border-t border-white/5 text-[11px] font-mono text-cyan-400 flex items-center gap-1.5">
+          <i data-lucide="zap" class="w-3.5 h-3.5"></i> Sub-10ms Decision Speed
         </div>
-
-        <!-- VS Code Extension Card -->
-        <div class="glass-panel p-8 rounded-3xl border border-white/10 flex flex-col justify-between">
-          <div>
-            <div class="flex items-center justify-between mb-6">
-              <div class="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
-                <i data-lucide="code" class="w-6 h-6"></i>
-              </div>
-              <span class="px-2.5 py-1 text-xs font-mono bg-purple-500/15 text-purple-400 rounded-full border border-purple-500/30">VS Code</span>
-            </div>
-            <h3 class="text-xl font-display font-bold text-white mb-2">VS Code Sensor</h3>
-            <p class="text-xs text-slate-400 leading-relaxed mb-6">
-              Activity sensor extension capturing editor focus telemetry without inspecting source code.
-            </p>
-          </div>
-
-          <div>
-            <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/dhyan-1.0.0.vsix" class="w-full py-3.5 px-4 rounded-xl bg-purple-500 hover:bg-purple-400 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 transition-all mb-3">
-              <i data-lucide="download" class="w-4 h-4"></i>
-              <span>Download .vsix (60 KB)</span>
-            </a>
-
-            <div class="p-2.5 rounded-lg bg-black/40 border border-white/5 font-mono text-[10px] text-slate-400 text-center truncate">
-              Install via: <span class="text-slate-200">Extensions: Install from VSIX...</span>
-            </div>
-          </div>
-        </div>
-
       </div>
 
-      <!-- Verification Hash note -->
-      <div class="mt-8 text-center">
-        <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/tag/v1.0.0-beta.1" target="_blank" class="inline-flex items-center gap-2 text-xs font-mono text-slate-400 hover:text-white transition-colors">
-          <i data-lucide="file-check" class="w-4 h-4 text-emerald-400"></i>
-          <span>Verify all download hashes via SHA256SUMS.txt on GitHub Releases</span>
-          <i data-lucide="external-link" class="w-3 h-3"></i>
-        </a>
+      <!-- Step 3: Quiet Lease -->
+      <div class="glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
+        <div>
+          <div class="w-12 h-12 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 mb-5 font-mono font-bold text-lg">03</div>
+          <h3 class="font-display font-bold text-lg text-white mb-2">Quiet Lease Actuator</h3>
+          <p class="text-xs sm:text-sm text-slate-400 leading-relaxed mb-4">
+            Silently intercepts notifications via Android <code class="text-purple-300">NotificationListenerService</code>. Holds distractions in a local encrypted buffer.
+          </p>
+        </div>
+        <div class="pt-4 border-t border-white/5 text-[11px] font-mono text-purple-400 flex items-center gap-1.5">
+          <i data-lucide="shield" class="w-3.5 h-3.5"></i> Native Android & Desktop
+        </div>
       </div>
 
-    </section>
+      <!-- Step 4: Batch Digest -->
+      <div class="glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
+        <div>
+          <div class="w-12 h-12 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-5 font-mono font-bold text-lg">04</div>
+          <h3 class="font-display font-bold text-lg text-white mb-2">Contextual Digest</h3>
+          <p class="text-xs sm:text-sm text-slate-400 leading-relaxed mb-4">
+            Releases queued notifications in a structured summary only when you naturally finish a task or take a planned break.
+          </p>
+        </div>
+        <div class="pt-4 border-t border-white/5 text-[11px] font-mono text-amber-400 flex items-center gap-1.5">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Zero Attention Hijacking
+        </div>
+      </div>
 
-  </main>
+    </div>
+  </section>
 
-  <!-- FOOTER -->
-  <footer class="border-t border-white/10 relative z-10 py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+  <!-- ==================================================================== -->
+  <!-- PRIVACY MANIFESTO & WHY HUNCH IS DIFFERENT                           -->
+  <!-- ==================================================================== -->
+  <section id="privacy" class="py-24 sm:py-32 px-4 max-w-7xl mx-auto border-t border-white/10 relative z-10">
+    <div class="text-center max-w-3xl mx-auto mb-16">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono uppercase tracking-wider mb-4">
+        Uncompromising Ethics
+      </div>
+      <h2 class="font-display font-extrabold text-3xl sm:text-5xl text-white tracking-tight mb-4">
+        Self-directed agency, not workplace surveillance.
+      </h2>
+      <p class="text-base sm:text-lg text-slate-400">
+        Unlike corporate monitoring tools that report your keystrokes to your boss, Hunch answers only to you.
+      </p>
+    </div>
+
+    <!-- Bento Grid of Principles -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
       
-      <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-500 to-purple-600 flex items-center justify-center font-bold text-white text-xs">
-          H
+      <div class="glass-card glass-card-hover rounded-2xl p-8 border border-white/10">
+        <div class="w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-6">
+          <i data-lucide="lock" class="w-6 h-6"></i>
+        </div>
+        <h3 class="font-display font-bold text-xl text-white mb-3">100% On-Device Privacy</h3>
+        <p class="text-sm text-slate-400 leading-relaxed">
+          No cloud backend. No telemetry servers. No user tracking. All model inference and data storage happen purely inside your device's memory.
+        </p>
+      </div>
+
+      <div class="glass-card glass-card-hover rounded-2xl p-8 border border-white/10">
+        <div class="w-12 h-12 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mb-6">
+          <i data-lucide="life-buoy" class="w-6 h-6"></i>
+        </div>
+        <h3 class="font-display font-bold text-xl text-white mb-3">Fail-Open Architecture</h3>
+        <p class="text-sm text-slate-400 leading-relaxed">
+          If the engine crashes, sleeps, or runs out of battery, all notifications fail open. You will never miss an urgent call from family, doctors, or alarms.
+        </p>
+      </div>
+
+      <div class="glass-card glass-card-hover rounded-2xl p-8 border border-white/10">
+        <div class="w-12 h-12 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 mb-6">
+          <i data-lucide="code" class="w-6 h-6"></i>
+        </div>
+        <h3 class="font-display font-bold text-xl text-white mb-3">Apache 2.0 Open Source</h3>
+        <p class="text-sm text-slate-400 leading-relaxed">
+          Inspect every single line of code. Verify every byte sent across your local network. Hunch is transparent software built by and for developers.
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================================================================== -->
+  <!-- FOCUS COST CALCULATOR                                                -->
+  <!-- ==================================================================== -->
+  <section id="calculator" class="py-24 sm:py-32 px-4 max-w-6xl mx-auto border-t border-white/10 relative z-10">
+    <div class="glass-card rounded-3xl p-8 sm:p-12 border border-white/15 shadow-2xl relative overflow-hidden">
+      
+      <div class="max-w-2xl mb-10">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-mono uppercase tracking-wider mb-4">
+          ROI Calculator
+        </div>
+        <h2 class="font-display font-extrabold text-3xl sm:text-4xl text-white tracking-tight mb-3">
+          How much focus does your team lose each week?
+        </h2>
+        <p class="text-sm sm:text-base text-slate-400">
+          According to Gloria Mark's cognitive research at UC Irvine, regaining train of thought takes an average of 23 minutes after an unexpected interruption.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        <!-- Sliders (7 cols) -->
+        <div class="lg:col-span-7 space-y-6">
+          <div>
+            <div class="flex justify-between text-xs font-mono mb-2">
+              <span class="text-slate-300">Daily Notifications Received:</span>
+              <span id="calc-notifs-display" class="font-bold text-emerald-400">45 pings/day</span>
+            </div>
+            <input type="range" min="10" max="150" step="5" value="45" id="calcNotifs" oninput="calculateSavings()" class="w-full accent-emerald-500 bg-white/10 rounded-lg h-2 cursor-pointer">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs font-mono mb-2">
+              <span class="text-slate-300">Estimated Recovery Penalty:</span>
+              <span id="calc-cost-display" class="font-bold text-cyan-400">15 mins / ping</span>
+            </div>
+            <input type="range" min="5" max="30" step="1" value="15" id="calcCost" oninput="calculateSavings()" class="w-full accent-cyan-500 bg-white/10 rounded-lg h-2 cursor-pointer">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs font-mono mb-2">
+              <span class="text-slate-300">Effective Hourly Engineering Rate ($):</span>
+              <span id="calc-rate-display" class="font-bold text-purple-400">$65 / hour</span>
+            </div>
+            <input type="range" min="20" max="250" step="5" value="65" id="calcRate" oninput="calculateSavings()" class="w-full accent-purple-500 bg-white/10 rounded-lg h-2 cursor-pointer">
+          </div>
+        </div>
+
+        <!-- Calculated Summary Card (5 cols) -->
+        <div class="lg:col-span-5 glass-card rounded-2xl p-6 border border-emerald-500/30 bg-emerald-500/5 text-center">
+          <span class="text-xs font-mono uppercase text-slate-400 tracking-wider block mb-2">Weekly Focus Reclaimed</span>
+          <div id="savingsHours" class="font-display font-extrabold text-4xl sm:text-5xl text-emerald-400 mb-2">~11.2 hrs</div>
+          <span class="text-xs text-slate-400 block mb-6">equivalent to over 1 full uninterrupted workday</span>
+
+          <div class="pt-4 border-t border-white/10">
+            <span class="text-xs font-mono text-slate-400 uppercase tracking-wider block mb-1">Annual Value Preserved:</span>
+            <div id="savingsValue" class="font-display font-bold text-2xl text-white">$37,856</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================================================================== -->
+  <!-- DOWNLOADS & RELEASE ARTIFACTS DOCK                                   -->
+  <!-- ==================================================================== -->
+  <section id="downloads" class="py-24 sm:py-32 px-4 max-w-7xl mx-auto border-t border-white/10 relative z-10">
+    <div class="text-center max-w-3xl mx-auto mb-16">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono uppercase tracking-wider mb-4">
+        v1.0.0-beta.1 Official Releases
+      </div>
+      <h2 class="font-display font-extrabold text-3xl sm:text-5xl text-white tracking-tight mb-4">
+        Ready to take back your attention?
+      </h2>
+      <p class="text-base sm:text-lg text-slate-400">
+        Free and open source. Download verified beta builds directly from GitHub Releases.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-16">
+      
+      <!-- Windows Desktop -->
+      <div class="glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
+        <div>
+          <div class="w-12 h-12 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 mb-5">
+            <i data-lucide="laptop" class="w-6 h-6"></i>
+          </div>
+          <h3 class="font-display font-bold text-xl text-white mb-1">Windows Desktop</h3>
+          <p class="text-xs font-mono text-slate-400 mb-4">Electron 31.4 • Windows 10/11</p>
+          <p class="text-xs text-slate-400 leading-relaxed mb-6">
+            Tray companion, floating Pip widget, local heuristics engine, and real-time pairing sync.
+          </p>
         </div>
         <div>
-          <div class="text-sm font-display font-bold text-white">Hunch</div>
-          <div class="text-[11px] text-slate-400">your attention digital twin • Apache-2.0 License</div>
+          <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/Hunch-Setup-1.0.0-beta.1.exe" class="w-full py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-black font-display font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2" onclick="AudioEngine.playChime()">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span>Download .exe (Setup)</span>
+          </a>
+          <span class="block text-center text-[10px] font-mono text-slate-400 mt-2">SHA-256 verified in release</span>
         </div>
       </div>
 
-      <!-- Footer Links -->
-      <div class="flex flex-wrap items-center justify-center gap-6 text-xs text-slate-400">
-        <a href="https://github.com/abhigyan24-ops/hunch-attention-twin" target="_blank" class="hover:text-white transition-colors">GitHub</a>
-        <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/issues/28" target="_blank" class="hover:text-white transition-colors">Troubleshooting Guide</a>
-        <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/discussions" target="_blank" class="hover:text-white transition-colors">Discussions</a>
-        <a href="mailto:hunch_support@googlegroups.com" class="hover:text-white transition-colors">hunch_support@googlegroups.com</a>
+      <!-- Android Mobile -->
+      <div class="glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
+        <div>
+          <div class="w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-5">
+            <i data-lucide="smartphone" class="w-6 h-6"></i>
+          </div>
+          <h3 class="font-display font-bold text-xl text-white mb-1">Android Companion</h3>
+          <p class="text-xs font-mono text-slate-400 mb-4">Android 14 | 15 | 16</p>
+          <p class="text-xs text-slate-400 leading-relaxed mb-6">
+            Notification listener, quiet lease actuator, batch digest poster, and local SQLite store.
+          </p>
+        </div>
+        <div>
+          <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/Hunch-1.0.0-beta.1-debug-signed.apk" class="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-display font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2" onclick="AudioEngine.playChime()">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span>Download .apk (Signed)</span>
+          </a>
+          <span class="block text-center text-[10px] font-mono text-slate-400 mt-2">See restricted settings note</span>
+        </div>
       </div>
 
-      <div class="text-xs text-slate-500 font-mono">
-        v1.0.0-beta.1 (2026)
+      <!-- VS Code Extension -->
+      <div class="glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
+        <div>
+          <div class="w-12 h-12 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 mb-5">
+            <i data-lucide="code-2" class="w-6 h-6"></i>
+          </div>
+          <h3 class="font-display font-bold text-xl text-white mb-1">VS Code Extension</h3>
+          <p class="text-xs font-mono text-slate-400 mb-4">VS Code 1.85+</p>
+          <p class="text-xs text-slate-400 leading-relaxed mb-6">
+            Status bar focus meter, IDE keystroke velocity collector, and one-click manual quiet lease.
+          </p>
+        </div>
+        <div>
+          <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/dhyan-1.0.0.vsix" class="w-full py-2.5 rounded-xl bg-purple-500 hover:bg-purple-400 text-white font-display font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2" onclick="AudioEngine.playChime()">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span>Download .vsix Package</span>
+          </a>
+          <span class="block text-center text-[10px] font-mono text-slate-400 mt-2">Install via Extensions &gt; VSIX</span>
+        </div>
       </div>
 
+    </div>
+
+    <!-- Troubleshooting & Support Box -->
+    <div class="max-w-3xl mx-auto glass-card rounded-2xl p-6 border border-white/10 text-xs sm:text-sm text-slate-300">
+      <div class="flex items-center gap-2 text-amber-400 font-bold mb-3">
+        <i data-lucide="info" class="w-5 h-5"></i>
+        <span>Beta Installation Notes & Troubleshooting</span>
+      </div>
+      <ul class="space-y-2 text-slate-400 list-disc list-inside">
+        <li>
+          <strong class="text-slate-200">Android 13/14/15 Restricted Settings:</strong> If Android grays out Notification Access, go to <em>Settings &gt; Apps &gt; Hunch &gt; 3 dots (top right) &gt; Allow restricted settings</em>, then grant permission.
+        </li>
+        <li>
+          <strong class="text-slate-200">Windows SmartScreen:</strong> Since this is a community open-source beta, click <em>More info &gt; Run anyway</em>.
+        </li>
+        <li>
+          <strong class="text-slate-200">Official Support Group:</strong> Questions or feedback? Email the community directly at <a href="mailto:hunch_support@googlegroups.com" class="text-emerald-400 hover:underline">hunch_support@googlegroups.com</a>.
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ==================================================================== -->
+  <!-- FOOTER                                                               -->
+  <!-- ==================================================================== -->
+  <footer class="border-t border-white/10 bg-brand-darker py-12 px-4 relative z-10 text-xs text-slate-400">
+    <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
+      <div class="flex items-center gap-3">
+        <div class="w-7 h-7 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+          <i data-lucide="shield" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <span class="font-display font-bold text-white text-sm">Hunch: Your Attention Digital Twin</span>
+          <p class="text-[11px] text-slate-400">Apache 2.0 Open Source • 100% On-Device Privacy</p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-center gap-6 text-slate-400">
+        <a href="https://github.com/abhigyan24-ops/hunch-attention-twin" target="_blank" class="hover:text-emerald-400 transition-colors">GitHub Repository</a>
+        <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases" target="_blank" class="hover:text-emerald-400 transition-colors">Releases</a>
+        <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/discussions" target="_blank" class="hover:text-emerald-400 transition-colors">Discussions</a>
+        <a href="mailto:hunch_support@googlegroups.com" class="hover:text-emerald-400 transition-colors">Email Support</a>
+      </div>
+
+      <div class="text-[11px] text-slate-400">
+        Built with care for deep focus.
+      </div>
     </div>
   </footer>
 
-  <!-- Interactive JavaScript logic for simulator -->
-  <script>
-    // Initialize Lucide Icons
-    lucide.createIcons();
+  <!-- ==================================================================== -->
+  <!-- FLOATING PIP COMPANION DOCK (BOTTOM RIGHT)                           -->
+  <!-- ==================================================================== -->
+  <div id="pipFloatingCompanion" class="fixed bottom-6 right-6 z-4xl flex flex-col items-end pointer-events-none transition-all duration-300">
+    
+    <!-- Mini speech bubble -->
+    <div id="pip-floating-bubble" class="px-3.5 py-2 mb-2 rounded-2xl glass-card border border-emerald-500/40 text-xs text-white shadow-xl opacity-0 translate-y-2 transition-all duration-300 pointer-events-none max-w-[220px] text-center">
+      <span id="pip-floating-text">"Deep flow active! Pip is guarding."</span>
+    </div>
 
-    // Twin Simulator State
+    <!-- Floating Dock Card -->
+    <div class="glass-card rounded-2xl p-2.5 border border-white/15 shadow-2xl pointer-events-auto flex items-center gap-2 hover:border-emerald-500/50 transition-all cursor-pointer group" onclick="petFloatingPip()" title="Click to interact with Pip!">
+      <canvas id="pipDockCanvas" width="90" height="80" class="w-12 h-10"></canvas>
+      <div class="hidden group-hover:flex flex-col text-left pr-2 text-[11px]">
+        <span class="font-bold text-white">Pip Companion</span>
+        <span class="text-emerald-400 font-mono">100% Protected</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================================================================== -->
+  <!-- AUDIO ENGINE & SCRIPTS                                               -->
+  <!-- ==================================================================== -->
+  <script>
+    // ------------------------------------------------------------------
+    // WEB AUDIO API SYNTHESIZER
+    // ------------------------------------------------------------------
+    const AudioEngine = {
+      ctx: null,
+      muted: false,
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
+        }
+      },
+      toggleSound() {
+        this.muted = !this.muted;
+        document.getElementById('soundIcon').textContent = this.muted ? '🔇' : '🔊';
+        document.getElementById('soundLabel').textContent = this.muted ? 'Muted' : 'SFX';
+        if (!this.muted) {
+          this.playPop(750);
+        }
+      },
+      playPop(freq = 600, duration = 0.08) {
+        if (this.muted) return;
+        try {
+          this.init();
+          if (!this.ctx) return;
+          if (this.ctx.state === 'suspended') this.ctx.resume();
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(freq * 1.4, this.ctx.currentTime + duration);
+          gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + duration);
+        } catch(e) {}
+      },
+      playChime() {
+        if (this.muted) return;
+        try {
+          this.init();
+          if (!this.ctx) return;
+          if (this.ctx.state === 'suspended') this.ctx.resume();
+          const notes = [523.25, 659.25, 783.99, 1046.50];
+          notes.forEach((freq, idx) => {
+            setTimeout(() => {
+              if (this.muted) return;
+              const osc = this.ctx.createOscillator();
+              const gain = this.ctx.createGain();
+              osc.type = 'triangle';
+              osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+              gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+              gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 0.3);
+              osc.connect(gain);
+              gain.connect(this.ctx.destination);
+              osc.start();
+              osc.stop(this.ctx.currentTime + 0.3);
+            }, idx * 60);
+          });
+        } catch(e) {}
+      }
+    };
+
+    // ------------------------------------------------------------------
+    // PROCEDURAL PIP CLOUD SPIRIT DRAWING ENGINE
+    // ------------------------------------------------------------------
+    function drawCloudSpirit(ctx, w, h, lookX, lookY, scaleX, scaleY, emotion, particles = []) {
+      ctx.clearRect(0, 0, w, h);
+      ctx.save();
+      ctx.translate(w / 2, h / 2);
+      ctx.scale(scaleX, scaleY);
+
+      const s = Math.min(w / 240, h / 200);
+
+      // 1. Soft Ambient Mint/Sky Aura
+      const aura = ctx.createRadialGradient(0, 0, 10 * s, 0, 0, 100 * s);
+      if (emotion === 'FOCUSED') {
+        aura.addColorStop(0, 'rgba(16, 185, 129, 0.45)');
+        aura.addColorStop(0.6, 'rgba(16, 185, 129, 0.15)');
+      } else if (emotion === 'HAPPY') {
+        aura.addColorStop(0, 'rgba(245, 158, 11, 0.45)');
+        aura.addColorStop(0.6, 'rgba(16, 185, 129, 0.2)');
+      } else if (emotion === 'SLEEPY') {
+        aura.addColorStop(0, 'rgba(147, 197, 253, 0.35)');
+        aura.addColorStop(0.6, 'rgba(199, 210, 254, 0.1)');
+      } else if (emotion === 'SHIELDING') {
+        aura.addColorStop(0, 'rgba(139, 92, 246, 0.45)');
+        aura.addColorStop(0.6, 'rgba(139, 92, 246, 0.18)');
+      } else if (emotion === 'SURPRISED') {
+        aura.addColorStop(0, 'rgba(244, 63, 94, 0.45)');
+        aura.addColorStop(0.6, 'rgba(251, 146, 60, 0.2)');
+      } else {
+        // CURIOUS
+        aura.addColorStop(0, 'rgba(6, 182, 212, 0.45)');
+        aura.addColorStop(0.6, 'rgba(6, 182, 212, 0.15)');
+      }
+      aura.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = aura;
+      ctx.beginPath();
+      ctx.arc(0, 0, 100 * s, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 2. Plump Multi-Puff 3D Clay Cloud Silhouette
+      const bodyGrad = ctx.createRadialGradient(-20 * s, -25 * s, 8 * s, 0, 8 * s, 75 * s);
+      bodyGrad.addColorStop(0, '#FFFFFF');
+      if (emotion === 'FOCUSED') {
+        bodyGrad.addColorStop(0.35, '#ECFDF5');
+        bodyGrad.addColorStop(0.75, '#6EE7B7');
+        bodyGrad.addColorStop(1, '#059669');
+      } else if (emotion === 'HAPPY') {
+        bodyGrad.addColorStop(0.35, '#FEF9C3');
+        bodyGrad.addColorStop(0.75, '#A3E635');
+        bodyGrad.addColorStop(1, '#65A30D');
+      } else if (emotion === 'SLEEPY') {
+        bodyGrad.addColorStop(0.35, '#EFF6FF');
+        bodyGrad.addColorStop(0.75, '#93C5FD');
+        bodyGrad.addColorStop(1, '#3B82F6');
+      } else if (emotion === 'SHIELDING') {
+        bodyGrad.addColorStop(0.35, '#F5F3FF');
+        bodyGrad.addColorStop(0.75, '#C4B5FD');
+        bodyGrad.addColorStop(1, '#7C3AED');
+      } else if (emotion === 'SURPRISED') {
+        bodyGrad.addColorStop(0.35, '#FFF1F2');
+        bodyGrad.addColorStop(0.75, '#FDA4AF');
+        bodyGrad.addColorStop(1, '#E11D48');
+      } else {
+        bodyGrad.addColorStop(0.35, '#E0F2FE');
+        bodyGrad.addColorStop(0.75, '#38BDF8');
+        bodyGrad.addColorStop(1, '#0284C7');
+      }
+
+      ctx.fillStyle = bodyGrad;
+      ctx.beginPath();
+      ctx.arc(-42 * s, 12 * s, 45 * s, 0, Math.PI * 2); // Left puff
+      ctx.arc(42 * s, 12 * s, 45 * s, 0, Math.PI * 2);  // Right puff
+      ctx.arc(0, -22 * s, 54 * s, 0, Math.PI * 2);      // Top center dome
+      if (ctx.roundRect) {
+        ctx.roundRect(-62 * s, -10 * s, 124 * s, 62 * s, 31 * s);
+      } else {
+        ctx.rect(-62 * s, -10 * s, 124 * s, 62 * s);
+      }
+      ctx.fill();
+
+      // Soft bottom ambient shadow
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.12)';
+      ctx.beginPath();
+      ctx.ellipse(0, 36 * s, 58 * s, 12 * s, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 3. Expressive Sclera Eyes with Dual Specular Reflections
+      const dx = Math.max(-12 * s, Math.min(12 * s, lookX * 12 * s));
+      const dy = Math.max(-8 * s, Math.min(8 * s, lookY * 8 * s));
+
+      [-24 * s, 24 * s].forEach((eyeX) => {
+        // Sclera (White eye background)
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.ellipse(
+          eyeX + dx * 0.35,
+          -6 * s + dy * 0.35,
+          16 * s,
+          emotion === 'SLEEPY' ? 5 * s : 18 * s,
+          0,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+
+        // Eye contour border
+        ctx.strokeStyle = 'rgba(18, 20, 23, 0.15)';
+        ctx.lineWidth = 2 * s;
+        ctx.stroke();
+
+        if (emotion !== 'SLEEPY') {
+          // Deep pupil
+          ctx.fillStyle = '#121417';
+          ctx.beginPath();
+          ctx.arc(eyeX + dx, -6 * s + dy, 9 * s, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Primary catchlight
+          ctx.fillStyle = '#FFFFFF';
+          ctx.beginPath();
+          ctx.arc(eyeX + dx - 3 * s, -10 * s + dy, 3.2 * s, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Secondary micro reflection
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+          ctx.beginPath();
+          ctx.arc(eyeX + dx + 2.5 * s, -3 * s + dy, 1.8 * s, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+
+      // 4. Rosy Cheeks
+      if (emotion === 'HAPPY' || emotion === 'CURIOUS' || emotion === 'FOCUSED') {
+        ctx.fillStyle = 'rgba(244, 63, 94, 0.28)';
+        ctx.beginPath();
+        ctx.arc(-46 * s, 14 * s, 12 * s, 0, Math.PI * 2);
+        ctx.arc(46 * s, 14 * s, 12 * s, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 5. Tactile Mouth
+      ctx.strokeStyle = '#121417';
+      ctx.lineWidth = 4 * s;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      if (emotion === 'HAPPY') {
+        ctx.arc(dx * 0.4, 12 * s + dy * 0.2, 11 * s, 0.1 * Math.PI, 0.9 * Math.PI);
+      } else if (emotion === 'SLEEPY') {
+        ctx.arc(dx * 0.4, 14 * s + dy * 0.2, 6 * s, 0, Math.PI);
+      } else if (emotion === 'SURPRISED') {
+        ctx.arc(dx * 0.4, 14 * s + dy * 0.2, 7 * s, 0, Math.PI * 2);
+      } else if (emotion === 'SHIELDING') {
+        // Focused determined straight mouth
+        ctx.moveTo(-10 * s + dx * 0.4, 14 * s + dy * 0.2);
+        ctx.lineTo(10 * s + dx * 0.4, 14 * s + dy * 0.2);
+      } else {
+        // Calm gentle smile
+        ctx.arc(dx * 0.4, 12 * s + dy * 0.2, 9 * s, 0.15 * Math.PI, 0.85 * Math.PI);
+      }
+      ctx.stroke();
+
+      ctx.restore();
+
+      // 6. Particles Overlay
+      if (particles && particles.length > 0) {
+        ctx.save();
+        ctx.translate(w / 2, h / 2);
+        particles.forEach((p) => {
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, p.alpha);
+          ctx.translate(p.x, p.y);
+
+          if (p.type === 'sparkle') {
+            ctx.fillStyle = '#FBBF24';
+            ctx.beginPath();
+            const r = p.size;
+            ctx.moveTo(0, -r);
+            ctx.quadraticCurveTo(0, 0, r, 0);
+            ctx.quadraticCurveTo(0, 0, 0, r);
+            ctx.quadraticCurveTo(0, 0, -r, 0);
+            ctx.quadraticCurveTo(0, 0, 0, -r);
+            ctx.fill();
+          } else if (p.type === 'heart') {
+            ctx.fillStyle = '#F43F5E';
+            ctx.beginPath();
+            const d = p.size;
+            ctx.moveTo(0, d / 4);
+            ctx.quadraticCurveTo(0, 0, d / 4, 0);
+            ctx.quadraticCurveTo(d / 2, 0, d / 2, d / 4);
+            ctx.quadraticCurveTo(d / 2, 0, (3 * d) / 4, 0);
+            ctx.quadraticCurveTo(d, 0, d, d / 4);
+            ctx.quadraticCurveTo(d, d / 2, (3 * d) / 4, (3 * d) / 4);
+            ctx.lineTo(d / 2, d);
+            ctx.lineTo(d / 4, (3 * d) / 4);
+            ctx.quadraticCurveTo(0, d / 2, 0, d / 4);
+            ctx.fill();
+          } else if (p.type === 'zzz') {
+            ctx.fillStyle = '#93C5FD';
+            ctx.font = `bold ${Math.round(p.size)}px monospace`;
+            ctx.fillText('z', 0, 0);
+          }
+          ctx.restore();
+        });
+        ctx.restore();
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // HERO PIP STAGE CONTROLLER
+    // ------------------------------------------------------------------
+    const heroCanvas = document.getElementById('pipHeroCanvas');
+    const heroCtx = heroCanvas.getContext('2d');
+    let heroEmotion = 'FOCUSED';
+    let heroLookX = 0, heroLookY = 0;
+    let heroTargetLookX = 0, heroTargetLookY = 0;
+    let heroScaleX = 1, heroScaleY = 1;
+    let heroVelX = 0, heroVelY = 0;
+    let heroParticles = [];
+    let heroBreathTime = 0;
+
+    // Track Cursor for Hero Pip
+    window.addEventListener('mousemove', (e) => {
+      const rect = heroCanvas.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const distX = (e.clientX - centerX) / (window.innerWidth / 2);
+      const distY = (e.clientY - centerY) / (window.innerHeight / 2);
+      heroTargetLookX = Math.max(-1, Math.min(1, distX));
+      heroTargetLookY = Math.max(-1, Math.min(1, distY));
+    });
+
+    // Pet Pip on Click in Hero
+    document.getElementById('pipHeroInteractiveArea').addEventListener('click', () => {
+      AudioEngine.playChime();
+      heroVelY = -0.32;
+      heroVelX = 0.28;
+      
+      // Spawn burst of celebration particles
+      for (let i = 0; i < 18; i++) {
+        heroParticles.push({
+          x: (Math.random() - 0.5) * 80,
+          y: (Math.random() - 0.5) * 50,
+          vx: (Math.random() - 0.5) * 4.5,
+          vy: -Math.random() * 4 - 2,
+          size: Math.random() * 7 + 4,
+          alpha: 1,
+          life: 0,
+          maxLife: 45,
+          type: Math.random() > 0.4 ? 'sparkle' : 'heart'
+        });
+      }
+
+      // Show Speech Bubble with Quotes
+      const bubble = document.getElementById('pipHeroBubble');
+      const text = document.getElementById('pipHeroText');
+      const quotes = [
+        "Your flow state is armed and protected! ✨",
+        "Sub-10ms causal twin online! Zero data leaves device. 🛡️",
+        "Buffered 14 distracting pings so you could code uninterrupted! 🚀",
+        "100% on-device AI. No telemetry, no cloud, no leaks! 🔒",
+        "Happy hacking! Pip is keeping guard! 💚"
+      ];
+      text.textContent = quotes[Math.floor(Math.random() * quotes.length)];
+      bubble.classList.remove('opacity-0', 'translate-y-3');
+      setTimeout(() => {
+        bubble.classList.add('opacity-0', 'translate-y-3');
+      }, 3500);
+    });
+
+    function setHeroEmotion(em, btn) {
+      AudioEngine.playPop(700);
+      heroEmotion = em;
+      document.querySelectorAll('.pip-hero-btn').forEach(b => {
+        b.className = 'pip-hero-btn px-3 py-1 rounded-lg text-xs font-medium font-mono border border-white/10 bg-white/5 text-slate-400 hover:text-white transition-all';
+      });
+      btn.className = 'pip-hero-btn px-3 py-1 rounded-lg text-xs font-medium font-mono border border-emerald-500/40 bg-emerald-500/15 text-emerald-300 transition-all';
+
+      // Spawn subtle emotion shift puff
+      for (let i = 0; i < 8; i++) {
+        heroParticles.push({
+          x: (Math.random() - 0.5) * 40,
+          y: (Math.random() - 0.5) * 30,
+          vx: (Math.random() - 0.5) * 2,
+          vy: -Math.random() * 2 - 1,
+          size: Math.random() * 5 + 3,
+          alpha: 1,
+          life: 0,
+          maxLife: 30,
+          type: em === 'SLEEPY' ? 'zzz' : 'sparkle'
+        });
+      }
+    }
+
+    // Hero Loop
+    function animateHeroPip() {
+      heroBreathTime += 0.04;
+      
+      // Smooth lerp for eye gaze tracking
+      heroLookX += (heroTargetLookX - heroLookX) * 0.12;
+      heroLookY += (heroTargetLookY - heroLookY) * 0.12;
+
+      // Spring physics for squash and stretch
+      const k = 0.2;
+      const d = 0.75;
+      const targetScaleY = 1 + Math.sin(heroBreathTime) * 0.035;
+      const targetScaleX = 1 - Math.sin(heroBreathTime) * 0.025;
+
+      heroVelX += (targetScaleX - heroScaleX) * k;
+      heroVelX *= d;
+      heroScaleX += heroVelX;
+
+      heroVelY += (targetScaleY - heroScaleY) * k;
+      heroVelY *= d;
+      heroScaleY += heroVelY;
+
+      // Particle physics
+      for (let i = heroParticles.length - 1; i >= 0; i--) {
+        const p = heroParticles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life++;
+        p.alpha = 1 - (p.life / p.maxLife);
+        if (p.life >= p.maxLife) {
+          heroParticles.splice(i, 1);
+        }
+      }
+
+      drawCloudSpirit(heroCtx, 400, 300, heroLookX, heroLookY, heroScaleX, heroScaleY, heroEmotion, heroParticles);
+      requestAnimationFrame(animateHeroPip);
+    }
+    animateHeroPip();
+
+    // ------------------------------------------------------------------
+    // FLOATING DOCK COMPANION
+    // ------------------------------------------------------------------
+    const dockCanvas = document.getElementById('pipDockCanvas');
+    const dockCtx = dockCanvas.getContext('2d');
+    let dockParticles = [];
+
+    function petFloatingPip() {
+      AudioEngine.playPop(850);
+      for (let i = 0; i < 10; i++) {
+        dockParticles.push({
+          x: (Math.random() - 0.5) * 30,
+          y: (Math.random() - 0.5) * 20,
+          vx: (Math.random() - 0.5) * 2.5,
+          vy: -Math.random() * 2 - 1,
+          size: Math.random() * 4 + 2,
+          alpha: 1,
+          life: 0,
+          maxLife: 25,
+          type: 'sparkle'
+        });
+      }
+      const b = document.getElementById('pip-floating-bubble');
+      b.classList.remove('opacity-0', 'translate-y-2');
+      setTimeout(() => b.classList.add('opacity-0', 'translate-y-2'), 2500);
+    }
+
+    function animateDockPip() {
+      for (let i = dockParticles.length - 1; i >= 0; i--) {
+        const p = dockParticles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life++;
+        p.alpha = 1 - (p.life / p.maxLife);
+        if (p.life >= p.maxLife) dockParticles.splice(i, 1);
+      }
+      drawCloudSpirit(dockCtx, 90, 80, heroLookX * 0.8, heroLookY * 0.8, 1, 1, 'FOCUSED', dockParticles);
+      requestAnimationFrame(animateDockPip);
+    }
+    animateDockPip();
+
+    // ------------------------------------------------------------------
+    // TWIN LAB INTERACTIVE SIMULATOR LOGIC
+    // ------------------------------------------------------------------
+    const labCanvas = document.getElementById('pipLabCanvas');
+    const labCtx = labCanvas.getContext('2d');
+    let labEmotion = 'FOCUSED';
+
+    function drawLabPip() {
+      drawCloudSpirit(labCtx, 110, 100, 0, 0, 1, 1, labEmotion, []);
+    }
+    drawLabPip();
+
     let currentContext = 'deep';
     let currentNotif = 'social';
     let currentHours = 3.5;
 
     const contextData = {
-      deep: { name: 'Deep Code Flow', multiplier: 2.2, base: 14.0 },
-      writing: { name: 'Architecture & Writing', multiplier: 1.5, base: 9.0 },
-      triage: { name: 'Light Triage', multiplier: 0.8, base: 4.0 }
+      deep: { name: 'Deep Code Flow', base: 14.0 },
+      writing: { name: 'Architecture Doc', base: 8.5 },
+      triage: { name: 'Inbox Triage', base: 4.0 }
     };
 
     const notifData = {
-      social: { name: 'Instagram Reel', app: 'Instagram', severity: 1.6, action: 'HOLD', reason: 'High distraction probability during active focus burst. Buffered for scheduled batch digest.' },
-      slack: { name: 'Slack @channel', app: 'Slack', severity: 1.2, action: 'HOLD', reason: 'Broad broadcast mention in non-critical channel. Held silently until focus session finishes.' },
-      promo: { name: 'Food 50% Off', app: 'Food Delivery', severity: 2.0, action: 'HOLD', reason: 'Commercial marketing push. Strictly held to preserve editor momentum.' },
-      family: { name: 'Mom (Phone Call)', app: 'Phone', severity: 0.1, action: 'ALLOW', reason: 'Trusted VIP contact priority. Bypasses quiet lease immediately with fail-open pass.' }
+      social: { name: 'Instagram Reel', severity: 1.6, action: 'HOLD', reason: 'High distraction probability during active focus burst. Buffered for scheduled batch digest.' },
+      slack: { name: 'Slack @channel', severity: 1.2, action: 'HOLD', reason: 'Broad broadcast mention in non-critical channel. Held silently until focus session finishes.' },
+      promo: { name: '50% Off Food', severity: 2.0, action: 'HOLD', reason: 'Commercial marketing push. Strictly held to preserve editor momentum.' },
+      family: { name: 'Mom (Phone Call)', severity: 0.05, action: 'ALLOW', reason: 'Trusted VIP contact priority. Bypasses quiet lease immediately with fail-open emergency pass.' }
     };
 
     function setContext(type, btn) {
+      AudioEngine.playPop(550);
       currentContext = type;
       document.querySelectorAll('#context-selector button').forEach(b => {
-        b.classList.remove('border-emerald-500/40', 'bg-emerald-500/15', 'text-white');
-        b.classList.add('border-white/10', 'bg-white/5', 'text-slate-300');
+        b.className = 'px-4 py-3 rounded-xl border border-white/10 bg-white/5 text-slate-400 hover:text-white font-medium text-xs sm:text-sm flex flex-col items-start gap-1 transition-all';
       });
-      btn.classList.add('border-emerald-500/40', 'bg-emerald-500/15', 'text-white');
-      btn.classList.remove('border-white/10', 'bg-white/5', 'text-slate-300');
+      btn.className = 'px-4 py-3 rounded-xl border border-emerald-500/40 bg-emerald-500/15 text-white font-medium text-xs sm:text-sm flex flex-col items-start gap-1 transition-all';
       recalculateTwin();
     }
 
     function setNotif(type, btn) {
+      AudioEngine.playPop(620);
       currentNotif = type;
       document.querySelectorAll('#notif-selector button').forEach(b => {
-        b.classList.remove('border-purple-500/40', 'bg-purple-500/15', 'text-white');
-        b.classList.add('border-white/10', 'bg-white/5', 'text-slate-400');
+        b.className = 'p-3 rounded-xl border border-white/10 bg-white/5 text-slate-400 hover:text-white text-xs font-medium flex flex-col items-center text-center gap-2 transition-all';
       });
-      btn.classList.add('border-purple-500/40', 'bg-purple-500/15', 'text-white');
-      btn.classList.remove('border-white/10', 'bg-white/5', 'text-slate-400');
+      btn.className = 'p-3 rounded-xl border border-purple-500/40 bg-purple-500/15 text-white text-xs font-medium flex flex-col items-center text-center gap-2 transition-all';
       recalculateTwin();
     }
 
     function updateHours(val) {
       currentHours = parseFloat(val);
-      const label = currentHours < 2.5 ? 'Fresh' : currentHours < 6.0 ? 'Peak Flow' : 'Fatigued';
+      const label = currentHours < 2.5 ? 'Fresh' : currentHours < 6.0 ? 'Optimal Flow' : 'High Fatigue';
       document.getElementById('hours-display').textContent = `${currentHours.toFixed(1)} hrs (${label})`;
       recalculateTwin();
     }
@@ -761,8 +1357,6 @@
     function recalculateTwin() {
       const c = contextData[currentContext];
       const n = notifData[currentNotif];
-      
-      // Compute estimated focus cost
       const costMinutes = (c.base * n.severity * (currentHours > 5.5 ? 1.4 : 1.0)).toFixed(1);
 
       const badge = document.getElementById('decision-badge');
@@ -771,24 +1365,81 @@
       const reasonEl = document.getElementById('decision-reason');
 
       if (n.action === 'ALLOW') {
-        badge.className = "inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-display font-extrabold text-sm sm:text-base";
-        badge.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i><span>ALLOW THROUGH IMMEDIATELY</span>`;
-        pipState.textContent = "VIP Escalation Pass";
-        pipState.className = "text-[11px] text-amber-400 font-mono";
-        costEl.textContent = "0.0 mins";
+        badge.className = "inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 font-display font-extrabold text-sm sm:text-base";
+        badge.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i><span>ALLOW VIP OVERRIDE</span>`;
+        pipState.textContent = "VIP Whitelist Pass";
+        pipState.className = "text-xs text-amber-400 font-mono";
+        costEl.textContent = "0.0 mins (Exempt)";
         costEl.className = "text-lg font-display font-bold text-slate-300";
+        labEmotion = 'HAPPY';
       } else {
-        badge.className = "inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-display font-extrabold text-sm sm:text-base";
+        badge.className = "inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-display font-extrabold text-sm sm:text-base";
         badge.innerHTML = `<i data-lucide="shield" class="w-4 h-4"></i><span>HOLD FOR BATCH DIGEST</span>`;
         pipState.textContent = "Guarding Deep Flow";
-        pipState.className = "text-[11px] text-emerald-400 font-mono";
+        pipState.className = "text-xs text-emerald-400 font-mono";
         costEl.textContent = `~${costMinutes} mins`;
         costEl.className = "text-lg font-display font-bold text-amber-400";
+        labEmotion = currentHours > 5.5 ? 'SURPRISED' : 'FOCUSED';
       }
 
+      drawLabPip();
       reasonEl.textContent = `"${n.reason}"`;
       lucide.createIcons();
     }
+
+    // ------------------------------------------------------------------
+    // FOCUS COST ROI CALCULATOR
+    // ------------------------------------------------------------------
+    function calculateSavings() {
+      const notifs = parseFloat(document.getElementById('calcNotifs').value);
+      const cost = parseFloat(document.getElementById('calcCost').value);
+      const rate = parseFloat(document.getElementById('calcRate').value);
+
+      document.getElementById('calc-notifs-display').textContent = `${notifs} pings/day`;
+      document.getElementById('calc-cost-display').textContent = `${cost} mins / ping`;
+      document.getElementById('calc-rate-display').textContent = `$${rate} / hour`;
+
+      // Assuming Hunch buffers ~60% of daily distractions during deep flow
+      const dailyMinutesLost = notifs * cost;
+      const weeklyHoursSaved = ((dailyMinutesLost * 5 * 0.6) / 60).toFixed(1);
+      const annualValue = Math.round(weeklyHoursSaved * 50 * rate);
+
+      document.getElementById('savingsHours').textContent = `~${weeklyHoursSaved} hrs`;
+      document.getElementById('savingsValue').textContent = `$${annualValue.toLocaleString()}`;
+    }
+    calculateSavings();
+
+    // ------------------------------------------------------------------
+    // 3D TILT EFFECT ON CARDS
+    // ------------------------------------------------------------------
+    document.querySelectorAll('.tilt-element').forEach(card => {
+      card.addEventListener('mousemove', (e) => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left - rect.width / 2;
+        const y = e.clientY - rect.top - rect.height / 2;
+        const rotateX = -(y / (rect.height / 2)) * 6;
+        const rotateY = (x / (rect.width / 2)) * 6;
+        card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+      });
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg)';
+      });
+    });
+
+    // Copy Install Command
+    function copyInstallCmd(btn) {
+      AudioEngine.playPop(900);
+      navigator.clipboard.writeText('git clone https://github.com/abhigyan24-ops/hunch-attention-twin.git');
+      btn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-emerald-400"></i>';
+      lucide.createIcons();
+      setTimeout(() => {
+        btn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
+        lucide.createIcons();
+      }, 2000);
+    }
+
+    // Initialize Lucide Icons
+    lucide.createIcons();
   </script>
 
 </body>
