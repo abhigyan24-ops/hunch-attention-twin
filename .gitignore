@@ -46,3 +46,14 @@ tools/dataset/out/*.raw
 # Agent working notes
 PROGRESS.md
 DECISIONS.md
+
+# Internal agent working notes (not for public repo)
+AGENTS.md
+COORDINATION.md
+HANDOFF_STATUS.md
+DECISIONS_*.md
+NOTES_*.md
+STAGE*_NOTES.md
+STAGE_GATES.md
+TRACEABILITY.md
+HUNCH_AGENT_HANDOFF.md

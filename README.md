@@ -1,4 +1,4 @@
-# Hunch: your attention digital twin
+﻿# Hunch: your attention digital twin
 
 > Knows what that notification will cost you.
 
@@ -6,7 +6,7 @@ Unrelated to other products named Hunch. Hunch is a working name for a prototype
 
 Codename note: internal package names, protocol constants and storage names still say `dhyan` so existing data and pairings keep working.
 
-[![CI](https://github.com/<<GITHUB_OWNER>>/<<REPO_NAME>>/actions/workflows/release.yml/badge.svg)](https://github.com/<<GITHUB_OWNER>>/<<REPO_NAME>>/actions)
+[![CI](https://github.com/abhigyan24-ops/hunch-attention-twin/actions/workflows/release.yml/badge.svg)](https://github.com/abhigyan24-ops/hunch-attention-twin/actions)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Android](https://img.shields.io/badge/Android-14%20%7C%2015%20%7C%2016-brightgreen.svg)](phone/)
 [![Electron](https://img.shields.io/badge/Electron-31.4-blue.svg)](laptop/)
@@ -75,5 +75,5 @@ Hunch is built strictly for **individual self-use and self-directed attention ag
 
 ## Contributing, Security & License
 
-- [CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md) · [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) · [SUPPORT.md](SUPPORT.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md) Â· [SECURITY.md](SECURITY.md) Â· [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) Â· [SUPPORT.md](SUPPORT.md)
 - Licensed under the **[Apache-2.0 License](LICENSE)**. See [NOTICE](NOTICE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
