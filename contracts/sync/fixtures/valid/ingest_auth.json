@@ -1,6 +1,0 @@
-{
-  "kind": "auth",
-  "token": "valid_ingest_token_32_bytes_len_ok",
-  "client": "vscode",
-  "clientVersion": "1.0.0"
-}

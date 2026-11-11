@@ -1,6 +1,0 @@
-* @<<GITHUB_OWNER>>
-/.github/ @<<GITHUB_OWNER>>
-/SECURITY.md @<<GITHUB_OWNER>>
-/contracts/ @<<GITHUB_OWNER>>
-/laptop/electron-builder.yml @<<GITHUB_OWNER>>
-/vscode-ext/src/privacy/ @<<GITHUB_OWNER>>

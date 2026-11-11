@@ -1,2 +1,0 @@
-# Pip assets
-Pip uses an original inline SVG/CSS placeholder drawn for this repository. No external copyrighted sprites, fonts or animation libraries are bundled. Seven visual behaviors and a neutral no-data presentation are implemented; they are not assertions of inferred cognitive state. Future free assets must list creator, source URL and license here before use. Respect reduced-motion preferences.

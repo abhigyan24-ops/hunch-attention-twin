@@ -1,7 +1,0 @@
-{
-  "cmdId": "not-a-uuid",
-  "cmd": "end_session",
-  "args": {},
-  "issuedTs": 1729864000000,
-  "exp": 1729864030000
-}
