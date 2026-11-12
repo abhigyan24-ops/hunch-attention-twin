@@ -67,9 +67,9 @@
           },
           keyframes: {
             blob: {
-              '0%, 100%': { transform: 'translate(0px, 0px) scale(1)' },
-              '33%': { transform: 'translate(40px, -50px) scale(1.12)' },
-              '66%': { transform: 'translate(-30px, 30px) scale(0.92)' },
+              '0%, 100%': { transform: 'translateZ(0) translate(0px, 0px) scale(1)' },
+              '33%': { transform: 'translateZ(0) translate(40px, -50px) scale(1.12)' },
+              '66%': { transform: 'translateZ(0) translate(-30px, 30px) scale(0.92)' },
             },
             float: {
               '0%, 100%': { transform: 'translateY(0px)' },
@@ -119,10 +119,9 @@
       transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
     .glass-card-hover:hover {
-      background: rgba(18, 24, 36, 0.88);
+      background-color: rgba(18, 24, 36, 0.88);
       border-color: rgba(16, 185, 129, 0.35);
       box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.7), 0 0 35px -5px rgba(16, 185, 129, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-      transform: translateY(-3px);
     }
 
     /* Interactive 3D Tilt */
@@ -160,11 +159,10 @@
     .reveal { opacity:0; transform:translateY(28px); transition:opacity .65s cubic-bezier(.16,1,.3,1),transform .65s cubic-bezier(.16,1,.3,1); transition-delay:var(--reveal-delay,0ms); }
     .reveal.is-visible { opacity:1; transform:translateY(0); }
     .glass-card-hover { background-image:radial-gradient(circle at var(--light-x,50%) var(--light-y,50%),rgba(16,185,129,.08) 0%,transparent 60%); }
-    .glass-card-hover:hover { background-color:rgba(18,24,36,.88); }
     #mobileMenu { position:absolute; top:100%; left:0; right:0; max-height:0; overflow:hidden; visibility:hidden; transition:max-height .35s ease,visibility .35s; }
     #mobileMenu.open { max-height:400px; visibility:visible; }
     nav a { transition:color .3s ease; }
-    .animate-blob { will-change:transform; translate:0 0 0; transform:translateZ(0); }
+    .animate-blob { will-change:transform; transform:translateZ(0); }
     #downloads .glass-card-hover p { text-wrap:balance; overflow-wrap:anywhere; }
     .terminal-shimmer { position:relative; overflow:hidden; }
     .terminal-shimmer::after { content:''; position:absolute; inset:0; pointer-events:none; background:linear-gradient(90deg,transparent,rgba(255,255,255,.04),transparent); animation:terminalShimmer 3s ease-in-out infinite; }
@@ -172,7 +170,8 @@
     .beta-dot { display:inline-block; width:5px; height:5px; margin-right:5px; border-radius:50%; background:#34d399; }
     .beta-dot,.beta-pulse { animation:betaPulse 4s steps(1) infinite; }
     @keyframes betaPulse { 0%,85%,100% { opacity:1; } 90% { opacity:.25; } 95% { opacity:.6; } }
-    #pipeline .glass-card-hover:hover .w-12 { box-shadow:0 0 20px currentColor; }
+    #pipeline .stage-number { transition:box-shadow .3s ease; }
+    #pipeline .glass-card-hover:hover .stage-number { box-shadow:0 0 20px var(--badge-glow); }
     .troubleshooting-list { list-style:none; }
     .troubleshooting-list li { position:relative; padding-left:1.1rem; }
     .troubleshooting-list li::before { content:'●'; position:absolute; left:0; color:#34d399; }
@@ -182,8 +181,9 @@
     .download-ripple { position:absolute; width:80px; height:80px; margin:-40px; border-radius:50%; background:rgba(255,255,255,.35); pointer-events:none; animation:downloadRipple .5s ease-out forwards; }
     @keyframes downloadRipple { from { transform:scale(0); opacity:1; } to { transform:scale(3); opacity:0; } }
     #pipHeroCanvas { max-width:100%; object-fit:contain; }
+    #pipeline code { overflow-wrap:anywhere; }
     @media (min-width:768px) and (max-width:1100px) { nav { flex-wrap:wrap; gap:12px; } nav > .hidden.md\:flex { order:3; width:100%; justify-content:center; } }
-    @media (max-width:639px) { nav > a .font-mono { display:none; } #pipHeroStageContainer .font-display { flex-wrap:wrap; } #calculator > .glass-card { padding:24px; } }
+    @media (max-width:639px) { nav > a .font-mono { display:none; } #pipHeroStageContainer .font-display { flex-wrap:wrap; } }
     @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; scroll-behavior:auto!important; } .reveal { opacity:1; transform:none; } }
   </style>
 </head>
@@ -225,8 +225,9 @@
       </a>
 
       <!-- Navigation Links (Desktop) -->
-      <div class="hidden md:flex items-center gap-3 lg:gap-8 text-xs lg:text-sm font-medium text-slate-300">
+      <div data-nav-links class="hidden md:flex items-center gap-3 lg:gap-8 text-xs lg:text-sm font-medium text-slate-300">
         <a href="#simulator" class="hover:text-emerald-400 transition-colors" onclick="AudioEngine.playPop(500)">Twin Lab</a>
+        <a href="#pipeline" class="hover:text-emerald-400 transition-colors" onclick="AudioEngine.playPop(550)">Architecture</a>
         <a href="#privacy" class="hover:text-emerald-400 transition-colors" onclick="AudioEngine.playPop(600)">Privacy</a>
         <a href="#downloads" class="hover:text-emerald-400 transition-colors" onclick="AudioEngine.playPop(700)">Releases</a>
       </div>
@@ -254,7 +255,10 @@
       </div>
       <div id="mobileMenu" class="md:hidden glass-card rounded-b-2xl" inert>
         <div class="flex flex-col gap-4 p-5">
-          <a href="#simulator">Twin Lab</a><a href="#pipeline">Architecture</a><a href="#privacy">Privacy</a><a href="#calculator">Cost Calculator</a><a href="#downloads">Releases</a>
+          <a data-nav-link href="#simulator">Twin Lab</a>
+          <a data-nav-link href="#pipeline">Architecture</a>
+          <a data-nav-link href="#privacy">Privacy</a>
+          <a data-nav-link href="#downloads">Releases</a>
           <a href="#downloads" class="rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-black font-bold p-3 text-center">Get Beta</a>
         </div>
       </div>
@@ -331,7 +335,7 @@
         <div class="absolute -bottom-32 -right-32 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
         <!-- Stage Header & State HUD -->
-        <div class="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
+        <div data-reveal class="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
           <div class="flex items-center gap-3 text-left">
             <div class="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></div>
             <div>
@@ -414,33 +418,34 @@
   <!-- ==================================================================== -->
   <!-- OPEN SOURCE TRUST STRIP                                               -->
   <!-- ==================================================================== -->
-  <section class="py-8 px-4 border-b border-white/10 bg-brand-darker/40 relative z-10">
+  <section id="trust" role="region" aria-labelledby="trust-heading" class="py-8 px-4 border-b border-white/10 bg-brand-darker/40 relative z-10">
+    <h2 id="trust-heading" class="sr-only">Open Source Trust</h2>
     <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-center gap-6 sm:gap-10">
-      <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/blob/main/LICENSE" target="_blank" class="flex items-center gap-2 text-xs font-mono text-slate-400 hover:text-emerald-400 transition-colors">
+      <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/blob/main/LICENSE" target="_blank" class="flex items-center gap-2 text-xs font-mono text-slate-300 hover:text-emerald-400 transition-colors">
         <span class="inline-flex w-5 h-5 rounded bg-emerald-500/15 border border-emerald-500/30 items-center justify-center">
           <i data-lucide="file-check" class="w-3 h-3 text-emerald-400"></i>
         </span>
         Apache 2.0 License
       </a>
-      <a href="https://github.com/abhigyan24-ops/hunch-attention-twin" target="_blank" class="flex items-center gap-2 text-xs font-mono text-slate-400 hover:text-emerald-400 transition-colors">
+      <a href="https://github.com/abhigyan24-ops/hunch-attention-twin" target="_blank" class="flex items-center gap-2 text-xs font-mono text-slate-300 hover:text-emerald-400 transition-colors">
         <span class="inline-flex w-5 h-5 rounded bg-emerald-500/15 border border-emerald-500/30 items-center justify-center">
           <i data-lucide="code-2" class="w-3 h-3 text-emerald-400"></i>
         </span>
         Source-auditable &middot; Zero proprietary SDK
       </a>
-      <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/issues/28" target="_blank" class="flex items-center gap-2 text-xs font-mono text-slate-400 hover:text-cyan-400 transition-colors">
+      <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/issues/28" target="_blank" class="flex items-center gap-2 text-xs font-mono text-slate-300 hover:text-cyan-400 transition-colors">
         <span class="inline-flex w-5 h-5 rounded bg-cyan-500/15 border border-cyan-500/30 items-center justify-center">
           <i data-lucide="message-circle" class="w-3 h-3 text-cyan-400"></i>
         </span>
         Community Beta &middot; v1.0.0-beta.1
       </a>
-      <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/discussions" target="_blank" class="flex items-center gap-2 text-xs font-mono text-slate-400 hover:text-purple-400 transition-colors">
+      <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/discussions" target="_blank" class="flex items-center gap-2 text-xs font-mono text-slate-300 hover:text-purple-400 transition-colors">
         <span class="inline-flex w-5 h-5 rounded bg-purple-500/15 border border-purple-500/30 items-center justify-center">
           <i data-lucide="users" class="w-3 h-3 text-purple-400"></i>
         </span>
         GitHub Discussions Open
       </a>
-      <a href="mailto:hunch_support@googlegroups.com" class="flex items-center gap-2 text-xs font-mono text-slate-400 hover:text-amber-400 transition-colors">
+      <a href="mailto:hunch_support@googlegroups.com" class="flex items-center gap-2 text-xs font-mono text-slate-300 hover:text-amber-400 transition-colors">
         <span class="inline-flex w-5 h-5 rounded bg-amber-500/15 border border-amber-500/30 items-center justify-center">
           <i data-lucide="mail" class="w-3 h-3 text-amber-400"></i>
         </span>
@@ -541,7 +546,7 @@
       <!-- Decision Engine Output Terminal (Right 5 Cols) -->
       <div class="lg:col-span-5">
         <div class="glass-card rounded-2xl p-6 sm:p-7 border border-white/15 relative overflow-hidden shadow-2xl">
-          <div class="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
+          <div data-reveal class="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
             <div class="flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
               <span class="font-mono text-xs text-slate-300 font-bold uppercase">Decision Engine Verdict</span>
@@ -559,7 +564,7 @@
           </div>
 
           <!-- Decision Badge -->
-          <div class="mb-6">
+          <div data-reveal class="mb-6">
             <span class="text-xs text-slate-300 font-mono block mb-2">DECISION:</span>
             <div id="decision-badge" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-display font-extrabold text-sm sm:text-base">
               <i data-lucide="shield" class="w-4 h-4"></i>
@@ -568,7 +573,7 @@
           </div>
 
           <!-- Cost Metric -->
-          <div class="mb-6 p-4 rounded-xl bg-brand-dark/80 border border-white/5">
+          <div data-reveal class="mb-6 p-4 rounded-xl bg-brand-dark/80 border border-white/5">
             <div class="flex items-center justify-between text-xs text-slate-300 mb-1">
               <span>Predicted Attention Recovery Penalty:</span>
               <span id="cost-value" class="text-lg font-display font-bold text-amber-400">~16.8 mins</span>
@@ -611,7 +616,7 @@
       <!-- Step 1: Collectors -->
       <div class="glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
         <div>
-          <div class="w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-5 font-mono font-bold text-lg">01</div>
+          <div class="stage-number w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-5 font-mono font-bold text-lg" style="--badge-glow:rgba(16,185,129,.35)">01</div>
           <h3 class="font-display font-bold text-lg text-white mb-2">Daemon Collectors</h3>
           <p class="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
             Passively measures typing tempo, active window state, and IDE file diffs. Raw data is stored locally in SQLite with rolling TTL expiration.
@@ -625,7 +630,7 @@
       <!-- Step 2: Causal Twin -->
       <div class="glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
         <div>
-          <div class="w-12 h-12 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mb-5 font-mono font-bold text-lg">02</div>
+          <div class="stage-number w-12 h-12 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mb-5 font-mono font-bold text-lg" style="--badge-glow:rgba(6,182,212,.35)">02</div>
           <h3 class="font-display font-bold text-lg text-white mb-2">Causal Estimator</h3>
           <p class="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
             Runs sub-10ms Bayesian evaluation with LightGBM and rule priors to predict interruption cost before the operating system posts the notification.
@@ -639,7 +644,7 @@
       <!-- Step 3: Quiet Lease -->
       <div class="glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
         <div>
-          <div class="w-12 h-12 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 mb-5 font-mono font-bold text-lg">03</div>
+          <div class="stage-number w-12 h-12 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 mb-5 font-mono font-bold text-lg" style="--badge-glow:rgba(139,92,246,.35)">03</div>
           <h3 class="font-display font-bold text-lg text-white mb-2">Quiet Lease Actuator</h3>
           <p class="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
             Silently intercepts notifications via Android <code class="text-purple-300">NotificationListenerService</code>. Holds distractions in a local encrypted buffer.
@@ -653,7 +658,7 @@
       <!-- Step 4: Batch Digest -->
       <div class="glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
         <div>
-          <div class="w-12 h-12 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-5 font-mono font-bold text-lg">04</div>
+          <div class="stage-number w-12 h-12 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-5 font-mono font-bold text-lg" style="--badge-glow:rgba(245,158,11,.35)">04</div>
           <h3 class="font-display font-bold text-lg text-white mb-2">Contextual Digest</h3>
           <p class="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
             Releases queued notifications in a structured summary only when you naturally finish a task or take a planned break.
@@ -1132,10 +1137,11 @@
     // HERO PIP STAGE CONTROLLER
     // ------------------------------------------------------------------
     const reducedMotion = (typeof window !== 'undefined' && window.matchMedia) ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
-    function setupCanvas(canvas, ctx, w, h) {
+    function setupCanvas(canvas, ctx, w, h, cssWidth = w, cssHeight = h) {
       const dpr = window.devicePixelRatio || 1;
       canvas.width = w * dpr; canvas.height = h * dpr;
-      canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+      canvas.style.width = cssWidth + 'px';
+      canvas.style.height = cssHeight + 'px';
       ctx.scale(dpr, dpr);
     }
     const heroCanvas = document.getElementById('pipHeroCanvas');
@@ -1262,6 +1268,95 @@
 
 
     // ------------------------------------------------------------------
+    // TWIN LAB INTERACTIVE SIMULATOR LOGIC
+    // ------------------------------------------------------------------
+    const labCanvas = document.getElementById('pipLabCanvas');
+    const labCtx = labCanvas.getContext('2d');
+    setupCanvas(labCanvas, labCtx, 110, 100, 56, 51);
+    let labEmotion = 'FOCUSED';
+
+    function drawLabPip() {
+      drawCloudSpirit(labCtx, 110, 100, 0, 0, 1, 1, labEmotion, []);
+    }
+
+    let currentContext = 'deep';
+    let currentNotif = 'social';
+    let currentHours = 3.5;
+
+    const contextData = {
+      deep: { name: 'Deep Code Flow', base: 14.0 },
+      writing: { name: 'Architecture Doc', base: 8.5 },
+      triage: { name: 'Inbox Triage', base: 4.0 }
+    };
+
+    const notifData = {
+      social: { name: 'Instagram Reel', severity: 1.6, action: 'HOLD', reason: 'High distraction probability during active focus burst. Buffered for scheduled batch digest.' },
+      slack: { name: 'Slack @channel', severity: 1.2, action: 'HOLD', reason: 'Broad broadcast mention in non-critical channel. Held silently until focus session finishes.' },
+      promo: { name: '50% Off Food', severity: 2.0, action: 'HOLD', reason: 'Commercial marketing push. Strictly held to preserve editor momentum.' },
+      family: { name: 'Mom (Phone Call)', severity: 0.05, action: 'ALLOW', reason: 'Trusted VIP contact priority. Bypasses quiet lease immediately with fail-open emergency pass.' }
+    };
+
+    function setContext(type, btn) {
+      AudioEngine.playPop(550);
+      currentContext = type;
+      document.querySelectorAll('#context-selector button').forEach(b => {
+        b.className = 'px-4 py-3 rounded-xl border border-white/10 bg-white/5 text-slate-300 hover:text-white font-medium text-xs sm:text-sm flex flex-col items-start gap-1 transition-all';
+      });
+      btn.className = 'px-4 py-3 rounded-xl border border-emerald-500/40 bg-emerald-500/15 text-white font-medium text-xs sm:text-sm flex flex-col items-start gap-1 transition-all';
+      recalculateTwin();
+    }
+
+    function setNotif(type, btn) {
+      AudioEngine.playPop(620);
+      currentNotif = type;
+      document.querySelectorAll('#notif-selector button').forEach(b => {
+        b.className = 'p-3 rounded-xl border border-white/10 bg-white/5 text-slate-300 hover:text-white text-xs font-medium flex flex-col items-center text-center gap-2 transition-all';
+      });
+      btn.className = 'p-3 rounded-xl border border-purple-500/40 bg-purple-500/15 text-white text-xs font-medium flex flex-col items-center text-center gap-2 transition-all';
+      recalculateTwin();
+    }
+
+    function updateHours(val) {
+      currentHours = parseFloat(val);
+      const label = currentHours < 2.5 ? 'Fresh' : currentHours < 6.0 ? 'Optimal Flow' : 'High Fatigue';
+      document.getElementById('hours-display').textContent = `${currentHours.toFixed(1)} hrs (${label})`;
+      recalculateTwin();
+    }
+
+    function recalculateTwin() {
+      const c = contextData[currentContext];
+      const n = notifData[currentNotif];
+      const costMinutes = (c.base * n.severity * (currentHours > 5.5 ? 1.4 : 1.0)).toFixed(1);
+
+      const badge = document.getElementById('decision-badge');
+      const pipState = document.getElementById('pip-state');
+      const costEl = document.getElementById('cost-value');
+      const reasonEl = document.getElementById('decision-reason');
+
+      if (n.action === 'ALLOW') {
+        badge.className = "inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 font-display font-extrabold text-sm sm:text-base";
+        badge.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i><span>ALLOW VIP OVERRIDE</span>`;
+        pipState.textContent = "VIP Whitelist Pass";
+        pipState.className = "text-xs text-amber-400 font-mono";
+        costEl.textContent = "0.0 mins (Exempt)";
+        costEl.className = "text-lg font-display font-bold text-slate-300";
+        labEmotion = 'HAPPY';
+      } else {
+        badge.className = "inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-display font-extrabold text-sm sm:text-base";
+        badge.innerHTML = `<i data-lucide="shield" class="w-4 h-4"></i><span>HOLD FOR BATCH DIGEST</span>`;
+        pipState.textContent = "Guarding Deep Flow";
+        pipState.className = "text-xs text-emerald-400 font-mono";
+        costEl.textContent = `~${costMinutes} mins`;
+        costEl.className = "text-lg font-display font-bold text-amber-400";
+        labEmotion = currentHours > 5.5 ? 'SURPRISED' : 'FOCUSED';
+      }
+
+      drawLabPip();
+      reasonEl.textContent = `"${n.reason}"`;
+      lucide.createIcons();
+    }
+
+    // ------------------------------------------------------------------
     // 3D TILT EFFECT ON CARDS
     // ------------------------------------------------------------------
     // Copy Install Command
@@ -1281,10 +1376,10 @@
     const revealObserver = new IntersectionObserver(entries => entries.forEach(entry => {
       if (entry.isIntersecting) { entry.target.classList.add('is-visible'); revealObserver.unobserve(entry.target); }
     }), { threshold:.08 });
-    document.querySelectorAll('section h1, section h2, section .glass-card, #stats > .grid > div').forEach(el => {
+    document.querySelectorAll('section h1, section h2:not(.sr-only), section .glass-card, #stats > .grid > div, #trust a, [data-reveal]').forEach(el => {
       // Keep the interactive canvas stage outside reveal transforms.
       if (el.querySelector('canvas')) return;
-      const siblings = [...el.parentElement.children].filter(child => child.matches('.glass-card, #stats > .grid > div'));
+      const siblings = [...el.parentElement.children].filter(child => child.matches('.glass-card, #stats > .grid > div, #trust a, [data-reveal]'));
       el.dataset.delay = Math.max(0, siblings.indexOf(el) % 4) * 80;
       el.style.setProperty('--reveal-delay', el.dataset.delay + 'ms');
       el.classList.add('reveal'); revealObserver.observe(el);
@@ -1314,12 +1409,12 @@
     }
     addEventListener('scroll', updateProgress, { passive:true });
     addEventListener('resize', updateProgress); updateProgress();
-    const navSections = ['simulator','pipeline','privacy','calculator','downloads'];
+    const navSections = ['simulator','pipeline','privacy','downloads'];
     const visibility = new Map();
     const navObserver = new IntersectionObserver(entries => {
       entries.forEach(e => visibility.set(e.target.id,e.intersectionRatio));
       const active = [...visibility].filter(([,ratio]) => ratio > .4).sort((a,b) => b[1]-a[1])[0]?.[0];
-      document.querySelectorAll('nav a[href^="#"]').forEach(link => {
+      document.querySelectorAll('nav [data-nav-links] a, #mobileMenu [data-nav-link]').forEach(link => {
         const selected = link.hash === '#' + active;
         link.classList.toggle('text-emerald-400',selected); link.classList.toggle('font-semibold',selected);
         if (selected) link.setAttribute('aria-current','location'); else link.removeAttribute('aria-current');
@@ -1365,7 +1460,7 @@
     menuToggle.addEventListener('click', () => setMenu(menuToggle.getAttribute('aria-expanded') !== 'true'));
     mobileMenu.querySelectorAll('a').forEach(a => a.addEventListener('click',closeMenu));
     document.addEventListener('pointerdown',e => { if (!e.target.closest('nav')) closeMenu(); });
-    document.addEventListener('keydown',e => { if (e.key === 'Escape') { closeMenu(); menuToggle.focus(); } });
+    document.addEventListener('keydown',e => { if (e.key === 'Escape' && mobileMenu.classList.contains('open')) { closeMenu(); menuToggle.focus(); } });
     addEventListener('resize', () => { if (innerWidth >= 768) closeMenu(); });
     document.querySelectorAll('a[href*="/releases/download/"], a[href="#downloads"], #downloads button').forEach(button => {
       button.classList.add('ripple-host');
@@ -1392,7 +1487,7 @@
     function tick(now) {
       requestAnimationFrame(tick);
       if (document.hidden || now-lastFrame < 1000/60) return;
-      lastFrame = now;
+      lastFrame = now - ((now-lastFrame) % (1000/60));
       if (Date.now()-lastMoveTime >= 4000) {
         idleSleeping = true; heroEmotion = 'SLEEPY';
         if (!reducedMotion.matches && Date.now()-lastZzzTime >= 1500) {
@@ -1401,10 +1496,9 @@
         }
       }
       if (reducedMotion.matches) {
-        heroParticles.length = dockParticles.length = 0;
+        heroParticles.length = 0;
         drawCloudSpirit(heroCtx,400,300,0,0,1,1,heroEmotion,[]);
-        drawCloudSpirit(dockCtx,90,80,0,0,1,1,idleSleeping ? 'SLEEPY' : 'FOCUSED',[]);
-      } else { updateHeroPip(); updateDockPip(); }
+      } else { updateHeroPip(); }
       tiltCards.forEach(state => {
         if (Math.abs(state.tx-state.x)+Math.abs(state.ty-state.y) < .05) return;
         state.x += (state.tx-state.x)*.12; state.y += (state.ty-state.y)*.12;
@@ -1413,11 +1507,11 @@
     }
     requestAnimationFrame(tick);
     addEventListener('resize', () => {
-      setupCanvas(heroCanvas,heroCtx,400,300); setupCanvas(dockCanvas,dockCtx,90,80); setupCanvas(labCanvas,labCtx,110,100); drawLabPip();
+      setupCanvas(heroCanvas,heroCtx,400,300); setupCanvas(labCanvas, labCtx, 110, 100, 56, 51); drawLabPip();
     });
 
-    // Initialize Lucide Icons
-    lucide.createIcons();
+    // Initialize Lucide Icons, including the initial Twin Lab verdict.
+    recalculateTwin();
   </script>
 
 </body>
