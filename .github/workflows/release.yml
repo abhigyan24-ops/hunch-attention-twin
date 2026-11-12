@@ -205,12 +205,12 @@ jobs:
           cache: npm
           cache-dependency-path: laptop/package-lock.json
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: engine-win
           path: engine/dist/dhyan-engine
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: release-vsix
           path: vscode-ext
@@ -350,7 +350,7 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: release-*             # excludes the large engine-win artifact
           path: artifacts
