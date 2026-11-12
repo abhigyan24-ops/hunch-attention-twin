@@ -797,61 +797,133 @@
     }
 
 
-    /* ── Pip Float Badge (scroll companion) ──────────────────── */
-    #pipFloatBadge {
-      position: fixed; bottom: 28px; right: 28px; z-index: 9000;
-      display: flex; flex-direction: column; align-items: center;
+    /* ── Sticky Pip Pet ─────────────────────────────────────────── */
+    #pipStickyPet {
+      position: fixed;
+      right: 28px;
+      top: 50%;
+      transform: translateY(-50%) translateX(140px); /* hidden off-screen right */
+      z-index: 9000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       gap: 0;
-      width: 96px;
-      background: rgba(8,10,20,0.92);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 20px; padding: 14px 10px 10px;
-      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-      box-shadow: 0 12px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
+      width: 108px;
       cursor: pointer;
-      opacity: 0; transform: translateY(20px) scale(0.9);
-      transition: opacity 0.3s ease, transform 0.3s ease,
-                  border-color 0.4s ease, box-shadow 0.4s ease;
       pointer-events: none;
+      opacity: 0;
+      transition: transform 0.55s cubic-bezier(0.34,1.56,0.64,1),
+                  opacity 0.4s ease;
     }
-    #pipFloatBadge.visible {
-      opacity: 1; transform: translateY(0) scale(1); pointer-events: auto;
+    #pipStickyPet.visible {
+      transform: translateY(-50%) translateX(0);
+      opacity: 1;
+      pointer-events: auto;
     }
-    #pipFloatBadge:hover {
-      border-color: rgba(255,255,255,0.22);
-      box-shadow: 0 16px 56px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08);
-      transform: translateY(-2px) scale(1);
+
+    /* Glow ring behind Pip */
+    #pipStickyPet .pet-glow {
+      position: relative;
+      width: 108px; height: 108px;
+      display: flex; align-items: center; justify-content: center;
     }
-    #pipFloatBadge canvas {
-      width: 72px; height: 72px; display: block;
-      /* no border-radius — cloud spirit is organically shaped */
+    #pipStickyPet .pet-glow::before {
+      content: '';
+      position: absolute; inset: -6px;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--pet-glow-color, rgba(99,102,241,0.3)) 0%, transparent 70%);
+      animation: pet-pulse 3s ease-in-out infinite;
+      transition: background 0.6s ease;
     }
-    #pipFloatBadge .badge-emotion {
-      font-size: 9px; font-weight: 800; letter-spacing: 0.12em;
-      text-transform: uppercase; margin-top: 6px; line-height: 1;
-      transition: color 0.4s ease;
+    #pipStickyPet .pet-glow::after {
+      content: '';
+      position: absolute; inset: 2px;
+      border-radius: 50%;
+      border: 1.5px solid var(--pet-ring-color, rgba(99,102,241,0.4));
+      transition: border-color 0.6s ease;
     }
-    #pipFloatBadge .badge-section {
-      font-size: 9px; font-family: var(--font-mono, monospace);
-      color: rgba(255,255,255,0.3); margin-top: 3px; line-height: 1;
+    @keyframes pet-pulse {
+      0%, 100% { transform: scale(1);   opacity: 0.7; }
+      50%       { transform: scale(1.12); opacity: 1;   }
     }
-    #pipFloatBadge .badge-hint {
-      font-size: 8px; color: rgba(255,255,255,0.2); margin-top: 5px;
-      letter-spacing: 0.05em;
+
+    /* Bob float */
+    #pipStickyPet .pet-bob {
+      animation: pet-bob 4s ease-in-out infinite;
+      will-change: transform;
     }
-    /* Emotion-tinted border */
-    #pipFloatBadge[data-emotion="FOCUSED"]   { border-color: rgba(99,102,241,0.35); }
-    #pipFloatBadge[data-emotion="FOCUSED"]   .badge-emotion { color: #818cf8; }
-    #pipFloatBadge[data-emotion="CURIOUS"]   { border-color: rgba(234,179,8,0.35); }
-    #pipFloatBadge[data-emotion="CURIOUS"]   .badge-emotion { color: #fbbf24; }
-    #pipFloatBadge[data-emotion="SHIELDING"] { border-color: rgba(239,68,68,0.35); }
-    #pipFloatBadge[data-emotion="SHIELDING"] .badge-emotion { color: #f87171; }
-    #pipFloatBadge[data-emotion="HAPPY"]     { border-color: rgba(16,185,129,0.35); }
-    #pipFloatBadge[data-emotion="HAPPY"]     .badge-emotion { color: #34d399; }
-    #pipFloatBadge[data-emotion="SURPRISED"] { border-color: rgba(6,182,212,0.35); }
-    #pipFloatBadge[data-emotion="SURPRISED"] .badge-emotion { color: #22d3ee; }
-    #pipFloatBadge[data-emotion="SLEEPY"]    { border-color: rgba(148,163,184,0.2); }
-    #pipFloatBadge[data-emotion="SLEEPY"]    .badge-emotion { color: rgba(148,163,184,0.6); }
+    @keyframes pet-bob {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      30%       { transform: translateY(-6px) rotate(-1deg); }
+      70%       { transform: translateY(3px) rotate(1deg); }
+    }
+    /* Pause bob when scroll-tilted */
+    #pipStickyPet.scrolling .pet-bob {
+      animation: none;
+    }
+
+    #pipStickyPet canvas {
+      width: 100px; height: 100px; display: block;
+      position: relative; z-index: 1;
+    }
+
+    /* Labels */
+    #pipStickyPet .pet-emotion {
+      font-size: 9px; font-weight: 800; letter-spacing: 0.14em;
+      text-transform: uppercase; margin-top: 10px; line-height: 1;
+      color: var(--pet-label-color, #818cf8);
+      transition: color 0.6s ease;
+    }
+    #pipStickyPet .pet-section {
+      font-size: 9px; font-family: monospace;
+      color: rgba(255,255,255,0.28); margin-top: 4px; line-height: 1;
+    }
+    #pipStickyPet .pet-hint {
+      font-size: 8px; color: rgba(255,255,255,0.18); margin-top: 6px;
+      letter-spacing: 0.04em;
+    }
+    #pipStickyPet:hover .pet-hint { color: rgba(255,255,255,0.45); }
+    #pipStickyPet:hover .pet-glow::before { animation-duration: 1.2s; }
+
+    /* Emotion colour tokens */
+    #pipStickyPet[data-emotion="FOCUSED"]   {
+      --pet-glow-color: rgba(99,102,241,0.25); --pet-ring-color: rgba(99,102,241,0.5);
+      --pet-label-color: #818cf8;
+    }
+    #pipStickyPet[data-emotion="CURIOUS"]   {
+      --pet-glow-color: rgba(251,191,36,0.25); --pet-ring-color: rgba(251,191,36,0.5);
+      --pet-label-color: #fbbf24;
+    }
+    #pipStickyPet[data-emotion="SHIELDING"] {
+      --pet-glow-color: rgba(239,68,68,0.25); --pet-ring-color: rgba(239,68,68,0.5);
+      --pet-label-color: #f87171;
+    }
+    #pipStickyPet[data-emotion="HAPPY"]     {
+      --pet-glow-color: rgba(16,185,129,0.25); --pet-ring-color: rgba(16,185,129,0.5);
+      --pet-label-color: #34d399;
+    }
+    #pipStickyPet[data-emotion="SURPRISED"] {
+      --pet-glow-color: rgba(6,182,212,0.25); --pet-ring-color: rgba(6,182,212,0.5);
+      --pet-label-color: #22d3ee;
+    }
+    #pipStickyPet[data-emotion="SLEEPY"]    {
+      --pet-glow-color: rgba(148,163,184,0.1); --pet-ring-color: rgba(148,163,184,0.2);
+      --pet-label-color: rgba(148,163,184,0.5);
+    }
+
+    /* Mobile: smaller + bottom-right */
+    @media (max-width: 768px) {
+      #pipStickyPet {
+        width: 76px; right: 16px;
+        top: auto; bottom: 24px;
+        transform: translateX(120px);
+      }
+      #pipStickyPet.visible {
+        transform: translateX(0);
+      }
+      #pipStickyPet .pet-glow { width: 76px; height: 76px; }
+      #pipStickyPet canvas { width: 70px; height: 70px; }
+    }
 
     /* ── Scroll hint ─────────────────────────────────────────── */
     #pipScrollHint {
@@ -2429,33 +2501,53 @@
       if (scrollY > 60 && scrollHint) scrollHint.classList.add('hidden');
     }, { passive: true, once: false });
 
-    // ── Floating Pip Badge — scroll companion ───────────────────
-    const pipBadge       = document.getElementById('pipFloatBadge');
-    const pipBadgeCanvas = document.getElementById('pipBadgeCanvas');
-    const pipBadgeEmotionEl = document.getElementById('pipBadgeEmotion');
-    const pipBadgeSectionEl = document.getElementById('pipBadgeSection');
-    let pipBadgeCtx      = null;
-    let pipBadgeVisible  = false;
-    let lastBadgeEmotion = '';
-    let badgeRafId       = null;
+    // ── Sticky Pip Pet — always-visible scroll companion ────────
+    const pipPet       = document.getElementById('pipStickyPet');
+    const pipPetCanvas = document.getElementById('pipPetCanvas');
+    const pipPetEmotionEl = document.getElementById('pipPetEmotion');
+    const pipPetSectionEl = document.getElementById('pipPetSection');
 
-    // HiDPI setup for badge canvas (canvas is 144×144 CSS → renders at 288px internally on 2× screens)
-    if (pipBadgeCanvas) {
+    let pipPetCtx      = null;
+    let petVisible     = false;
+    let petRafId       = null;
+    let lastPetEmotion = '';
+    let lastScrollY    = 0;
+    let scrollVelocity = 0;
+    let scrollTiltTimeout = null;
+
+    // HiDPI setup
+    if (pipPetCanvas) {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      pipBadgeCanvas.width  = 144 * dpr;
-      pipBadgeCanvas.height = 144 * dpr;
-      pipBadgeCtx = pipBadgeCanvas.getContext('2d');
-      pipBadgeCtx.scale(dpr, dpr);
+      pipPetCanvas.width  = 200 * dpr;
+      pipPetCanvas.height = 200 * dpr;
+      pipPetCtx = pipPetCanvas.getContext('2d');
+      pipPetCtx.scale(dpr, dpr);
     }
 
-    // Section labels matching SCROLL_EMOTION_MAP
-    const SECTION_LABELS = {
+    const PET_SECTION_LABELS = {
       hero: 'Hero', features: 'Features', simulator: 'Lab',
       pipeline: 'Pipeline', privacy: 'Privacy', downloads: 'Releases'
     };
 
-    // Which section are we in?
-    function getCurrentSection() {
+    // Draw Pip into the pet canvas continuously
+    function drawPetPip() {
+      if (!pipPetCtx || !petVisible) return;
+      pipPetCtx.clearRect(0, 0, 200, 200);
+      // Slight tilt based on scroll velocity
+      const tilt = Math.max(-0.08, Math.min(0.08, scrollVelocity * 0.002));
+      pipPetCtx.save();
+      pipPetCtx.translate(100, 100);
+      pipPetCtx.rotate(tilt);
+      pipPetCtx.translate(-100, -100);
+      try {
+        drawCloudSpirit(pipPetCtx, 200, 200, 100, 100, 1, 1, heroEmotion || 'FOCUSED', []);
+      } catch(e) {}
+      pipPetCtx.restore();
+      petRafId = requestAnimationFrame(drawPetPip);
+    }
+
+    // Which section are we in? (reuse SCROLL_EMOTION_MAP)
+    function getPetSection() {
       const midY = window.innerHeight / 2;
       for (const { section } of SCROLL_EMOTION_MAP) {
         const el = document.getElementById(section);
@@ -2466,50 +2558,58 @@
       return 'hero';
     }
 
-    // Animate the badge Pip — runs its own lightweight rAF while badge is visible
-    function drawBadgePip() {
-      if (!pipBadgeCtx || !pipBadgeVisible) return;
-      try {
-        pipBadgeCtx.clearRect(0, 0, 144, 144);
-        drawCloudSpirit(pipBadgeCtx, 144, 144, 72, 72, 1, 1, heroEmotion || 'FOCUSED', []);
-      } catch(e) {}
-      badgeRafId = requestAnimationFrame(drawBadgePip);
-    }
-
-    function updatePipBadge() {
+    function updateStickyPet() {
+      // Show once hero is scrolled past
       const heroEl  = document.getElementById('hero');
       const heroBot = heroEl ? heroEl.getBoundingClientRect().bottom : 0;
-      const shouldShow = heroBot < 60; // show once hero is nearly scrolled out
+      const shouldShow = heroBot < 80;
 
-      if (shouldShow !== pipBadgeVisible) {
-        pipBadgeVisible = shouldShow;
-        pipBadge && pipBadge.classList.toggle('visible', shouldShow);
+      // Scroll velocity for tilt effect
+      const dy = window.scrollY - lastScrollY;
+      lastScrollY = window.scrollY;
+      scrollVelocity = dy;
+
+      // Tilt class while scrolling fast
+      if (Math.abs(dy) > 3 && pipPet) {
+        pipPet.classList.add('scrolling');
+        clearTimeout(scrollTiltTimeout);
+        scrollTiltTimeout = setTimeout(() => {
+          if (pipPet) pipPet.classList.remove('scrolling');
+          scrollVelocity = 0;
+        }, 300);
+      }
+
+      // Toggle visibility with spring-in animation
+      if (shouldShow !== petVisible) {
+        petVisible = shouldShow;
+        if (pipPet) pipPet.classList.toggle('visible', shouldShow);
         if (shouldShow) {
-          // Start badge animation loop
-          if (badgeRafId) cancelAnimationFrame(badgeRafId);
-          drawBadgePip();
+          if (petRafId) cancelAnimationFrame(petRafId);
+          drawPetPip();
         } else {
-          if (badgeRafId) { cancelAnimationFrame(badgeRafId); badgeRafId = null; }
+          if (petRafId) { cancelAnimationFrame(petRafId); petRafId = null; }
         }
       }
 
-      if (!pipBadge || !pipBadgeVisible) return;
+      if (!pipPet || !petVisible) return;
 
-      // Update emotion label + data attr (for CSS tinting)
+      // Update emotion + colour tokens
       const em = heroEmotion || 'FOCUSED';
-      if (em !== lastBadgeEmotion) {
-        lastBadgeEmotion = em;
-        pipBadge.dataset.emotion = em;
-        if (pipBadgeEmotionEl) pipBadgeEmotionEl.textContent = em;
+      if (em !== lastPetEmotion) {
+        lastPetEmotion = em;
+        pipPet.dataset.emotion = em;
+        if (pipPetEmotionEl) pipPetEmotionEl.textContent = em;
       }
 
-      // Update section label
-      const sec = getCurrentSection();
-      if (pipBadgeSectionEl) pipBadgeSectionEl.textContent = SECTION_LABELS[sec] || sec;
+      // Section label
+      const sec = getPetSection();
+      if (pipPetSectionEl) {
+        pipPetSectionEl.textContent = PET_SECTION_LABELS[sec] || sec;
+      }
     }
 
-    addEventListener('scroll', updatePipBadge, { passive: true });
-    updatePipBadge();
+    addEventListener('scroll', updateStickyPet, { passive: true });
+    updateStickyPet();
 
     // ── OS auto-detect for hero download card ───────────────────
     function detectOS() {
@@ -2901,15 +3001,19 @@
   </script>
 
 
-  <!-- Floating Pip Badge — scroll companion -->
-  <div id="pipFloatBadge" role="button" tabindex="0" data-emotion="FOCUSED"
-       aria-label="Pip companion — click to scroll to top"
+  <!-- Sticky Pip Pet — scroll companion -->
+  <div id="pipStickyPet" role="button" tabindex="0" data-emotion="FOCUSED"
+       aria-label="Pip — your attention companion. Click to scroll to top."
        onclick="window.scrollTo({top:0,behavior:'smooth'})"
        onkeydown="if(event.key==='Enter'||event.key===' ')window.scrollTo({top:0,behavior:'smooth'})">
-    <canvas id="pipBadgeCanvas" width="144" height="144"></canvas>
-    <div class="badge-emotion" id="pipBadgeEmotion">FOCUSED</div>
-    <div class="badge-section" id="pipBadgeSection">Hero</div>
-    <div class="badge-hint">↑ top</div>
+    <div class="pet-bob">
+      <div class="pet-glow">
+        <canvas id="pipPetCanvas" width="200" height="200"></canvas>
+      </div>
+    </div>
+    <div class="pet-emotion" id="pipPetEmotion">FOCUSED</div>
+    <div class="pet-section" id="pipPetSection">Hero</div>
+    <div class="pet-hint">↑ back to top</div>
   </div>
 </body>
 </html>
