@@ -154,84 +154,320 @@
       text-shadow: 0 0 30px rgba(139, 92, 246, 0.35);
     }
 
-    #scrollProgress { position:fixed; inset:0 auto auto 0; height:2px; width:0%; z-index:100; background:linear-gradient(to right,#10B981,#06B6D4); transition:width .1s linear; }
-    section { scroll-margin-top:110px; }
-    .reveal { opacity:0; transform:translateY(28px); transition:opacity .65s cubic-bezier(.16,1,.3,1),transform .65s cubic-bezier(.16,1,.3,1); transition-delay:var(--reveal-delay,0ms); }
-    .reveal.is-visible { opacity:1; transform:translateY(0); }
-    .glass-card-hover { background-image:radial-gradient(circle at var(--light-x,50%) var(--light-y,50%),rgba(16,185,129,.08) 0%,transparent 60%); }
-    #mobileMenu { position:absolute; top:100%; left:0; right:0; max-height:0; overflow:hidden; visibility:hidden; transition:max-height .35s ease,visibility .35s; }
-    #mobileMenu.open { max-height:400px; visibility:visible; }
-    nav a { transition:color .3s ease; }
-    .animate-blob { will-change:transform; transform:translateZ(0); }
-    #downloads .glass-card-hover p { text-wrap:balance; overflow-wrap:anywhere; }
-    .terminal-shimmer { position:relative; overflow:hidden; }
-    .terminal-shimmer::after { content:''; position:absolute; inset:0; pointer-events:none; background:linear-gradient(90deg,transparent,rgba(255,255,255,.04),transparent); animation:terminalShimmer 3s ease-in-out infinite; }
-    @keyframes terminalShimmer { from { transform:translateX(-100%); } to { transform:translateX(100%); } }
-    .beta-dot { display:inline-block; width:5px; height:5px; margin-right:5px; border-radius:50%; background:#34d399; }
-    .beta-dot,.beta-pulse { animation:betaPulse 4s steps(1) infinite; }
-    @keyframes betaPulse { 0%,85%,100% { opacity:1; } 90% { opacity:.25; } 95% { opacity:.6; } }
-    #pipeline .stage-number { transition:box-shadow .3s ease; }
-    #pipeline .glass-card-hover:hover .stage-number { box-shadow:0 0 20px var(--badge-glow); }
-    .troubleshooting-list { list-style:none; }
-    .troubleshooting-list li { position:relative; padding-left:1.1rem; }
-    .troubleshooting-list li::before { content:'●'; position:absolute; left:0; color:#34d399; }
-    .troubleshooting-list li:nth-child(2)::before { color:#22d3ee; }
-    .troubleshooting-list li:nth-child(3)::before { color:#a78bfa; }
-    .ripple-host { position:relative; overflow:hidden; }
-    .download-ripple { position:absolute; width:80px; height:80px; margin:-40px; border-radius:50%; background:rgba(255,255,255,.35); pointer-events:none; animation:downloadRipple .5s ease-out forwards; }
-    @keyframes downloadRipple { from { transform:scale(0); opacity:1; } to { transform:scale(3); opacity:0; } }
-    #pipHeroCanvas { max-width:100%; object-fit:contain; }
-    #pipeline code { overflow-wrap:anywhere; }
-    @media (min-width:768px) and (max-width:1100px) { nav { flex-wrap:wrap; gap:12px; } nav > .hidden.md\:flex { order:3; width:100%; justify-content:center; } }
-    @media (max-width:639px) { nav > a .font-mono { display:none; } #pipHeroStageContainer .font-display { flex-wrap:wrap; } }
-    @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; scroll-behavior:auto!important; } .reveal { opacity:1; transform:none; } }
 
-    #hero { padding-top:120px; padding-bottom:64px; gap:0; }
-    #hero h1 { font-size:clamp(2rem,4.7vw,4rem); text-wrap:balance; margin-bottom:20px; }
-    #hero > p { max-width:640px; margin-bottom:24px; }
-    #hero > .flex.flex-wrap { margin-bottom:24px; }
-    #pipHeroStageContainer { max-width:760px; }
-    #pipHeroStageContainer > .glass-card { padding:20px; }
-    #pipHeroStageContainer [data-reveal] { margin-bottom:8px; padding-bottom:12px; }
-    #pipHeroInteractiveArea { padding:0; }
-    .terminal-shimmer { margin:24px auto 0; }
-    .terminal-shimmer::after { animation:none; }
-    .terminal-shimmer:hover::after { animation:terminalShimmer 1s ease-out 1; }
-    .animate-spin-slow { animation:orbit 28s linear infinite; }
-    @keyframes orbit { to { transform:rotate(360deg); } }
-    #pipHeroStageContainer[data-emotion="SLEEPY"] .animate-spin-slow { animation-play-state:paused; opacity:.35; }
-    #pipHeroStageContainer[data-emotion="SHIELDING"] { border-radius:24px; box-shadow:0 0 32px #8b5cf622; }
-    button:focus-visible,a:focus-visible,[role="button"]:focus-visible { outline:2px solid #34d399; outline-offset:4px; }
-    #decision-badge { min-height:48px; }
-    #cost-value { font-variant-numeric:tabular-nums; white-space:nowrap; }
-    #simulator button[aria-pressed="true"] { box-shadow:inset 0 0 0 1px #34d39966; }
-    #simulator input[type="range"] { min-height:24px; }
-    .lab-presets { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin:20px 0; }
-    .lab-presets button { padding:10px 16px; border:1px solid #ffffff22; border-radius:12px; background:#ffffff08; }
-    .lab-presets button:hover { background:#10b98118; }
-    @media(min-width:1024px) { #simulator .lg\:col-span-5 { position:sticky; top:110px; } }
-    @media(max-width:639px) {
-      #hero { padding-top:108px; }
-      #hero > a { margin-bottom:20px; }
-      #hero > p { font-size:14px; line-height:1.65; }
-      #hero > .flex.flex-wrap { gap:8px; }
-      #hero > .flex.flex-wrap a { padding:10px 14px; font-size:12px; }
-      #pipHeroStageContainer > .glass-card { padding:14px; }
-      #pipHeroBubble { position:relative; top:auto; max-width:100%; min-height:48px; }
-      #pipHeroCanvas { height:auto!important; }
-      #simulator #cost-value { white-space:normal; }
+    :root {
+      --motion-fast: 140ms;
+      --motion-state: 220ms;
+      --motion-enter: 420ms;
+      --motion-ease: cubic-bezier(.16, 1, .3, 1);
+      --reading-offset: 112px;
     }
+    section { scroll-margin-top: var(--reading-offset); }
+    button, a, summary { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, a:focus-visible, summary:focus-visible, [role="button"]:focus-visible, input:focus-visible {
+      outline: 2px solid #34d399;
+      outline-offset: 4px;
+    }
+    .quiet-link { color: #6ee7b7; font-size: 13px; font-weight: 600; }
+    .quiet-link:hover { color: #a7f3d0; }
+    .allow-link { color: #fcd34d; }
+    .reveal {
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity var(--motion-enter) var(--motion-ease), transform var(--motion-enter) var(--motion-ease);
+      transition-delay: var(--reveal-delay, 0ms);
+    }
+    .reveal.is-visible { opacity: 1; transform: translateY(0); }
+    .reveal-shell { height: 100%; min-width: 0; }
+    .reveal-shell > .glass-card { height: 100%; }
+    .glass-card-hover { transition: border-color var(--motion-state), box-shadow var(--motion-state), transform var(--motion-state) var(--motion-ease); }
+    .glass-card-hover:focus-within { border-color: #34d39966; }
+    @media (hover: hover) and (pointer: fine) {
+      .glass-card-hover:hover { transform: translateY(-2px); }
+    }
+    .animate-blob, .animate-ping { animation: none !important; }
+    .grid-pattern { opacity: .45; }
+    .beta-dot { display: inline-block; width: 5px; height: 5px; margin-right: 5px; border-radius: 50%; background: #34d399; }
+    .beta-dot, .beta-pulse { animation: betaPulse 800ms ease-out 1; }
+    @keyframes betaPulse { 50% { opacity: .35; } }
+    #scrollProgress {
+      position: fixed; inset: 0 0 auto; height: 2px; z-index: 100;
+      background: linear-gradient(to right, #10b981, #06b6d4);
+      transform: scaleX(0); transform-origin: left; pointer-events: none;
+    }
+    nav a { transition: color var(--motion-fast); }
+    nav [data-nav-links] a, #mobileMenu [data-nav-link] { position: relative; }
+    nav [data-nav-links] a::after {
+      content: ''; position: absolute; bottom: -8px; left: 0; right: 0; height: 2px;
+      background: #34d399; transform: scaleX(0); transform-origin: left;
+      transition: transform var(--motion-state) var(--motion-ease);
+    }
+    nav a[aria-current="location"] { color: #6ee7b7; }
+    nav a[aria-current="location"]::after { transform: scaleX(1); }
+    #starCount { display: inline-block; min-width: 7.5ch; font-variant-numeric: tabular-nums; }
+    .motion-toggle {
+      display: grid; place-items: center; width: 34px; height: 34px;
+      border: 1px solid #ffffff1a; border-radius: 12px; background: #ffffff08;
+    }
+    .motion-toggle svg { width: 15px; height: 15px; }
+    .motion-toggle[aria-pressed="true"] { border-color: #34d39977; color: #6ee7b7; }
+    #mobileMenu {
+      position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+      opacity: 0; visibility: hidden; transform: translateY(-8px);
+      transition: opacity var(--motion-state), transform var(--motion-state) var(--motion-ease), visibility var(--motion-state);
+    }
+    #mobileMenu.open { opacity: 1; visibility: visible; transform: translateY(0); }
+    .menu-lines { display: block; width: 18px; height: 18px; position: relative; }
+    .menu-lines::before, .menu-lines::after {
+      content: ''; position: absolute; left: 0; width: 18px; height: 2px; background: currentColor;
+      transition: transform var(--motion-state);
+    }
+    .menu-lines::before { top: 5px; }
+    .menu-lines::after { top: 11px; }
+    #menuToggle[aria-expanded="true"] .menu-lines::before { transform: translateY(3px) rotate(45deg); }
+    #menuToggle[aria-expanded="true"] .menu-lines::after { transform: translateY(-3px) rotate(-45deg); }
+
+    #hero { display: grid; grid-template-columns: 1.05fr 1fr; gap: 32px; padding-top: 146px; padding-bottom: 72px; text-align: left; align-items: center; }
+    .hero-copy { min-width: 0; }
+    .hero-copy > a { margin-bottom: 22px; }
+    #hero h1 { font-size: clamp(36px, 4.2vw, 56px); text-wrap: balance; margin-bottom: 24px; }
+    .hero-copy > p { font-size: 16px; line-height: 1.7; margin-bottom: 24px; }
+    .hero-copy > .flex { justify-content: flex-start; margin-bottom: 0; gap: 16px; }
+    #pipHeroStageContainer { width: 100%; max-width: 560px; text-align: center; }
+    #pipHeroStageContainer > .glass-card { padding: 22px; }
+    #pipHeroStageContainer [data-reveal] { margin-bottom: 8px; padding-bottom: 12px; }
+    .hero-telemetry { display: none !important; }
+    #pipHeroInteractiveArea { padding: 0; min-height: 240px; }
+    #pipHeroCanvas { max-width: 100%; height: auto !important; aspect-ratio: 4 / 3; }
+    #pipHeroBubble { top: 0; max-width: 100%; font-size: 12px; }
+    .animate-spin-slow { animation: orbit 28s linear infinite; }
+    @keyframes orbit { to { transform: rotate(360deg); } }
+    #pipHeroStageContainer[data-emotion="SLEEPY"] .animate-spin-slow,
+    #pipHeroStageContainer[data-visible="false"] .animate-spin-slow { animation-play-state: paused; }
+    #pipHeroStageContainer[data-emotion="SLEEPY"] .animate-spin-slow { opacity: .35; }
+    .pip-hero-btn { min-height: 34px; transition: background-color var(--motion-fast), border-color var(--motion-fast); }
+    .hero-secondary { grid-column: 1 / -1; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .secondary-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+    .secondary-actions a { padding: 10px 14px; font-size: 12px; box-shadow: none; }
+    .terminal-shimmer { position: relative; overflow: hidden; margin: 0; max-width: 480px; }
+    .terminal-shimmer::after {
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(90deg, transparent, #ffffff0a, transparent);
+      transform: translateX(-100%);
+    }
+    .terminal-shimmer:hover::after, .terminal-shimmer:focus-within::after { animation: terminalShimmer 900ms ease-out 1; }
+    @keyframes terminalShimmer { to { transform: translateX(100%); } }
+
+    #stats .grid > div > span:first-child { font-variant-numeric: tabular-nums; }
+    #trust { background: #090d13; }
+    .trust-grid { max-width: 1100px; margin: auto; display: grid; grid-template-columns: 1fr 1.2fr 1.5fr; gap: 32px; }
+    .trust-grid > div { border-left: 1px solid #ffffff14; padding-left: 20px; min-width: 0; }
+    .trust-grid h3 { color: #f1f5f9; font-size: 13px; font-weight: 600; margin-bottom: 12px; }
+    .trust-grid a { display: flex; align-items: center; gap: 8px; line-height: 1.8; margin-top: 8px; overflow-wrap: anywhere; }
+    .trust-grid a > span { flex-shrink: 0; }
+    #simulator .glass-card { background: #10151f; backdrop-filter: none; }
+    #lab-result-column > .glass-card { background: #131a25; }
+    #decision-badge { min-height: 56px; width: 100%; }
+    #cost-value { font-variant-numeric: tabular-nums; flex-shrink: 0; }
+    #simulator button[aria-pressed="true"] { box-shadow: inset 0 0 0 1px #34d39966; }
+    #simulator input[type="range"] { min-height: 24px; }
+    .lab-presets { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin: 20px 0 28px; }
+    .lab-presets button { padding: 10px 16px; border: 1px solid #ffffff22; border-radius: 12px; background: #ffffff08; transition: background-color var(--motion-fast); }
+    .lab-presets button:hover { background: #10b98118; }
+    .notification-route { margin-bottom: 24px; border: 1px solid #ffffff14; border-radius: 16px; padding: 12px; background: #080d15; }
+    .route-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; }
+    #route-notification { color: #e2e8f0; font-weight: 600; }
+    #replayRoute { font-size: 11px; white-space: nowrap; min-height: 32px; }
+    .route-map { position: relative; height: 160px; margin: 8px 0; }
+    .route-track { position: absolute; background: #334155; }
+    .track-in { left: 12%; top: 50%; width: 48%; height: 1px; }
+    .track-fork { left: 60%; top: 24%; width: 1px; height: 52%; }
+    .track-hold { left: 60%; top: 24%; width: 24%; height: 1px; }
+    .track-allow { left: 60%; top: 76%; width: 24%; height: 1px; }
+    .route-node { position: absolute; transform: translate(-50%, -50%); width: 66px; text-align: center; font-size: 10px; line-height: 1.4; }
+    .route-node svg { width: 32px; height: 32px; padding: 7px; border: 1px solid #334155; border-radius: 10px; background: #101722; margin: 0 auto 4px; }
+    .route-origin { left: 12%; top: 50%; }
+    .route-decision { left: 40%; top: 50%; }
+    .route-hold { left: 84%; top: 24%; }
+    .route-allow { left: 84%; top: 76%; }
+    .notification-token {
+      position: absolute; left: 0; top: 0; width: 10px; height: 10px; margin: -5px;
+      border: 2px solid #e2e8f0; border-radius: 3px; background: #10b981; pointer-events: none;
+      box-shadow: 0 0 12px #10b98155; z-index: 2;
+    }
+    [data-action="HOLD"] .route-hold { color: #6ee7b7; }
+    [data-action="ALLOW"] .route-allow { color: #fcd34d; }
+    [data-action="HOLD"] .route-hold svg { border-color: #34d399; }
+    [data-action="ALLOW"] .route-allow svg { border-color: #fbbf24; }
+    [data-action="HOLD"] .track-hold { background: #34d399; }
+    [data-action="ALLOW"] .track-allow { background: #fbbf24; }
+    [data-action="ALLOW"] .notification-token { background: #fbbf24; box-shadow: 0 0 12px #fbbf2455; }
+    #route-caption { min-height: 34px; color: #cbd5e1; font-size: 12px; line-height: 1.5; }
+
+    #pipeline .glass-card, #privacy .glass-card, #downloads .glass-card { background: #0d121b; backdrop-filter: none; box-shadow: none; }
+    .pipeline-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; }
+    .pipeline-card { position: relative; }
+    .pipeline-card::after {
+      content: '→'; position: absolute; right: -24px; top: 42px; width: 24px; text-align: center; color: #5eead4;
+    }
+    .pipeline-grid > :last-child .pipeline-card::after, .pipeline-grid > .pipeline-card:last-child::after { display: none; }
+    .stage-number { transition: box-shadow var(--motion-state); }
+    #pipeline .glass-card-hover:hover .stage-number { box-shadow: 0 0 20px var(--badge-glow); }
+    #pipeline code { overflow-wrap: anywhere; }
+    .pipeline-actions { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 20px; padding-top: 32px; font-size: 13px; color: #cbd5e1; }
+    .device-boundary { border: 1px solid #34d39933; border-radius: 28px; padding: 24px; background: #0b1413; }
+    .device-label { display: flex; align-items: center; gap: 8px; color: #6ee7b7; font-size: 13px; }
+    .device-label svg { width: 18px; height: 18px; }
+    .local-flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 16px; padding: 24px 0; font-size: 13px; color: #d1fae5; }
+    #privacy .glass-card { border-color: #ffffff0d; }
+    .download-grid .glass-card > div:first-child { flex: 1; }
+    .download-grid h3 { min-height: 56px; }
+    .download-grid p { text-wrap: balance; overflow-wrap: anywhere; }
+    #downloads a[href*="/releases/download/"] { min-height: 48px; }
+    #downloads a[href*="/releases/download/"]:active { transform: scale(.98); }
+    .download-status { min-height: 34px; padding-top: 8px; font-size: 12px; line-height: 1.5; text-align: center; color: #6ee7b7; }
+    .install-help { border-top: 1px solid #ffffff14; padding-top: 12px; font-size: 12px; }
+    .install-help summary { cursor: pointer; color: #e2e8f0; min-height: 32px; }
+    .install-help p { padding: 12px 0 4px; line-height: 1.8; color: #cbd5e1; text-wrap: pretty; }
+    .install-help[open] p { animation: helpEnter 180ms ease-out; }
+    @keyframes helpEnter { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    .download-support { max-width: 960px; margin: auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; font-size: 13px; color: #cbd5e1; }
+    .download-support a { color: #6ee7b7; text-decoration: underline; text-underline-offset: 4px; }
+    .footer-links { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 32px; }
+    .footer-links > div { display: flex; flex-direction: column; gap: 12px; }
+    .footer-links > div > span { color: #f1f5f9; font-weight: 600; }
+
+    .ripple-host { position: relative; overflow: hidden; }
+    .download-ripple { position: absolute; width: 80px; height: 80px; margin: -40px; border-radius: 50%; background: #ffffff44; pointer-events: none; animation: downloadRipple 500ms ease-out forwards; }
+    @keyframes downloadRipple { from { transform: scale(0); opacity: 1; } to { transform: scale(3); opacity: 0; } }
+
+    @media (min-width: 768px) and (max-width: 1100px) {
+      nav { flex-wrap: wrap; gap: 12px; }
+      nav [data-nav-links] { order: 3; width: 100%; justify-content: center; }
+      #hero { padding-top: 172px; }
+    }
+    @media (min-width: 1024px) {
+      #lab-result-column.can-stick { position: sticky; top: var(--reading-offset); }
+    }
+    @media (max-width: 1023px) {
+      .pipeline-grid { grid-template-columns: 1fr; max-width: 720px; margin: auto; }
+      .pipeline-card::after { content: '↓'; left: 46px; top: auto; bottom: -25px; height: 24px; }
+      .hero-secondary { flex-direction: column; }
+      #hero { gap: 20px; }
+      #hero h1 { font-size: 36px; }
+      #pipHeroStageContainer > .glass-card { padding: 16px; }
+      .trust-grid { gap: 16px; grid-template-columns: 1fr 1fr; }
+      .trust-grid > div:last-child { grid-column: 1 / -1; }
+      .trust-grid > div:last-child a { display: inline-flex; margin-right: 20px; }
+      .device-boundary { padding: 16px; }
+    }
+    @media (max-width: 767px) {
+      #hero { grid-template-columns: 1fr; padding-top: 108px; text-align: center; gap: 20px; }
+      #hero h1 { font-size: clamp(28px, 8vw, 38px); margin-bottom: 12px; }
+      .hero-copy > a { margin-bottom: 14px; font-size: 11px; padding: 6px 12px; }
+      .hero-copy > p { font-size: 14px; line-height: 1.6; margin-bottom: 16px; }
+      .hero-copy > .flex { justify-content: center; gap: 12px; }
+      .hero-copy > .flex a { font-size: 12px; padding: 10px 14px; }
+      #pipHeroStageContainer { margin: auto; }
+      #pipHeroStageContainer > .glass-card { padding: 14px; }
+      #pipHeroInteractiveArea { min-height: 0; }
+      #pipHeroCanvas { width: 280px !important; }
+      #pipHeroStageContainer .animate-spin-slow { width: 190px; height: 190px; }
+      #pipHeroStageContainer .animate-spin-slow:nth-child(2) { width: 160px; height: 160px; }
+      #pipHeroStageContainer [data-reveal] p { font-size: 10px; }
+      #pipHeroStageContainer .mt-4 { margin-top: 8px; padding-top: 10px; gap: 6px; }
+      .pip-hero-btn { font-size: 10px; padding: 4px 8px; }
+      #pipHeroBubble { position: absolute; top: 0; font-size: 11px; }
+      .secondary-actions { justify-content: center; }
+      .trust-grid a { font-size: 11px; }
+      .trust-grid > div { padding-left: 12px; }
+      .download-grid h3 { min-height: 0; }
+      #decision-badge { font-size: 12px; }
+      #cost-value { flex-shrink: 1; text-align: right; }
+      .notification-route { padding: 8px; }
+      .route-heading { font-size: 11px; }
+      .route-node { width: 56px; font-size: 9px; }
+      nav { padding-left: 12px !important; padding-right: 12px !important; }
+      nav > a { gap: 8px !important; }
+      nav > a > .w-9 { width: 28px; height: 28px; }
+      nav > a .font-display { font-size: 16px; }
+      nav > a .font-mono { display: none; }
+      nav > .flex { gap: 4px; }
+      #menuToggle { padding: 7px; }
+      #soundToggle { padding: 7px; }
+      .motion-toggle { width: 30px; height: 32px; }
+      .footer-links { justify-content: center; }
+    }
+    @media (max-width: 359px) { nav > a .font-display { display: none; } }
+    .motion-paused *, .motion-paused *::before, .motion-paused *::after {
+      animation-play-state: paused !important;
+      transition-duration: 0ms !important;
+      scroll-behavior: auto !important;
+    }
+    .motion-paused .reveal { opacity: 1; transform: none; }
+    .motion-paused .glass-card-hover:hover { transform: none; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+      .reveal { opacity: 1; transform: none; }
+      .glass-card-hover:hover { transform: none; }
+    }
+
+    /* ── Pipeline demo track (#20) ──────────────────────── */
+    .pipeline-demo-track {
+      position: relative; max-width: 960px; margin: 32px auto 0; height: 48px;
+      display: flex; align-items: center;
+    }
+    .pdt-line {
+      position: absolute; left: 12.5%; right: 12.5%; top: 50%; height: 2px;
+      background: linear-gradient(to right, #10b981, #06b6d4, #8b5cf6, #f59e0b);
+      opacity: 0.25; transform: translateY(-50%);
+    }
+    .pdt-label {
+      position: absolute; transform: translateX(-50%); bottom: 4px;
+      font-size: 10px; font-family: 'JetBrains Mono', monospace; color: #64748b;
+      white-space: nowrap;
+    }
+    .pdt-token {
+      position: absolute; left: 12.5%; top: 50%; transform: translate(-50%, -50%);
+      width: 12px; height: 12px; border-radius: 3px;
+      background: #10b981; border: 2px solid #fff;
+      box-shadow: 0 0 10px #10b98180;
+      opacity: 0; transition: left 0.6s cubic-bezier(0.16,1,0.3,1), background 0.3s, box-shadow 0.3s, opacity 0.2s;
+    }
+    .pipeline-demo-track.running .pdt-token { opacity: 1; }
+    .pipeline-demo-track.allow .pdt-token { background: #fbbf24; box-shadow: 0 0 10px #fbbf2480; }
+    /* Stage highlight during animation */
+    .pipeline-card.demo-active .stage-number { box-shadow: 0 0 24px var(--badge-glow) !important; }
+    .pipeline-card.demo-active { border-color: rgba(255,255,255,0.22) !important; }
+
+    /* ── Platform switcher for Downloads (#26) ───────────── */
+    .platform-tabs { display: flex; gap: 4px; padding: 4px; background: #0d121b; border-radius: 14px; border: 1px solid #ffffff14; width: fit-content; margin: 0 auto 32px; }
+    .platform-tab { padding: 8px 20px; border-radius: 10px; font-size: 12px; font-weight: 600; font-family: 'JetBrains Mono', monospace; color: #94a3b8; border: none; background: transparent; cursor: pointer; transition: background var(--motion-fast), color var(--motion-fast); }
+    .platform-tab[aria-selected="true"] { background: #1e293b; color: #fff; }
+    .platform-panel { display: none; }
+    .platform-panel.active { display: block; }
+
+    /* ── Reduced tilt on pipeline/download cards (#22) ──── */
+    /* tiltCards JS updated below */
+
+    /* ── Section ambient color (#35) ───────────────────── */
+    body .amb-blob-em { opacity: 0; transition: opacity 1.2s ease; }
+    body .amb-blob-vi { opacity: 0; transition: opacity 1.2s ease; }
+    body .amb-blob-cy { opacity: 0; transition: opacity 1.2s ease; }
+    body.amb-hero .amb-blob-em { opacity: 1; }
+    body.amb-lab .amb-blob-vi { opacity: 1; }
+    body.amb-pipeline .amb-blob-cy { opacity: 1; }
   </style>
 </head>
 <body class="bg-brand-dark text-slate-200 antialiased font-sans selection:bg-brand-emerald selection:text-black overflow-x-hidden min-h-screen relative noise-bg">
 
   <div id="scrollProgress" aria-hidden="true"></div>
 
-  <!-- Ambient Animated Gradient Mesh Orbs -->
+  <!-- Ambient Animated Gradient Mesh Orbs (section-reactive #35) -->
   <div class="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden="true">
-    <div class="absolute -top-40 left-1/4 w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[130px] animate-blob"></div>
-    <div class="absolute top-1/3 -right-40 w-[650px] h-[650px] bg-purple-600/10 rounded-full blur-[140px] animate-blob" style="animation-delay: 5s;"></div>
-    <div class="absolute bottom-10 left-10 w-[550px] h-[550px] bg-cyan-500/10 rounded-full blur-[130px] animate-blob" style="animation-delay: 9s;"></div>
+    <div class="amb-blob-em absolute -top-40 left-1/4 w-[600px] h-[600px] bg-emerald-500/12 rounded-full blur-[130px]"></div>
+    <div class="amb-blob-vi absolute top-1/3 -right-40 w-[650px] h-[650px] bg-purple-600/12 rounded-full blur-[140px]"></div>
+    <div class="amb-blob-cy absolute bottom-10 left-10 w-[550px] h-[550px] bg-cyan-500/12 rounded-full blur-[130px]"></div>
   </div>
 
   <!-- Background Grid -->
@@ -270,9 +506,12 @@
 
       <!-- Action Cluster -->
       <div class="flex items-center gap-2 sm:gap-3">
-        <button id="menuToggle" class="md:hidden p-2 rounded-xl border border-white/10" aria-label="Open navigation" aria-expanded="false" aria-controls="mobileMenu"><i data-lucide="menu" class="w-5 h-5"></i></button>
+        <button id="menuToggle" class="md:hidden p-2 rounded-xl border border-white/10" aria-label="Open navigation" aria-expanded="false" aria-controls="mobileMenu"><span class="menu-lines" aria-hidden="true"></span></button>
+        <button id="motionToggle" type="button" aria-pressed="false" aria-label="Pause motion" title="Pause motion" class="motion-toggle">
+          <i data-lucide="pause" aria-hidden="true"></i>
+        </button>
         <!-- Sound Toggle -->
-        <button id="soundToggle" aria-label="Toggle UI sound effects" onclick="AudioEngine.toggleSound()" class="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-mono text-slate-300 flex items-center gap-1.5 transition-colors" title="Toggle UI Sound Effects">
+        <button id="soundToggle" aria-pressed="true" aria-label="Toggle UI sound effects" onclick="AudioEngine.toggleSound()" class="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-mono text-slate-300 flex items-center gap-1.5 transition-colors" title="Toggle UI Sound Effects">
           <span id="soundIcon">🔊</span>
           <span class="hidden sm:inline" id="soundLabel">SFX</span>
         </button>
@@ -306,6 +545,7 @@
   <!-- ==================================================================== -->
   <section role="region" aria-labelledby="hero-heading" id="hero" class="relative z-10 pt-32 sm:pt-40 pb-20 sm:pb-28 px-4 max-w-7xl mx-auto flex flex-col items-center text-center">
     
+    <div class="hero-copy">
     <!-- Release Tag Announcement Pill -->
     <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/tag/v1.0.0-beta.1" target="_blank" class="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full glass-card border border-emerald-500/30 hover:border-emerald-500/60 shadow-lg shadow-emerald-500/10 mb-8 group hover:scale-[1.02] transition-all" onclick="AudioEngine.playPop(800)">
       <span class="flex h-2 w-2 relative">
@@ -313,7 +553,7 @@
         <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
       </span>
       <span class="text-xs sm:text-sm font-medium text-slate-300">
-        <strong class="text-white font-semibold">Hunch v1.0.0-beta.1 Released</strong> — Windows & Android APK
+        <strong class="text-white font-semibold">v1.0.0-beta.1</strong> · Windows & Android
       </span>
       <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-emerald-400 group-hover:translate-x-0.5 transition-transform"></i>
     </a>
@@ -325,10 +565,7 @@
     </h1>
 
     <!-- Subheading -->
-    <p class="max-w-xl sm:max-w-2xl text-base sm:text-lg lg:text-xl text-slate-300 leading-relaxed mb-10">
-      Every irrelevant ping destroys up to <strong class="text-slate-200">23 minutes of deep work</strong>. 
-      Hunch runs an on-device, sub-10ms causal engine that predicts notification disruption before your phone buzzes—silently guarding your focus.
-    </p>
+    <p class="max-w-xl sm:max-w-2xl text-base sm:text-lg lg:text-xl text-slate-300 leading-relaxed mb-10">Hunch predicts what a notification will cost your focus and quietly holds distractions until you are ready. Your attention twin runs on your device.</p>
 
     <!-- Call to Actions -->
     <div class="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mb-14">
@@ -337,21 +574,17 @@
         <span>Download for Windows (Beta)</span>
       </a>
 
-      <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/Hunch-1.0.0-beta.1-debug-signed.apk" class="px-5 py-3.5 rounded-xl glass-card hover:bg-white/10 border border-white/10 text-white font-display font-semibold text-sm sm:text-base hover:border-emerald-500/40 transition-all flex items-center gap-2" onclick="AudioEngine.playPop(600)">
-        <i data-lucide="smartphone" class="w-5 h-5 text-emerald-400"></i>
-        <span>Download Android APK</span>
-      </a>
+      
 
-      <a href="https://github.com/abhigyan24-ops/hunch-attention-twin" target="_blank" rel="noopener noreferrer" class="px-5 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-display font-medium text-sm sm:text-base hover:text-white transition-all flex items-center gap-2" onclick="AudioEngine.playPop(500)">
-        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-        <span>View Source (Apache 2.0)</span>
-      </a>
+      
+      <a href="#simulator" class="quiet-link">Try Twin Lab <span aria-hidden="true">↗</span></a>
     </div>
 
+    </div>
     <!-- ==================================================================== -->
     <!-- PIP HERO STAGE: INTERACTIVE 3D HOLOGRAPHIC FOCUS THEATER            -->
     <!-- ==================================================================== -->
-    <div class="w-full max-w-4xl tilt-element" id="pipHeroStageContainer">
+    <div class="w-full max-w-4xl tilt-element" id="pipHeroStageContainer" data-visible="false">
       <div class="glass-card rounded-3xl p-6 sm:p-8 border border-white/15 relative overflow-hidden shadow-2xl group">
         
         <!-- Subtle Interior Hologram Grid / Ring -->
@@ -366,14 +599,14 @@
             <div>
               <div class="font-display font-bold text-sm sm:text-base text-white flex items-center gap-2">
                 <span>Pip • The Attention Spirit</span>
-                <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">AI TWIN COMPANION</span>
+                
               </div>
-              <p class="text-xs text-slate-300 font-mono">Move cursor to interact • Click to pet • Tracks your gaze</p>
+              <p class="text-xs text-slate-300 font-mono">Meet Pip. Tap or press Enter to say hello.</p>
             </div>
           </div>
 
           <!-- Live Telemetry Tag -->
-          <div class="hidden sm:flex flex-col text-right font-mono text-[11px]">
+          <div class="hero-telemetry hidden sm:flex flex-col text-right font-mono text-[11px]">
             <span class="text-emerald-400 flex items-center justify-end gap-1.5">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> 100% LOCAL PRIVACY
             </span>
@@ -412,6 +645,14 @@
       </div>
     </div>
 
+    <div class="hero-secondary">
+      <div class="secondary-actions"><a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/Hunch-1.0.0-beta.1-debug-signed.apk" class="px-5 py-3.5 rounded-xl glass-card hover:bg-white/10 border border-white/10 text-white font-display font-semibold text-sm sm:text-base hover:border-emerald-500/40 transition-all flex items-center gap-2" onclick="AudioEngine.playPop(600)">
+        <i data-lucide="smartphone" class="w-5 h-5 text-emerald-400"></i>
+        <span>Download Android APK</span>
+      </a><a href="https://github.com/abhigyan24-ops/hunch-attention-twin" target="_blank" rel="noopener noreferrer" class="px-5 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-display font-medium text-sm sm:text-base hover:text-white transition-all flex items-center gap-2" onclick="AudioEngine.playPop(500)">
+        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+        <span>View Source (Apache 2.0)</span>
+      </a></div>
     <!-- Quick Terminal Snippet -->
     <div class="terminal-shimmer glass-card rounded-xl px-4 py-2.5 max-w-lg w-full flex items-center justify-between gap-3 text-xs font-mono text-slate-300 border border-white/10 mb-16">
       <div class="flex items-center gap-2 truncate">
@@ -423,6 +664,7 @@
       </button>
     </div>
 
+    </div>
   </section>
 
   <!-- ==================================================================== -->
@@ -456,37 +698,43 @@
   <!-- ==================================================================== -->
   <section id="trust" role="region" aria-labelledby="trust-heading" class="py-8 px-4 border-b border-white/10 bg-brand-darker/40 relative z-10">
     <h2 id="trust-heading" class="sr-only">Open Source Trust</h2>
-    <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-center gap-6 sm:gap-10">
-      <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/blob/main/LICENSE" target="_blank" class="flex items-center gap-2 text-xs font-mono text-slate-300 hover:text-emerald-400 transition-colors">
+    <div class="trust-grid" data-reveal>
+      <div><h3>License</h3>
+<a href="https://github.com/abhigyan24-ops/hunch-attention-twin/blob/main/LICENSE" target="_blank" class="flex items-center gap-2 text-xs font-mono text-slate-300 hover:text-emerald-400 transition-colors">
         <span class="inline-flex w-5 h-5 rounded bg-emerald-500/15 border border-emerald-500/30 items-center justify-center">
           <i data-lucide="file-check" class="w-3 h-3 text-emerald-400"></i>
         </span>
         Apache 2.0 License
       </a>
-      <a href="https://github.com/abhigyan24-ops/hunch-attention-twin" target="_blank" class="flex items-center gap-2 text-xs font-mono text-slate-300 hover:text-emerald-400 transition-colors">
+      </div>
+      <div><h3>Source</h3>
+<a href="https://github.com/abhigyan24-ops/hunch-attention-twin" target="_blank" class="flex items-center gap-2 text-xs font-mono text-slate-300 hover:text-emerald-400 transition-colors">
         <span class="inline-flex w-5 h-5 rounded bg-emerald-500/15 border border-emerald-500/30 items-center justify-center">
           <i data-lucide="code-2" class="w-3 h-3 text-emerald-400"></i>
         </span>
         Source-auditable &middot; Zero proprietary SDK
       </a>
-      <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/issues/28" target="_blank" class="flex items-center gap-2 text-xs font-mono text-slate-300 hover:text-cyan-400 transition-colors">
+      </div>
+      <div><h3>Community</h3>
+<a href="https://github.com/abhigyan24-ops/hunch-attention-twin/issues/28" target="_blank" class="flex items-center gap-2 text-xs font-mono text-slate-300 hover:text-cyan-400 transition-colors">
         <span class="inline-flex w-5 h-5 rounded bg-cyan-500/15 border border-cyan-500/30 items-center justify-center">
           <i data-lucide="message-circle" class="w-3 h-3 text-cyan-400"></i>
         </span>
         Community Beta &middot; v1.0.0-beta.1
       </a>
-      <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/discussions" target="_blank" class="flex items-center gap-2 text-xs font-mono text-slate-300 hover:text-purple-400 transition-colors">
+<a href="https://github.com/abhigyan24-ops/hunch-attention-twin/discussions" target="_blank" class="flex items-center gap-2 text-xs font-mono text-slate-300 hover:text-purple-400 transition-colors">
         <span class="inline-flex w-5 h-5 rounded bg-purple-500/15 border border-purple-500/30 items-center justify-center">
           <i data-lucide="users" class="w-3 h-3 text-purple-400"></i>
         </span>
         GitHub Discussions Open
       </a>
-      <a href="mailto:hunch_support@googlegroups.com" class="flex items-center gap-2 text-xs font-mono text-slate-300 hover:text-amber-400 transition-colors">
+<a href="mailto:hunch_support@googlegroups.com" class="flex items-center gap-2 text-xs font-mono text-slate-300 hover:text-amber-400 transition-colors">
         <span class="inline-flex w-5 h-5 rounded bg-amber-500/15 border border-amber-500/30 items-center justify-center">
           <i data-lucide="mail" class="w-3 h-3 text-amber-400"></i>
         </span>
         hunch_support@googlegroups.com
       </a>
+      </div>
     </div>
   </section>
 
@@ -584,7 +832,7 @@
       </div>
 
       <!-- Decision Engine Output Terminal (Right 5 Cols) -->
-      <div class="lg:col-span-5">
+      <div class="lg:col-span-5" id="lab-result-column">
         <div class="glass-card rounded-2xl p-6 sm:p-7 border border-white/15 relative overflow-hidden shadow-2xl">
           <div data-reveal class="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
             <div class="flex items-center gap-2">
@@ -596,7 +844,7 @@
 
           <!-- Pip Reaction Avatar in Lab -->
           <div class="flex items-center gap-4 mb-6 p-3 rounded-xl bg-white/5 border border-white/5">
-            <canvas id="pipLabCanvas" width="110" height="100" class="w-14 h-14 shrink-0"></canvas>
+            <canvas id="pipLabCanvas" aria-hidden="true" width="110" height="100" class="w-14 h-14 shrink-0"></canvas>
             <div>
               <div class="font-display font-bold text-sm text-white">Pip Companion Status</div>
               <div id="pip-state" class="text-xs text-emerald-400 font-mono">Guarding Deep Flow</div>
@@ -610,6 +858,21 @@
               <i data-lucide="shield" class="w-4 h-4"></i>
               <span>HOLD FOR BATCH DIGEST</span>
             </div>
+          </div>
+
+
+          <div id="notificationRoute" class="notification-route" data-action="HOLD">
+            <div class="route-heading"><span id="route-notification">Instagram Reel</span><button type="button" id="replayRoute" class="quiet-link">Replay path ↻</button></div>
+            <div class="route-map" aria-hidden="true">
+              <div class="route-track track-in"></div><div class="route-track track-fork"></div>
+              <div class="route-track track-hold"></div><div class="route-track track-allow"></div>
+              <div class="route-node route-origin"><i data-lucide="bell"></i><span>Incoming</span></div>
+              <div class="route-node route-decision"><i data-lucide="shield-check"></i><span>Evaluate</span></div>
+              <div class="route-node route-hold"><i data-lucide="archive"></i><span>Digest later</span></div>
+              <div class="route-node route-allow"><i data-lucide="phone"></i><span>Deliver now</span></div>
+              <span class="notification-token"></span>
+            </div>
+            <p id="route-caption">Held quietly for your next break.</p>
           </div>
 
           <!-- Cost Metric -->
@@ -651,10 +914,10 @@
     </div>
 
     <!-- 4 Pipeline Stages Bento -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div class="pipeline-grid">
       
       <!-- Step 1: Collectors -->
-      <div class="glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
+      <div class="pipeline-card glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
         <div>
           <div class="stage-number w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-5 font-mono font-bold text-lg" style="--badge-glow:rgba(16,185,129,.35)">01</div>
           <h3 class="font-display font-bold text-lg text-white mb-2">Daemon Collectors</h3>
@@ -668,7 +931,7 @@
       </div>
 
       <!-- Step 2: Causal Twin -->
-      <div class="glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
+      <div class="pipeline-card glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
         <div>
           <div class="stage-number w-12 h-12 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mb-5 font-mono font-bold text-lg" style="--badge-glow:rgba(6,182,212,.35)">02</div>
           <h3 class="font-display font-bold text-lg text-white mb-2">Causal Estimator</h3>
@@ -682,7 +945,7 @@
       </div>
 
       <!-- Step 3: Quiet Lease -->
-      <div class="glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
+      <div class="pipeline-card glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
         <div>
           <div class="stage-number w-12 h-12 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 mb-5 font-mono font-bold text-lg" style="--badge-glow:rgba(139,92,246,.35)">03</div>
           <h3 class="font-display font-bold text-lg text-white mb-2">Quiet Lease Actuator</h3>
@@ -696,7 +959,7 @@
       </div>
 
       <!-- Step 4: Batch Digest -->
-      <div class="glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
+      <div class="pipeline-card glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
         <div>
           <div class="stage-number w-12 h-12 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-5 font-mono font-bold text-lg" style="--badge-glow:rgba(245,158,11,.35)">04</div>
           <h3 class="font-display font-bold text-lg text-white mb-2">Contextual Digest</h3>
@@ -709,6 +972,21 @@
         </div>
       </div>
 
+    </div>
+    <div class="pipeline-actions">
+      <span>Watch a notification flow through the pipeline.</span>
+      <button id="runPipelineDemo" type="button" class="quiet-link" onclick="runPipelineAnimation()">▶ Run example</button>
+      <a class="quiet-link allow-link" href="#simulator" onclick="applyLabPreset('social'); AudioEngine.playPop(600)">Inspect this decision ↗</a>
+    </div>
+
+    <!-- Pipeline animated demo track (#20) -->
+    <div id="pipelineDemoTrack" class="pipeline-demo-track" aria-hidden="true">
+      <div class="pdt-label" style="left:12.5%">Collectors</div>
+      <div class="pdt-label" style="left:37.5%">Estimator</div>
+      <div class="pdt-label" style="left:62.5%">Quiet Lease</div>
+      <div class="pdt-label" style="left:87.5%">Digest</div>
+      <div class="pdt-line"></div>
+      <div id="pipelineToken" class="pdt-token" aria-hidden="true"></div>
     </div>
   </section>
 
@@ -729,6 +1007,11 @@
     </div>
 
     <!-- Bento Grid of Principles -->
+    <div class="device-boundary" data-reveal>
+      <div class="device-label"><i data-lucide="laptop" aria-hidden="true"></i><span>Inside your device</span></div>
+      <div class="local-flow" aria-label="On-device processing">
+        <span>Activity signals</span><span aria-hidden="true">→</span><span>Local estimate</span><span aria-hidden="true">→</span><span>Notification decision</span>
+      </div>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
       
       <div class="glass-card glass-card-hover rounded-2xl p-8 border border-white/10">
@@ -762,6 +1045,7 @@
       </div>
 
     </div>
+    </div>
   </section>
 
   <!-- ==================================================================== -->
@@ -780,90 +1064,98 @@
       </p>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-16">
+    <!-- Platform Switcher (#26 Option B) -->
+    <div class="platform-tabs" role="tablist" aria-label="Choose platform">
+      <button class="platform-tab" role="tab" aria-selected="true"  aria-controls="dl-windows" onclick="switchPlatform('windows',this)">🖥 Windows</button>
+      <button class="platform-tab" role="tab" aria-selected="false" aria-controls="dl-android" onclick="switchPlatform('android',this)">📱 Android</button>
+      <button class="platform-tab" role="tab" aria-selected="false" aria-controls="dl-vscode"  onclick="switchPlatform('vscode',this)">⚡ VS Code</button>
+    </div>
+    <div class="download-grid grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-16">
       
       <!-- Windows Desktop -->
-      <div class="glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
+      <div id="dl-windows" class="platform-panel active glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
         <div>
           <div class="w-12 h-12 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 mb-5">
             <i data-lucide="laptop" class="w-6 h-6"></i>
           </div>
           <h3 class="font-display font-bold text-xl text-white mb-1">Windows Desktop</h3>
-          <p class="text-xs font-mono text-slate-300 mb-4">Electron 31.4 • Windows 10/11</p>
+          <p class="text-xs font-mono text-slate-300 mb-4">Windows 10/11 · .exe setup</p>
           <p class="text-xs text-slate-300 leading-relaxed mb-6">
             Tray companion, floating Pip widget, local heuristics engine, and real-time pairing sync.
           </p>
         </div>
         <div>
-          <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/Hunch-Setup-1.0.0-beta.1.exe" class="w-full py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-black font-display font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2" onclick="AudioEngine.playChime()">
+          <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/Hunch-Setup-1.0.0-beta.1.exe" class="w-full py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-black font-display font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 ripple-host" onclick="AudioEngine.playChime(); showDownloadFeedback(this, 'windows')">
             <i data-lucide="download" class="w-4 h-4"></i>
             <span>Download .exe (Setup)</span>
           </a>
           <span class="block text-center text-[10px] font-mono text-slate-300 mt-2">SHA-256 verified in release</span>
+          <p class="download-status" role="status" aria-live="polite"></p>
+          <details class="install-help">
+            <summary>Windows installation help</summary>
+            <p>Run the downloaded setup file. If SmartScreen appears, verify that the file came from this project’s GitHub release. To proceed with a trusted file, choose <strong>More info → Run anyway</strong>.</p>
+          </details>
         </div>
       </div>
 
       <!-- Android Mobile -->
-      <div class="glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
+      <div id="dl-android" class="platform-panel active glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
         <div>
           <div class="w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-5">
             <i data-lucide="smartphone" class="w-6 h-6"></i>
           </div>
           <h3 class="font-display font-bold text-xl text-white mb-1">Android Companion</h3>
-          <p class="text-xs font-mono text-slate-300 mb-4">Android 14 | 15 | 16</p>
+          <p class="text-xs font-mono text-slate-300 mb-4">Android 14–16 · .apk package</p>
           <p class="text-xs text-slate-300 leading-relaxed mb-6">
             Notification listener, quiet lease actuator, batch digest poster, and local SQLite store.
           </p>
         </div>
         <div>
-          <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/Hunch-1.0.0-beta.1-debug-signed.apk" class="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-display font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2" onclick="AudioEngine.playChime()">
+          <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/Hunch-1.0.0-beta.1-debug-signed.apk" class="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-display font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 ripple-host" onclick="AudioEngine.playChime(); showDownloadFeedback(this, 'android')">
             <i data-lucide="download" class="w-4 h-4"></i>
             <span>Download .apk (Signed)</span>
           </a>
           <span class="block text-center text-[10px] font-mono text-slate-300 mt-2">See restricted settings note</span>
+          <p class="download-status" role="status" aria-live="polite"></p>
+          <details class="install-help">
+            <summary>Android installation help</summary>
+            <p>Install the APK, then grant Notification Access. If access is restricted, open <strong>Settings → Apps → Hunch → ⋮ → Allow restricted settings</strong> and try again. Labels may vary by Android version.</p>
+          </details>
         </div>
       </div>
 
       <!-- VS Code Extension -->
-      <div class="glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
+      <div id="dl-vscode" class="platform-panel active glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
         <div>
           <div class="w-12 h-12 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 mb-5">
             <i data-lucide="code-2" class="w-6 h-6"></i>
           </div>
           <h3 class="font-display font-bold text-xl text-white mb-1">VS Code Extension</h3>
-          <p class="text-xs font-mono text-slate-300 mb-4">VS Code 1.85+</p>
+          <p class="text-xs font-mono text-slate-300 mb-4">VS Code 1.85+ · .vsix extension</p>
           <p class="text-xs text-slate-300 leading-relaxed mb-6">
             Status bar focus meter, IDE keystroke velocity collector, and one-click manual quiet lease.
           </p>
         </div>
         <div>
-          <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/dhyan-1.0.0.vsix" class="w-full py-2.5 rounded-xl bg-purple-500 hover:bg-purple-400 text-white font-display font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2" onclick="AudioEngine.playChime()">
+          <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/dhyan-1.0.0.vsix" class="w-full py-2.5 rounded-xl bg-purple-500 hover:bg-purple-400 text-white font-display font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 ripple-host" onclick="AudioEngine.playChime(); showDownloadFeedback(this, 'vscode')">
             <i data-lucide="download" class="w-4 h-4"></i>
             <span>Download .vsix Package</span>
           </a>
           <span class="block text-center text-[10px] font-mono text-slate-300 mt-2">Install via Extensions &gt; VSIX</span>
+          <p class="download-status" role="status" aria-live="polite"></p>
+          <details class="install-help">
+            <summary>VS Code installation help</summary>
+            <p>Open <strong>Extensions → ⋯ → Install from VSIX</strong>, select the downloaded file, then reload VS Code if prompted.</p>
+          </details>
         </div>
       </div>
 
     </div>
 
     <!-- Troubleshooting & Support Box -->
-    <div class="max-w-3xl mx-auto glass-card rounded-2xl p-6 border border-white/10 text-xs sm:text-sm text-slate-300">
-      <div class="flex items-center gap-2 text-amber-400 font-bold mb-3">
-        <i data-lucide="info" class="w-5 h-5"></i>
-        <span>Beta Installation Notes & Troubleshooting</span>
-      </div>
-      <ul class="space-y-2 text-slate-300 troubleshooting-list">
-        <li>
-          <strong class="text-slate-200">Android 13/14/15 Restricted Settings:</strong> If Android grays out Notification Access, go to <em>Settings &gt; Apps &gt; Hunch &gt; 3 dots (top right) &gt; Allow restricted settings</em>, then grant permission.
-        </li>
-        <li>
-          <strong class="text-slate-200">Windows SmartScreen:</strong> Since this is a community open-source beta, click <em>More info &gt; Run anyway</em>.
-        </li>
-        <li>
-          <strong class="text-slate-200">Official Support Group:</strong> Questions or feedback? Email the community directly at <a href="mailto:hunch_support@googlegroups.com" class="text-emerald-400 hover:underline">hunch_support@googlegroups.com</a>.
-        </li>
-      </ul>
+    <div class="download-support">
+      <p>Need a hand installing Hunch? <a href="mailto:hunch_support@googlegroups.com">Email community support</a>.</p>
+      <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/tag/v1.0.0-beta.1" target="_blank" rel="noopener noreferrer">Release notes &amp; checksums <span aria-hidden="true">↗</span></a>
     </div>
   </section>
 
@@ -882,13 +1174,7 @@
         </div>
       </div>
 
-      <div class="flex flex-wrap items-center justify-center gap-6 text-slate-300">
-        <a href="https://github.com/abhigyan24-ops/hunch-attention-twin" target="_blank" class="hover:text-emerald-400 transition-colors">GitHub Repository</a>
-        <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases" target="_blank" class="hover:text-emerald-400 transition-colors">Releases</a>
-        <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/discussions" target="_blank" class="hover:text-emerald-400 transition-colors">Discussions</a>
-        <a href="mailto:hunch_support@googlegroups.com" class="hover:text-emerald-400 transition-colors">Email Support</a>
-      </div>
-
+<div class="footer-links"><div><span>Project</span><a href="https://github.com/abhigyan24-ops/hunch-attention-twin" target="_blank" class="hover:text-emerald-400 transition-colors">GitHub Repository</a><a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases" target="_blank" class="hover:text-emerald-400 transition-colors">Releases</a></div><div><span>Support</span><a href="https://github.com/abhigyan24-ops/hunch-attention-twin/discussions" target="_blank" class="hover:text-emerald-400 transition-colors">Discussions</a><a href="mailto:hunch_support@googlegroups.com" class="hover:text-emerald-400 transition-colors">Email Support</a></div><a href="#hero" class="quiet-link">Back to top ↑</a></div>
       <div class="text-[11px] text-slate-300">
         Hunch guards your flow so your best ideas see daylight.
       </div>
@@ -1431,42 +1717,57 @@
       el.classList.add('reveal'); revealObserver.observe(el);
     });
 
+    // Restrained tilt: ±7° for Pip theater, ±3° for cards (#22 Option B)
     const tiltCards = [...document.querySelectorAll('.glass-card-hover, .tilt-element')].map(card => {
       const state = { card, x:50, y:50, tx:50, ty:50, active:false };
+      const isPipTheater = card.id === 'pipHeroStageContainer' || card.closest('#pipHeroStageContainer');
+      const factor = isPipTheater ? 0.14 : 0.06;
       card.addEventListener('mousemove', e => {
         if (reducedMotion.matches) return;
         const r = card.getBoundingClientRect();
         state.tx = Math.max(0,Math.min(100,(e.clientX-r.left)/r.width*100));
         state.ty = Math.max(0,Math.min(100,(e.clientY-r.top)/r.height*100));
         state.active = true;
-        card.style.transition = 'transform .15s ease-out';
-        card.style.transform = `perspective(900px) rotateX(${(50-state.ty)*.14}deg) rotateY(${(state.tx-50)*.14}deg)`;
+        if (isPipTheater) {
+          card.style.transition = 'transform .15s ease-out';
+          card.style.transform = `perspective(900px) rotateX(${(50-state.ty)*factor}deg) rotateY(${(state.tx-50)*factor}deg)`;
+        }
+        // Non-theater: lift handled by CSS .glass-card-hover:hover
       });
       card.addEventListener('mouseleave', () => {
         state.active = false; state.tx = state.ty = 50;
-        card.style.transition = 'transform .5s ease-out';
-        card.style.transform = '';
+        if (isPipTheater) {
+          card.style.transition = 'transform .5s ease-out';
+          card.style.transform = '';
+        }
       });
       return state;
     });
     function updateProgress() {
       const distance = document.body.scrollHeight - innerHeight;
-      document.getElementById('scrollProgress').style.width = Math.max(0,Math.min(100,distance > 0 ? scrollY/distance*100 : 0)) + '%';
+      document.getElementById('scrollProgress').style.transform = 'scaleX(' + Math.max(0,Math.min(1,distance > 0 ? scrollY/distance : 0)) + ')';
     }
     addEventListener('scroll', updateProgress, { passive:true });
     addEventListener('resize', updateProgress); updateProgress();
-    const navSections = ['simulator','pipeline','privacy','downloads'];
-    const visibility = new Map();
-    const navObserver = new IntersectionObserver(entries => {
-      entries.forEach(e => visibility.set(e.target.id,e.intersectionRatio));
-      const active = [...visibility].filter(([,ratio]) => ratio > .4).sort((a,b) => b[1]-a[1])[0]?.[0];
+    // Reading-line nav spy (#30 Option B)
+    const navSectionIds = ['simulator','pipeline','privacy','downloads'];
+    function updateNavActive() {
+      const readingY = (document.documentElement.scrollTop || document.body.scrollTop) + 120;
+      let activeId = null;
+      for (const id of navSectionIds) {
+        const el = document.getElementById(id);
+        if (el && el.offsetTop <= readingY) activeId = id;
+      }
       document.querySelectorAll('nav [data-nav-links] a, #mobileMenu [data-nav-link]').forEach(link => {
-        const selected = link.hash === '#' + active;
-        link.classList.toggle('text-emerald-400',selected); link.classList.toggle('font-semibold',selected);
-        if (selected) link.setAttribute('aria-current','location'); else link.removeAttribute('aria-current');
+        const selected = link.hash === '#' + activeId;
+        link.classList.toggle('text-emerald-400', selected);
+        link.classList.toggle('font-semibold', selected);
+        if (selected) link.setAttribute('aria-current','location');
+        else link.removeAttribute('aria-current');
       });
-    }, { threshold:[0,.4,.41,.6,1] });
-    navSections.forEach(id => navObserver.observe(document.getElementById(id)));
+    }
+    addEventListener('scroll', updateNavActive, { passive: true });
+    updateNavActive();
 
     const easeOutQuart = t => 1-Math.pow(1-t,4);
     // IntersectionObserver has no native once option: unobserve after the first entry.
@@ -1591,6 +1892,105 @@
       );
     });
     verdictObserver.observe(document.getElementById('decision-badge'), { childList:true });
+
+    // Section ambient color shifts (#35)
+    const ambSections = [
+      { id: 'hero',      cls: 'amb-hero' },
+      { id: 'simulator', cls: 'amb-lab' },
+      { id: 'pipeline',  cls: 'amb-pipeline' },
+      { id: 'privacy',   cls: 'amb-hero' },
+      { id: 'downloads', cls: 'amb-pipeline' },
+    ];
+    const ambObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        const cfg = ambSections.find(s => s.id === entry.target.id);
+        if (!cfg) return;
+        if (entry.isIntersecting) {
+          document.body.classList.remove('amb-hero','amb-lab','amb-pipeline');
+          document.body.classList.add(cfg.cls);
+        }
+      });
+    }, { threshold: 0.25 });
+    ambSections.forEach(s => { const el = document.getElementById(s.id); if (el) ambObserver.observe(el); });
+
+    // Platform switcher logic (#26)
+    function switchPlatform(platform, btn) {
+      AudioEngine.playPop(500);
+      document.querySelectorAll('.platform-tab').forEach(t => t.setAttribute('aria-selected','false'));
+      btn.setAttribute('aria-selected','true');
+      // On mobile (< md), hide non-active panels
+      if (window.innerWidth < 768) {
+        document.querySelectorAll('.platform-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById('dl-' + platform).classList.add('active');
+      }
+      // On desktop all 3 show; switcher just highlights
+    }
+
+    // Download feedback (#27)
+    function showDownloadFeedback(anchor, platform) {
+      const card = anchor.closest('.platform-panel') || anchor.closest('.glass-card');
+      if (!card) return;
+      const statusEl = card.querySelector('.download-status');
+      if (!statusEl) return;
+      const releaseUrl = 'https://github.com/abhigyan24-ops/hunch-attention-twin/releases/tag/v1.0.0-beta.1';
+      statusEl.innerHTML = 'Download requested · <a href="' + releaseUrl + '" target="_blank" rel="noopener" class="underline underline-offset-2">View on GitHub Releases ↗</a>';
+      setTimeout(() => { statusEl.innerHTML = ''; }, 8000);
+    }
+
+    // Pipeline demo animation (#20)
+    let pipelineAnimTimer = null;
+    function runPipelineAnimation() {
+      // Cancel if already running
+      if (pipelineAnimTimer !== null) {
+        clearTimeout(pipelineAnimTimer);
+        pipelineAnimTimer = null;
+        const track = document.getElementById('pipelineDemoTrack');
+        const token = document.getElementById('pipelineToken');
+        track.classList.remove('running','allow');
+        token.style.opacity = '0';
+        document.querySelectorAll('.pipeline-card').forEach(c => c.classList.remove('demo-active'));
+        document.getElementById('runPipelineDemo').textContent = '▶ Run example';
+        return;
+      }
+      const btn = document.getElementById('runPipelineDemo');
+      btn.textContent = '■ Stop';
+      const track = document.getElementById('pipelineDemoTrack');
+      const token = document.getElementById('pipelineToken');
+      const cards = document.querySelectorAll('.pipeline-card');
+      const isAllow = currentNotif === 'family';
+
+      track.classList.remove('allow');
+      if (isAllow) track.classList.add('allow');
+      track.classList.add('running');
+
+      const positions = ['12.5%','37.5%','62.5%','87.5%'];
+      const delays    = [0, 700, 1400, 2200];
+
+      function step(i) {
+        if (i >= 4) {
+          setTimeout(() => {
+            track.classList.remove('running','allow');
+            token.style.opacity = '0';
+            cards.forEach(c => c.classList.remove('demo-active'));
+            btn.textContent = '▶ Run example';
+            pipelineAnimTimer = null;
+          }, 600);
+          return;
+        }
+        token.style.left = positions[i];
+        cards.forEach(c => c.classList.remove('demo-active'));
+        if (cards[i]) cards[i].classList.add('demo-active');
+        AudioEngine.playPop(400 + i * 80, 0.12);
+        pipelineAnimTimer = setTimeout(() => step(i + 1), delays[i + 1] - (delays[i] || 0));
+      }
+      step(0);
+    }
+
+    // "Inspect this decision" pipeline link preset (#21)
+    document.querySelector('[href="#simulator"][onclick*="applyLabPreset"]') &&
+      document.querySelector('[href="#simulator"][onclick*="applyLabPreset"]').addEventListener('click', function() {
+        setTimeout(() => { applyLabPreset('social'); }, 300);
+      });
 
     // Initialize Lucide Icons, including the initial Twin Lab verdict.
     recalculateTwin();
