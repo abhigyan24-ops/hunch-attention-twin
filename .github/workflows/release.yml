@@ -269,25 +269,46 @@ jobs:
           packages: platform-tools
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Decode release keystore
+      - name: Prepare Android signing key
+        id: android_key
         shell: bash
         env:
           KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
         run: |
-          : "${KS_B64:?ANDROID_KEYSTORE_B64 is required}"
           umask 077
-          printf '%s' "$KS_B64" | base64 --decode > "$RUNNER_TEMP/dhyan-release.jks"
+          if [[ -n "$KS_B64" ]]; then
+            printf '%s' "$KS_B64" | base64 --decode > "$RUNNER_TEMP/dhyan.jks"
+            echo "ephemeral=false" >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && "$GITHUB_REF" == refs/heads/* ]]; then
+            echo "::warning::ANDROID_KEYSTORE_B64 is missing. This dry run produces a test-signed APK that must not be distributed. Configure all four Android signing secrets for releases."
+            TEST_PASSWORD=$(openssl rand -hex 32)
+            echo "::add-mask::$TEST_PASSWORD"
+            export TEST_PASSWORD
+            keytool -genkeypair -storetype JKS -keystore "$RUNNER_TEMP/dhyan.jks" \
+              -alias dry-run -keyalg RSA -keysize 2048 -validity 7 \
+              -storepass:env TEST_PASSWORD -keypass:env TEST_PASSWORD -dname 'CN=Hunch dry run'
+            printf 'ANDROID_DRY_RUN_PASSWORD=%s\n' "$TEST_PASSWORD" >> "$GITHUB_ENV"
+            echo "ephemeral=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::ANDROID_KEYSTORE_B64 is required for release builds"
+            exit 1
+          fi
 
       - name: Build APK
         working-directory: phone
         shell: bash
         env:
           V: ${{ needs.meta.outputs.version }}
-          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/dhyan-release.jks
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/dhyan.jks
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          if [[ "${{ steps.android_key.outputs.ephemeral }}" == true ]]; then
+            export ANDROID_KEYSTORE_PASSWORD="$ANDROID_DRY_RUN_PASSWORD"
+            export ANDROID_KEY_PASSWORD="$ANDROID_DRY_RUN_PASSWORD"
+            export ANDROID_KEY_ALIAS=dry-run
+          fi
           : "${ANDROID_KEYSTORE_PASSWORD:?Missing keystore password}"
           : "${ANDROID_KEY_ALIAS:?Missing signing alias}"
           : "${ANDROID_KEY_PASSWORD:?Missing signing key password}"
@@ -310,26 +331,39 @@ jobs:
           BT="$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n1)"
           APK="${APKS[0]}"
           test -s "$APK.idsig"
-          REPORT=$("$ANDROID_HOME/build-tools/$BT/apksigner" verify --verbose --print-certs --v4-signature-file "$APK.idsig" "$APK")
+          APKSIGNER="$ANDROID_HOME/build-tools/$BT/apksigner"
+          REPORT=$("$APKSIGNER" verify --verbose --print-certs --v4-signature-file "$APK.idsig" "$APK")
+          # Check V1 separately because devices supported by the app verify using V2 or newer.
+          V1_REPORT=$("$APKSIGNER" verify --min-sdk-version 23 --max-sdk-version 23 --verbose --print-certs "$APK")
+          REPORT="$REPORT"$'\n'"$V1_REPORT"
           printf '%s\n' "$REPORT"
-          for scheme in v2 v3 v4; do
+          for scheme in v1 v2 v3 v4; do
             grep -Eq "^Verified using $scheme scheme .*: true$" <<< "$REPORT"
           done
           DIGEST=$(sed -nE 's/^(Signer #[0-9]+ |V[234] Signer: )certificate SHA-256 digest: ([[:xdigit:]]{64})$/\2/p' <<< "$REPORT" | tr '[:upper:]' '[:lower:]' | sort -u)
           EXPECTED="3ec8e983132712b44585e4986378a42beba71bfd48d4d20f3452d3b860d653d4"
-          if [[ "${DIGEST,,}" != "$EXPECTED" ]]; then
+          if [[ ! "$DIGEST" =~ ^[[:xdigit:]]{64}$ ]]; then
+            echo "::error::Expected one verified Android signer"
+            exit 1
+          fi
+          NAME="Hunch-${V}"
+          SIGNING_IDENTITY="Pinned release key"
+          if [[ "${{ steps.android_key.outputs.ephemeral }}" == true ]]; then
+            NAME="${NAME}-test-signed"
+            SIGNING_IDENTITY="Temporary dry-run key (do not distribute or use for appeals)"
+          elif [[ "$DIGEST" != "$EXPECTED" ]]; then
             echo "::error::Android signer differs from the pinned release certificate"
             exit 1
           fi
-          printf '### Android signing\n\nCertificate SHA-256: `%s`\n' "$DIGEST" >> "$GITHUB_STEP_SUMMARY"
+          printf '### Android signing\n\n%s\n\nCertificate SHA-256: `%s`\n' "$SIGNING_IDENTITY" "$DIGEST" >> "$GITHUB_STEP_SUMMARY"
           mkdir -p out
-          cp "$APK" "out/Hunch-${V}.apk"
-          cp "$APK.idsig" "out/Hunch-${V}.apk.idsig"
+          cp "$APK" "out/$NAME.apk"
+          cp "$APK.idsig" "out/$NAME.apk.idsig"
 
       - name: Remove temporary signing key
         if: always()
         shell: bash
-        run: rm -f "$RUNNER_TEMP/dhyan-release.jks"
+        run: rm -f "$RUNNER_TEMP/dhyan.jks"
 
       - uses: actions/upload-artifact@v4
         with:

@@ -52,6 +52,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.dhyan.app.onboarding.ProgressiveTrustDialog
+import com.dhyan.app.onboarding.ProgressiveTrustManager
+import com.dhyan.app.onboarding.TrustCapability
 import com.dhyan.app.collectors.A11yCollector
 import com.dhyan.app.twin.decision.PolicyMode
 import com.dhyan.app.twin.model.ContextSnapshot
@@ -147,19 +151,35 @@ fun LiveDigestContent(
     var selectedDuration by remember { mutableIntStateOf(25) }
     var selectedTask by remember { mutableStateOf("coding") }
 
-    // Live permission states
-    var notifAccess by remember { mutableStateOf(hasNotificationAccess(context)) }
+    // Show disclosures only when a user selects an optional capability.
+    val trustManager = remember(context) { ProgressiveTrustManager(context) }
+    var trustPrompt by rememberSaveable { mutableStateOf<TrustCapability?>(null) }
+    var trustStatus by remember { mutableStateOf(trustManager.status()) }
+    val notifAccess = trustStatus.notificationAccess
     var dndAccess by remember { mutableStateOf(hasDndAccess(context)) }
-    var usageAccess by remember { mutableStateOf(hasUsageAccess(context)) }
+    val usageAccess = trustStatus.usageAccess
 
     // Auto-refresh permission checks periodically
     LaunchedEffect(Unit) {
         while (true) {
-            notifAccess = hasNotificationAccess(context)
+            trustStatus = trustManager.status()
             dndAccess = hasDndAccess(context)
-            usageAccess = hasUsageAccess(context)
             delay(1500L)
         }
+    }
+
+    trustPrompt?.let { capability ->
+        ProgressiveTrustDialog(
+            capability = capability,
+            onDismiss = {
+                trustManager.recordDismissal(capability)
+                trustPrompt = null
+            },
+            onSettingsReturned = {
+                trustStatus = trustManager.status()
+                if (trustStatus.isGranted(capability)) trustPrompt = null
+            },
+        )
     }
 
     Column(
@@ -182,15 +202,15 @@ fun LiveDigestContent(
             Text("Your live context & quiet queue", style = MaterialTheme.typography.bodyMedium)
         }
 
-        // 0. Mandatory Android Permission Status Chips
+        // Optional Android capabilities
         PastelSquircleCard(tone = PastelTone.SAGE) {
             StatusPillBadge(
-                if (notifAccess && dndAccess && usageAccess) "All Permissions Granted" else "Permissions Required",
+                if (notifAccess && dndAccess && usageAccess) "Optional access enabled" else "Optional access",
                 active = notifAccess && dndAccess && usageAccess
             )
             Text("Android Permissions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text(
-                "Live status for real notification interception and DND lease control:",
+                "Enable only the features you want. The dashboard and manual focus are available without these grants.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -201,12 +221,10 @@ fun LiveDigestContent(
             ) {
                 // Permission 1: Notification Access
                 ContextChip(
-                    label = if (notifAccess) "✓ Notification Access" else "⚠️ Grant Notification Access",
+                    label = if (notifAccess) "✓ Notification Access" else "Hold distracting notifications",
                     isSelected = notifAccess,
                     onClick = {
-                        context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                        })
+                        trustPrompt = TrustCapability.QUIET_FOCUS
                     }
                 )
 
@@ -223,12 +241,10 @@ fun LiveDigestContent(
 
                 // Permission 3: Usage Access
                 ContextChip(
-                    label = if (usageAccess) "✓ Usage Access" else "⚠️ Grant Usage Access",
+                    label = if (usageAccess) "✓ Usage Access" else "Sync bedtime from device activity",
                     isSelected = usageAccess,
                     onClick = {
-                        context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                        })
+                        trustPrompt = TrustCapability.BEDTIME
                     }
                 )
             }
@@ -274,9 +290,7 @@ fun LiveDigestContent(
                             color = MaterialTheme.colorScheme.error
                         )
                         TextButton(onClick = {
-                            context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                            })
+                            trustPrompt = TrustCapability.ADVANCED_CONTEXT
                         }) { Text("Turn On") }
                     }
                 }

@@ -31,7 +31,8 @@ fun ProgressiveTrustDialog(
     onDismiss: () -> Unit,
     onSettingsReturned: () -> Unit,
 ) {
-    val packageName = LocalContext.current.packageName
+    val context = LocalContext.current
+    val canShowHelp = capability.canShowRestrictedSettingsHelp(context)
     var showHelp by rememberSaveable(capability) { mutableStateOf(false) }
     var returnedFromAppInfo by rememberSaveable(capability) { mutableStateOf(false) }
     var error by rememberSaveable(capability) { mutableStateOf<String?>(null) }
@@ -62,7 +63,9 @@ fun ProgressiveTrustDialog(
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(capability.disclosure)
-                if (capability.canShowRestrictedSettingsHelp) {
+                Spacer(Modifier.height(8.dp))
+                Text("This access is optional. You can change it in Android Settings.")
+                if (canShowHelp) {
                     TextButton(onClick = { showHelp = !showHelp }) {
                         Text(if (showHelp) "Hide restricted settings help" else "Setting unavailable?")
                     }
@@ -73,8 +76,8 @@ fun ProgressiveTrustDialog(
                                 "review its warning and decide whether to allow it. Return here " +
                                 "to open the feature settings again.",
                         )
-                        TextButton(onClick = { launchSettings({ appInfo.launch(it) }, appDetailsIntent(packageName)) }) {
-                            Text("Open App info")
+                        TextButton(onClick = { launchSettings({ appInfo.launch(it) }, RestrictedSettingsHelper.createUnlockRestrictedSettingsIntent(context)) }) {
+                            Text("1. Open App info")
                         }
                         if (returnedFromAppInfo) {
                             Text("Back from App info. Check the feature switch in Android Settings.")
@@ -94,8 +97,8 @@ fun ProgressiveTrustDialog(
         },
         confirmButton = {
             Button(onClick = {
-                launchSettings({ featureSettings.launch(it) }, capability.settingsIntent(packageName))
-            }) { Text(if (returnedFromAppInfo) "Return to feature settings" else "Open feature settings") }
+                launchSettings({ featureSettings.launch(it) }, capability.settingsIntent(context))
+            }) { Text(if (showHelp) "2. Open feature settings" else "Open feature settings") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Not now") } },
     )

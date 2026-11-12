@@ -20,7 +20,7 @@ if (-not $keytool) { throw 'Install a JDK or set JAVA_HOME to a JDK installation
 
 Push-Location $root
 try {
-    foreach ($path in @('.keys/dhyan-release.jks', '.keys/dhyan-release.password.dpapi')) {
+    foreach ($path in @('.keys/dhyan-release.jks', '.keys/dhyan-release.password.dpapi', 'keystore-ignore-check.jks')) {
         git check-ignore --quiet -- $path
         if ($LASTEXITCODE -ne 0) { throw "Git must ignore $path before proceeding." }
     }
