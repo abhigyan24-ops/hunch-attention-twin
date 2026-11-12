@@ -82,6 +82,7 @@ import com.dhyan.app.ui.viewmodel.LiveDecisionItemUi
 import com.dhyan.app.ui.viewmodel.LiveDigestUiState
 import com.dhyan.app.ui.viewmodel.LiveDigestViewModel
 import com.dhyan.app.ui.viewmodel.LiveHeldItemUi
+import com.dhyan.app.wellbeing.BedtimeSettingsCard
 import kotlinx.coroutines.delay
 
 @Composable
@@ -399,6 +400,9 @@ fun LiveDigestContent(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+
+        // 2b. Digital Wellbeing Bedtime Schedule Card
+        BedtimeSettingsCard()
 
         // 3. Notification Policy Card
         LiveCard("Quiet Focus Delivery · ${uiState.mode.name.replace('_', ' ')}") {

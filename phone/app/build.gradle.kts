@@ -27,12 +27,16 @@ android {
     storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
     keyAlias = System.getenv("ANDROID_KEY_ALIAS")
     keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+    enableV1Signing = true
+    enableV2Signing = true
+    enableV3Signing = true
+    enableV4Signing = true
    }
   }
  }
  buildTypes {
   getByName("release") {
-   signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+   signingConfig = signingConfigs.findByName("release")
   }
  }
  buildFeatures { compose = true; buildConfig = true }

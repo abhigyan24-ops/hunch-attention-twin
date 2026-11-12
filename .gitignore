@@ -83,3 +83,6 @@ artifacts-downloaded/
 
 scratch/
 
+
+# Android release signing material
+.keys/
