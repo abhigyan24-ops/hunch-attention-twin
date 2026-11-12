@@ -185,6 +185,42 @@
     @media (min-width:768px) and (max-width:1100px) { nav { flex-wrap:wrap; gap:12px; } nav > .hidden.md\:flex { order:3; width:100%; justify-content:center; } }
     @media (max-width:639px) { nav > a .font-mono { display:none; } #pipHeroStageContainer .font-display { flex-wrap:wrap; } }
     @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; scroll-behavior:auto!important; } .reveal { opacity:1; transform:none; } }
+
+    #hero { padding-top:120px; padding-bottom:64px; gap:0; }
+    #hero h1 { font-size:clamp(2rem,4.7vw,4rem); text-wrap:balance; margin-bottom:20px; }
+    #hero > p { max-width:640px; margin-bottom:24px; }
+    #hero > .flex.flex-wrap { margin-bottom:24px; }
+    #pipHeroStageContainer { max-width:760px; }
+    #pipHeroStageContainer > .glass-card { padding:20px; }
+    #pipHeroStageContainer [data-reveal] { margin-bottom:8px; padding-bottom:12px; }
+    #pipHeroInteractiveArea { padding:0; }
+    .terminal-shimmer { margin:24px auto 0; }
+    .terminal-shimmer::after { animation:none; }
+    .terminal-shimmer:hover::after { animation:terminalShimmer 1s ease-out 1; }
+    .animate-spin-slow { animation:orbit 28s linear infinite; }
+    @keyframes orbit { to { transform:rotate(360deg); } }
+    #pipHeroStageContainer[data-emotion="SLEEPY"] .animate-spin-slow { animation-play-state:paused; opacity:.35; }
+    #pipHeroStageContainer[data-emotion="SHIELDING"] { border-radius:24px; box-shadow:0 0 32px #8b5cf622; }
+    button:focus-visible,a:focus-visible,[role="button"]:focus-visible { outline:2px solid #34d399; outline-offset:4px; }
+    #decision-badge { min-height:48px; }
+    #cost-value { font-variant-numeric:tabular-nums; white-space:nowrap; }
+    #simulator button[aria-pressed="true"] { box-shadow:inset 0 0 0 1px #34d39966; }
+    #simulator input[type="range"] { min-height:24px; }
+    .lab-presets { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin:20px 0; }
+    .lab-presets button { padding:10px 16px; border:1px solid #ffffff22; border-radius:12px; background:#ffffff08; }
+    .lab-presets button:hover { background:#10b98118; }
+    @media(min-width:1024px) { #simulator .lg\:col-span-5 { position:sticky; top:110px; } }
+    @media(max-width:639px) {
+      #hero { padding-top:108px; }
+      #hero > a { margin-bottom:20px; }
+      #hero > p { font-size:14px; line-height:1.65; }
+      #hero > .flex.flex-wrap { gap:8px; }
+      #hero > .flex.flex-wrap a { padding:10px 14px; font-size:12px; }
+      #pipHeroStageContainer > .glass-card { padding:14px; }
+      #pipHeroBubble { position:relative; top:auto; max-width:100%; min-height:48px; }
+      #pipHeroCanvas { height:auto!important; }
+      #simulator #cost-value { white-space:normal; }
+    }
   </style>
 </head>
 <body class="bg-brand-dark text-slate-200 antialiased font-sans selection:bg-brand-emerald selection:text-black overflow-x-hidden min-h-screen relative noise-bg">
@@ -312,17 +348,6 @@
       </a>
     </div>
 
-    <!-- Quick Terminal Snippet -->
-    <div class="terminal-shimmer glass-card rounded-xl px-4 py-2.5 max-w-lg w-full flex items-center justify-between gap-3 text-xs font-mono text-slate-300 border border-white/10 mb-16">
-      <div class="flex items-center gap-2 truncate">
-        <span class="text-emerald-400 select-none">$</span>
-        <span class="text-slate-200 truncate select-all">git clone https://github.com/abhigyan24-ops/hunch-attention-twin.git</span>
-      </div>
-      <button aria-label="Copy git clone command" onclick="copyInstallCmd(this)" class="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-emerald-400 transition-colors" title="Copy Clone Command">
-        <i data-lucide="copy" class="w-4 h-4"></i>
-      </button>
-    </div>
-
     <!-- ==================================================================== -->
     <!-- PIP HERO STAGE: INTERACTIVE 3D HOLOGRAPHIC FOCUS THEATER            -->
     <!-- ==================================================================== -->
@@ -352,12 +377,12 @@
             <span class="text-emerald-400 flex items-center justify-end gap-1.5">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> 100% LOCAL PRIVACY
             </span>
-            <span class="text-slate-300">LATENCY: 4.8ms • 0 BYTES CLOUD</span>
+            <span class="text-slate-300">INTERACTIVE PREVIEW • ON DEVICE</span>
           </div>
         </div>
 
         <!-- Canvas Container with Interactive Spring Physics -->
-        <div class="relative flex flex-col items-center justify-center py-4 cursor-pointer select-none" id="pipHeroInteractiveArea" title="Click to pet Pip!">
+        <div class="relative flex flex-col items-center justify-center py-4 cursor-pointer select-none" id="pipHeroInteractiveArea" role="button" tabindex="0" aria-label="Pet Pip" title="Click to pet Pip!">
           
           <!-- Orbiting particle rings -->
           <div class="absolute w-72 h-72 sm:w-80 sm:h-80 rounded-full border border-dashed border-emerald-500/20 animate-spin-slow pointer-events-none"></div>
@@ -385,6 +410,17 @@
         </div>
 
       </div>
+    </div>
+
+    <!-- Quick Terminal Snippet -->
+    <div class="terminal-shimmer glass-card rounded-xl px-4 py-2.5 max-w-lg w-full flex items-center justify-between gap-3 text-xs font-mono text-slate-300 border border-white/10 mb-16">
+      <div class="flex items-center gap-2 truncate">
+        <span class="text-emerald-400 select-none">$</span>
+        <span class="text-slate-200 truncate select-all">git clone https://github.com/abhigyan24-ops/hunch-attention-twin.git</span>
+      </div>
+      <button aria-label="Copy git clone command" onclick="copyInstallCmd(this)" class="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-emerald-400 transition-colors" title="Copy Clone Command">
+        <i data-lucide="copy" class="w-4 h-4"></i>
+      </button>
     </div>
 
   </section>
@@ -470,6 +506,10 @@
       </p>
     </div>
 
+    <div class="lab-presets" aria-label="Try a notification scenario">
+      <button type="button" onclick="applyLabPreset('social')">Protect deep work</button>
+      <button type="button" onclick="applyLabPreset('family')">Let a VIP through</button>
+    </div>
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
       
       <!-- Control Panel (Left 7 Cols) -->
@@ -536,7 +576,7 @@
           <input type="range" min="0.5" max="8" step="0.5" value="3.5" oninput="updateHours(this.value)" class="w-full accent-emerald-500 bg-white/10 rounded-lg h-2 cursor-pointer">
           <div class="flex justify-between text-[10px] font-mono text-slate-300 mt-2">
             <span>0.5h (Fresh)</span>
-            <span>3.5h (Optimal Flow)</span>
+            <span>Above 5.5h: fatigue multiplier</span>
             <span>8.0h (High Fatigue)</span>
           </div>
         </div>
@@ -551,7 +591,7 @@
               <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
               <span class="font-mono text-xs text-slate-300 font-bold uppercase">Decision Engine Verdict</span>
             </div>
-            <span class="text-[11px] font-mono text-slate-300">&lt; 8.4ms</span>
+            <span class="text-[11px] font-mono text-slate-300">Demo</span>
           </div>
 
           <!-- Pip Reaction Avatar in Lab -->
@@ -584,7 +624,7 @@
           <!-- Causal Rationale -->
           <div>
             <span class="text-xs text-slate-300 font-mono block mb-2">CAUSAL REASONING:</span>
-            <p id="decision-reason" class="text-xs sm:text-sm text-slate-300 italic font-mono bg-white/5 p-3.5 rounded-xl border border-white/5 leading-relaxed">
+            <p id="decision-reason" aria-live="polite" aria-atomic="true" class="text-xs sm:text-sm text-slate-300 italic font-mono bg-white/5 p-3.5 rounded-xl border border-white/5 leading-relaxed">
               "High distraction probability during active focus burst. Buffered for scheduled batch digest."
             </p>
           </div>
@@ -1148,6 +1188,8 @@
     const heroCtx = heroCanvas.getContext('2d');
     setupCanvas(heroCanvas, heroCtx, 400, 300);
     let heroEmotion = 'FOCUSED';
+    let manualMoodUntil = 0;
+    let bubbleTimer;
     let heroLookX = 0, heroLookY = 0;
     let heroTargetLookX = 0, heroTargetLookY = 0;
     let heroScaleX = 1, heroScaleY = 1;
@@ -1193,13 +1235,14 @@
       const quotes = [
         "Your flow state is armed and protected! ✨",
         "Sub-10ms causal twin online! Zero data leaves device. 🛡️",
-        "Buffered 14 distracting pings so you could code uninterrupted! 🚀",
+        "Try the Twin Lab to see which notifications get through. ✨",
         "100% on-device AI. No telemetry, no cloud, no leaks! 🔒",
         "Happy hacking! Pip is keeping guard! 💚"
       ];
       text.textContent = quotes[Math.floor(Math.random() * quotes.length)];
       bubble.classList.remove('opacity-0', 'translate-y-3');
-      setTimeout(() => {
+      clearTimeout(bubbleTimer);
+      bubbleTimer = setTimeout(() => {
         bubble.classList.add('opacity-0', 'translate-y-3');
       }, 3500);
     });
@@ -1207,6 +1250,9 @@
     function setHeroEmotion(em, btn) {
       AudioEngine.playPop(700);
       heroEmotion = em;
+      idleSleeping = false;
+      manualMoodUntil = Date.now() + 15000;
+      lastMoveTime = Date.now();
       document.querySelectorAll('.pip-hero-btn').forEach(b => {
         b.className = 'pip-hero-btn px-3 py-1 rounded-lg text-xs font-medium font-mono border border-white/10 bg-white/5 text-slate-300 hover:text-white transition-all';
       });
@@ -1487,8 +1533,15 @@
     function tick(now) {
       requestAnimationFrame(tick);
       if (document.hidden || now-lastFrame < 1000/60) return;
+      document.getElementById('pipHeroStageContainer').dataset.emotion = heroEmotion;
+      document.querySelectorAll('.pip-hero-btn').forEach(button => {
+        const selected = button.getAttribute('onclick').includes("'" + heroEmotion + "'");
+        button.setAttribute('aria-pressed', String(selected));
+        button.style.backgroundColor = selected ? '#10b98126' : '';
+        button.style.borderColor = selected ? '#34d39988' : '';
+      });
       lastFrame = now - ((now-lastFrame) % (1000/60));
-      if (Date.now()-lastMoveTime >= 4000) {
+      if (Date.now()-lastMoveTime >= 8000 && Date.now() > manualMoodUntil) {
         idleSleeping = true; heroEmotion = 'SLEEPY';
         if (!reducedMotion.matches && Date.now()-lastZzzTime >= 1500) {
           lastZzzTime = Date.now();
@@ -1509,6 +1562,35 @@
     addEventListener('resize', () => {
       setupCanvas(heroCanvas,heroCtx,400,300); setupCanvas(labCanvas, labCtx, 110, 100, 56, 51); drawLabPip();
     });
+
+
+    const petArea = document.getElementById('pipHeroInteractiveArea');
+    petArea.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        petArea.click();
+      }
+    });
+    function applyLabPreset(notification) {
+      setContext('deep', document.querySelector('#context-selector button'));
+      const button = [...document.querySelectorAll('#notif-selector button')].find(button => button.getAttribute('onclick').includes("'" + notification + "'"));
+      setNotif(notification, button);
+      document.querySelector('#simulator input[type="range"]').value = 3.5;
+      updateHours(3.5);
+    }
+    let verdictAnimation;
+    const verdictObserver = new MutationObserver(() => {
+      document.querySelectorAll('#context-selector button, #notif-selector button').forEach(button => {
+        button.setAttribute('aria-pressed', String(button.classList.contains('text-white')));
+      });
+      if (reducedMotion.matches) return;
+      verdictAnimation?.cancel();
+      verdictAnimation = document.getElementById('decision-badge').animate(
+        [{ opacity:.5, transform:'translateY(3px)' }, { opacity:1, transform:'translateY(0)' }],
+        { duration:180, easing:'ease-out' }
+      );
+    });
+    verdictObserver.observe(document.getElementById('decision-badge'), { childList:true });
 
     // Initialize Lucide Icons, including the initial Twin Lab verdict.
     recalculateTwin();
