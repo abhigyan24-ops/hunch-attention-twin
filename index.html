@@ -1892,6 +1892,21 @@
   <!-- ==================================================================== -->
   <!-- AUDIO ENGINE & SCRIPTS                                               -->
   <!-- ==================================================================== -->
+  <!-- Sticky Pip Pet — scroll companion -->
+  <div id="pipStickyPet" role="button" tabindex="0" data-emotion="FOCUSED"
+       aria-label="Pip — your attention companion. Click to scroll to top."
+       onclick="window.scrollTo({top:0,behavior:'smooth'})"
+       onkeydown="if(event.key==='Enter'||event.key===' ')window.scrollTo({top:0,behavior:'smooth'})">
+    <div class="pet-bob">
+      <div class="pet-glow">
+        <canvas id="pipPetCanvas" width="200" height="200"></canvas>
+      </div>
+    </div>
+    <div class="pet-emotion" id="pipPetEmotion">FOCUSED</div>
+    <div class="pet-section" id="pipPetSection">Hero</div>
+    <div class="pet-hint">↑ back to top</div>
+  </div>
+
   <script>
     // ------------------------------------------------------------------
     // WEB AUDIO API SYNTHESIZER
@@ -2562,7 +2577,8 @@
       // Show once hero is scrolled past
       const heroEl  = document.getElementById('hero');
       const heroBot = heroEl ? heroEl.getBoundingClientRect().bottom : 0;
-      const shouldShow = heroBot < 80;
+      // Also consider: if page is < 200px tall hero is "visible" — keep hidden
+      const shouldShow = heroBot < 80 && window.scrollY > 100;
 
       // Scroll velocity for tilt effect
       const dy = window.scrollY - lastScrollY;
@@ -3000,20 +3016,5 @@
     updateProgressMarkers();
   </script>
 
-
-  <!-- Sticky Pip Pet — scroll companion -->
-  <div id="pipStickyPet" role="button" tabindex="0" data-emotion="FOCUSED"
-       aria-label="Pip — your attention companion. Click to scroll to top."
-       onclick="window.scrollTo({top:0,behavior:'smooth'})"
-       onkeydown="if(event.key==='Enter'||event.key===' ')window.scrollTo({top:0,behavior:'smooth'})">
-    <div class="pet-bob">
-      <div class="pet-glow">
-        <canvas id="pipPetCanvas" width="200" height="200"></canvas>
-      </div>
-    </div>
-    <div class="pet-emotion" id="pipPetEmotion">FOCUSED</div>
-    <div class="pet-section" id="pipPetSection">Hero</div>
-    <div class="pet-hint">↑ back to top</div>
-  </div>
 </body>
 </html>
