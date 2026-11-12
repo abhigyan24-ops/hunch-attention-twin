@@ -2369,6 +2369,7 @@
     ];
 
     function updateScrollEmotion() {
+      // Don't override a user-triggered manual mood
       if (Date.now() < manualMoodUntil) return;
       const midY = window.innerHeight / 2;
       let activeEmotion = 'FOCUSED';
@@ -2380,8 +2381,15 @@
           activeEmotion = emotion; break;
         }
       }
-      if (heroEmotion !== activeEmotion && Date.now() > manualMoodUntil) {
+      if (heroEmotion !== activeEmotion) {
         heroEmotion = activeEmotion;
+        idleSleeping = false;
+        // Give a short window so idle logic doesn't immediately overwrite
+        // (1.5 s — just long enough for the draw to show the new emotion)
+        manualMoodUntil = Date.now() + 1500;
+        // Wake up the render loop — treat scroll like a pointer interaction
+        lastMoveTime = Date.now();
+        lastPipInteract = Date.now();
       }
     }
     addEventListener('scroll', updateScrollEmotion, { passive: true });
@@ -2620,8 +2628,8 @@
         button.style.borderColor = selected ? '#34d39988' : '';
       });
 
-      // Idle → sleepy after 8s
-      if (Date.now() - lastMoveTime >= 8000 && Date.now() > manualMoodUntil) {
+      // Idle → sleepy after 8s (only while hero is on-screen and no recent scroll/pointer)
+      if (Date.now() - lastMoveTime >= 8000 && Date.now() - lastPipInteract >= 8000 && Date.now() > manualMoodUntil && pipVisible) {
         idleSleeping = true; heroEmotion = 'SLEEPY';
         if (!reducedMotion.matches && Date.now() - lastZzzTime >= 1500) {
           lastZzzTime = Date.now();
@@ -2632,7 +2640,8 @@
       // ── #39: Skip render when offscreen, motion paused, or truly idle ──
       const hasParticles = heroParticles.length > 0;
       const recentInteract = (Date.now() - lastPipInteract) < 2000;
-      const needsRender = pipVisible && !document.hidden && (hasParticles || recentInteract || idleSleeping || Date.now() - lastMoveTime < 500);
+      const recentScroll = (Date.now() - lastMoveTime) < 2000;
+      const needsRender = pipVisible && !document.hidden && (hasParticles || recentInteract || recentScroll || idleSleeping);
 
       if (needsRender) {
         if (reducedMotion.matches || motionPaused) {
