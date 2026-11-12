@@ -87,6 +87,8 @@ let outbox: Outbox | null = null;
 let endpointDiscovery: EndpointDiscovery | null = null;
 let engineClient: EngineClient | null = null;
 let statusBar: DhyanStatusBar | null = null;
+let windDownBar: any = null;
+let windDownInterval: ReturnType<typeof setInterval> | null = null;
 
 // Bounded in-memory event list (capacity 100)
 export const inMemoryEvents: Record<string, unknown>[] = [];
@@ -115,6 +117,7 @@ export function activate(
   resumeTreeProvider?: ResumeTreeDataProvider | null;
   todayTreeProvider?: TodayTreeDataProvider | null;
   digestTreeProvider?: DigestTreeDataProvider | null;
+  windDownBar?: any;
 } {
   const clock = injectedClock ?? new RealClock();
 
@@ -572,6 +575,51 @@ export function activate(
     registerCmd(cmd, () => {});
   }
 
+  // Wind-down poller (Pre-bedtime circadian wellbeing)
+  const alignment = vscodeApi?.StatusBarAlignment?.Right ?? 2;
+  windDownBar = vscodeApi?.window?.createStatusBarItem ? vscodeApi.window.createStatusBarItem(alignment, 90) : null;
+  if (windDownBar) {
+    windDownBar.command = 'dhyan.park';
+    if (context?.subscriptions) {
+      context.subscriptions.push(windDownBar);
+    }
+  }
+
+  const pollWindDown = async () => {
+    try {
+      const config = vscodeApi?.workspace?.getConfiguration ? vscodeApi.workspace.getConfiguration('dhyan') : null;
+      const engineUrl = (config?.get ? config.get('engineUrl', 'http://127.0.0.1:8765') : null) || 'http://127.0.0.1:8765';
+      const resp = await fetch(`${engineUrl}/v1/wellbeing/circadian`);
+      if (resp.ok) {
+        const data = await resp.json() as any;
+        if (data && data.windDownActive) {
+          if (windDownBar) {
+            windDownBar.text = '$(moon) Bedtime in 30m — Park context?';
+            windDownBar.tooltip = `Focus mode: ${data.mode}. Recommended session: ${data.recommendedFocusMinutes}m.`;
+            windDownBar.show();
+          }
+        } else {
+          windDownBar?.hide();
+        }
+      }
+    } catch {
+      windDownBar?.hide(); // Engine not running — hide silently
+    }
+  };
+
+  void pollWindDown(); // immediate first check
+  windDownInterval = setInterval(pollWindDown, 60_000);
+  if (context?.subscriptions) {
+    context.subscriptions.push({
+      dispose: () => {
+        if (windDownInterval) {
+          clearInterval(windDownInterval);
+          windDownInterval = null;
+        }
+      }
+    });
+  }
+
   return {
     privacyFilter,
     capabilities: currentCapabilities,
@@ -590,11 +638,20 @@ export function activate(
     digestManager,
     resumeTreeProvider,
     todayTreeProvider,
-    digestTreeProvider
+    digestTreeProvider,
+    windDownBar
   };
 }
 
 export function deactivate(): void {
+  if (windDownInterval) {
+    clearInterval(windDownInterval);
+    windDownInterval = null;
+  }
+  if (windDownBar) {
+    windDownBar.dispose();
+    windDownBar = null;
+  }
   if (tickTimer) {
     clearInterval(tickTimer);
     tickTimer = null;

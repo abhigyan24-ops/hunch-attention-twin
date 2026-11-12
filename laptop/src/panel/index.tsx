@@ -202,6 +202,9 @@ function App() {
   const [tokenVisible, setTokenVisible] = useState(false);
   const [ingestNotice, setIngestNotice] = useState('');
 
+  // Pre-bedtime circadian wind-down
+  const [windDownActive, setWindDownActive] = useState(false);
+
   // Pairing & Remote Commands
   const [relayUrl, setRelayUrl] = useState('');
   const [pairNotice, setPairNotice] = useState('');
@@ -244,6 +247,45 @@ function App() {
     return () => {
       active = false;
       clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const pollWindDown = async () => {
+      try {
+        const resp = await fetch('http://127.0.0.1:8765/v1/wellbeing/circadian');
+        if (resp.ok) {
+          const res = (await resp.json()) as any;
+          if (active) {
+            const isWindDown = Boolean(res?.windDownActive);
+            setWindDownActive(isWindDown);
+            if (isWindDown) {
+              document.body.classList.add('wind-down-active');
+            } else {
+              document.body.classList.remove('wind-down-active');
+            }
+          }
+        } else {
+          if (active) {
+            setWindDownActive(false);
+            document.body.classList.remove('wind-down-active');
+          }
+        }
+      } catch {
+        if (active) {
+          setWindDownActive(false);
+          document.body.classList.remove('wind-down-active');
+        }
+      }
+    };
+
+    void pollWindDown();
+    const interval = setInterval(pollWindDown, 60_000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+      document.body.classList.remove('wind-down-active');
     };
   }, []);
 
@@ -296,6 +338,9 @@ function App() {
   if (isMiniHud) {
     return (
       <div id="pip-hitbox" ref={hitbox}>
+        <div className="wind-down-card">
+          🌙 Bedtime soon — your context is parked for tomorrow
+        </div>
         <PipCompanion
           behavior={unavailable ? null : data?.pet.behavior ?? null}
           speechBubble={unavailable ? 'Data unavailable' : data?.reaction?.message ?? bubble}
@@ -333,6 +378,10 @@ function App() {
           Compact Pet HUD ↘
         </button>
       </header>
+
+      <div className="wind-down-card" style={{ maxWidth: '1280px', margin: '0 auto 16px auto' }}>
+        🌙 Bedtime soon — your context is parked for tomorrow
+      </div>
 
       <div className="dhyan-workspace">
         {/* Zone 1: Left Floating Capsule Rail */}

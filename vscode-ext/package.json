@@ -130,6 +130,11 @@
     "configuration": {
       "title": "Hunch Sensor & Twin",
       "properties": {
+        "dhyan.engineUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:8765",
+          "description": "URL of the local wellbeing circadian engine"
+        },
         "dhyan.endpointFile": {
           "type": "string",
           "default": "~/.dhyan/endpoint.json",

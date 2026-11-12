@@ -761,3 +761,27 @@ body {
   accent-color: var(--dhyan-mint-accent);
   cursor: pointer;
 }
+
+/* --------------------------------------------------------------------------
+   Pre-bedtime Circadian Wind-Down Amber Accent & Card
+   -------------------------------------------------------------------------- */
+body.wind-down-active {
+  --accent-color: #F59E0B !important; /* warm amber */
+  filter: sepia(0.15) brightness(0.95);
+  transition: filter 2s ease, background-color 2s ease;
+}
+
+.wind-down-card {
+  background: linear-gradient(135deg, #FEF3C7, #FDE68A);
+  border: 1px solid #F59E0B;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin: 8px 0;
+  font-size: 13px;
+  color: #78350F;
+  display: none;
+}
+
+body.wind-down-active .wind-down-card {
+  display: block;
+}

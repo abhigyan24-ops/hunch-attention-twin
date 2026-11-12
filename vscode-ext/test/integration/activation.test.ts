@@ -104,4 +104,27 @@ describe('Extension Activation & Wiring Integration', () => {
     assert.ok(joined.includes('Tracking Paused: false'));
     assert.ok(joined.includes('windowStateActive'));
   });
+
+  it('creates wind-down status bar item with dhyan.park command', () => {
+    let createdItem: any = null;
+    mockContext.vscode.window.createStatusBarItem = (align: number, priority: number) => {
+      createdItem = {
+        align,
+        priority,
+        command: '',
+        text: '',
+        tooltip: '',
+        shown: false,
+        show: () => { createdItem.shown = true; },
+        hide: () => { createdItem.shown = false; },
+        dispose: () => {}
+      };
+      return createdItem;
+    };
+
+    const res = activate(mockContext);
+    assert.ok(res.windDownBar);
+    assert.equal(res.windDownBar.command, 'dhyan.park');
+    assert.equal(createdItem.priority, 90);
+  });
 });
