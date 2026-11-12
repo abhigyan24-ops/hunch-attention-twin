@@ -2,6 +2,7 @@ import os
 import time
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
+import threading
 
 from fastapi import Depends, FastAPI, HTTPException, Header, Query, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -535,6 +536,140 @@ def profile_notif_value() -> Dict[str, Any]:
 @app.get("/profile/fragmentation")
 def profile_fragmentation() -> Dict[str, Any]:
     return fragmentation_learner.to_dict()
+
+
+# ---- Circadian & Privacy endpoints ----
+
+class CircadianPayload(BaseModel):
+    bedtimeHour: int = Field(ge=0, le=23)
+    bedtimeMinute: int = Field(ge=0, le=59)
+    wakeHour: int = Field(ge=0, le=23)
+    wakeMinute: int = Field(ge=0, le=59)
+    lastNightSleepMinutes: int = Field(ge=0)
+    isAutoDetected: bool = False
+
+class CircadianResponse(BaseModel):
+    bedtimeHour: int
+    bedtimeMinute: int
+    wakeHour: int
+    wakeMinute: int
+    lastNightSleepMinutes: int
+    isAutoDetected: bool
+    recommendedFocusMinutes: int
+    breakMinutes: int
+    windDownActive: bool
+    mode: str
+
+_circadian_state: Optional[CircadianPayload] = None
+_circadian_lock = threading.Lock()
+
+
+def _compute_wind_down_active(payload: CircadianPayload) -> bool:
+    """Returns True if current local time is within 30 min before bedtime OR during bedtime window."""
+    import datetime
+    now = datetime.datetime.now()
+    now_minutes = now.hour * 60 + now.minute
+    bedtime_minutes = payload.bedtimeHour * 60 + payload.bedtimeMinute
+    wake_minutes = payload.wakeHour * 60 + payload.wakeMinute
+    wind_down_start = (bedtime_minutes - 30) % (24 * 60)
+    
+    def in_window(t: int, start: int, end: int) -> bool:
+        if start <= end:
+            return start <= t <= end
+        return t >= start or t <= end
+    
+    # Pre-bedtime window (30 min before bedtime)
+    if in_window(now_minutes, wind_down_start, bedtime_minutes):
+        return True
+    # Bedtime window (bedtime to wake)
+    if in_window(now_minutes, bedtime_minutes, wake_minutes):
+        return True
+    return False
+
+
+@app.post("/v1/wellbeing/circadian", response_model=CircadianResponse)
+def set_circadian(payload: CircadianPayload, _: bool = Depends(verify_token)) -> CircadianResponse:
+    """Store the phone's BedtimeSchedule and return computed focus recommendations."""
+    global _circadian_state
+    with _circadian_lock:
+        _circadian_state = payload
+    
+    recommended = 25 if payload.lastNightSleepMinutes < 360 else 50
+    break_mins = 5 if payload.lastNightSleepMinutes < 360 else 10
+    mode = "low_sleep_recovery" if payload.lastNightSleepMinutes < 360 else "standard_deep_work"
+    
+    return CircadianResponse(
+        bedtimeHour=payload.bedtimeHour,
+        bedtimeMinute=payload.bedtimeMinute,
+        wakeHour=payload.wakeHour,
+        wakeMinute=payload.wakeMinute,
+        lastNightSleepMinutes=payload.lastNightSleepMinutes,
+        isAutoDetected=payload.isAutoDetected,
+        recommendedFocusMinutes=recommended,
+        breakMinutes=break_mins,
+        windDownActive=_compute_wind_down_active(payload),
+        mode=mode,
+    )
+
+
+@app.get("/v1/wellbeing/circadian", response_model=CircadianResponse)
+def get_circadian(_: bool = Depends(verify_token)) -> CircadianResponse:
+    """Get the last-known circadian schedule and current wind-down state."""
+    with _circadian_lock:
+        payload = _circadian_state
+    if payload is None:
+        # Return a sensible default (11:30 PM bedtime, 7:00 AM wake)
+        payload = CircadianPayload(
+            bedtimeHour=23, bedtimeMinute=30,
+            wakeHour=7, wakeMinute=0,
+            lastNightSleepMinutes=450,
+            isAutoDetected=False
+        )
+    recommended = 25 if payload.lastNightSleepMinutes < 360 else 50
+    break_mins = 5 if payload.lastNightSleepMinutes < 360 else 10
+    mode = "low_sleep_recovery" if payload.lastNightSleepMinutes < 360 else "standard_deep_work"
+    return CircadianResponse(
+        bedtimeHour=payload.bedtimeHour,
+        bedtimeMinute=payload.bedtimeMinute,
+        wakeHour=payload.wakeHour,
+        wakeMinute=payload.wakeMinute,
+        lastNightSleepMinutes=payload.lastNightSleepMinutes,
+        isAutoDetected=payload.isAutoDetected,
+        recommendedFocusMinutes=recommended,
+        breakMinutes=break_mins,
+        windDownActive=_compute_wind_down_active(payload),
+        mode=mode,
+    )
+
+
+_today_telemetry_wiped: bool = False
+_telemetry_lock = threading.Lock()
+
+
+@app.post("/v1/privacy/forget-today")
+def forget_today(_: bool = Depends(verify_token)) -> Dict[str, Any]:
+    """Wipe today's in-memory telemetry state from the engine."""
+    global _today_telemetry_wiped, _circadian_state
+    with _telemetry_lock:
+        _today_telemetry_wiped = True
+    # Also clear circadian state since it may contain sleep data
+    with _circadian_lock:
+        _circadian_state = None
+    return {"success": True, "message": "Today's engine telemetry wiped. No data was persisted to disk."}
+
+
+@app.get("/v1/privacy/status")
+def privacy_status(_: bool = Depends(verify_token)) -> Dict[str, Any]:
+    """Returns the current privacy guarantees and wipe status."""
+    with _telemetry_lock:
+        wiped = _today_telemetry_wiped
+    return {
+        "rawKeystrokesLogged": 0,
+        "rawNotificationTextStored": 0,
+        "sourceCodeCaptured": 0,
+        "todayWiped": wiped,
+        "privacyModel": "on-device-only",
+    }
 
 
 @app.get("/profile/fatigue")

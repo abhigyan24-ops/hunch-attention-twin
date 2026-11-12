@@ -7,7 +7,7 @@
   "publisher": "dhyan",
   "repository": {
     "type": "git",
-    "url": "https://github.com/abhigyan24-ops/cascade-3.3.git",
+    "url": "https://github.com/abhigyan24-ops/hunch-attention-twin",
     "directory": "vscode-ext"
   },
   "engines": {
