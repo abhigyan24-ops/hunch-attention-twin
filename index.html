@@ -796,6 +796,207 @@
       .bento-grid { grid-template-columns: 1fr; }
     }
 
+
+    /* ── Pip Float Badge ───────────────────────────────────── */
+    #pipFloatBadge {
+      position: fixed; bottom: 24px; right: 24px; z-index: 9000;
+      display: flex; align-items: center; gap: 10px;
+      background: rgba(10,12,20,0.88);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 100px; padding: 8px 16px 8px 10px;
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05);
+      cursor: pointer;
+      opacity: 0; transform: translateY(16px) scale(0.95);
+      transition: opacity var(--dur-state) var(--ease-quick),
+                  transform var(--dur-state) var(--ease-quick);
+      pointer-events: none;
+    }
+    #pipFloatBadge.visible {
+      opacity: 1; transform: translateY(0) scale(1); pointer-events: auto;
+    }
+    #pipFloatBadge canvas { width: 36px; height: 36px; border-radius: 50%; }
+    #pipFloatBadge .badge-label {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.03em;
+      color: rgba(255,255,255,0.75); line-height: 1.3;
+    }
+    #pipFloatBadge .badge-state {
+      font-size: 10px; font-family: var(--font-mono, monospace);
+      color: #34d399; opacity: 0.8;
+    }
+
+    /* ── Scroll hint ─────────────────────────────────────────── */
+    #pipScrollHint {
+      position: absolute; bottom: -44px; left: 50%; transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      opacity: 1; transition: opacity 0.4s ease; pointer-events: none;
+    }
+    #pipScrollHint.hidden { opacity: 0; }
+    #pipScrollHint span {
+      font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+      color: rgba(255,255,255,0.35); font-family: var(--font-mono, monospace);
+    }
+    #pipScrollHint svg { animation: bounce-hint 2s ease-in-out infinite; }
+    @keyframes bounce-hint {
+      0%,100% { transform: translateY(0); }
+      50% { transform: translateY(5px); }
+    }
+
+    /* ── Release Hero Card ────────────────────────────────────── */
+    .release-hero-card {
+      position: relative; overflow: hidden;
+      background: linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(6,182,212,0.06) 100%);
+      border: 1px solid rgba(52,211,153,0.2);
+      border-radius: 20px; padding: 32px;
+      max-width: 680px; margin: 0 auto 48px;
+      transition: border-color var(--dur-state) var(--ease-quick);
+    }
+    .release-hero-card::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 20% 50%, rgba(52,211,153,0.07) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .release-hero-card:hover { border-color: rgba(52,211,153,0.4); }
+    .release-hero-card .rh-eyebrow {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: #34d399;
+      margin-bottom: 10px;
+    }
+    .release-hero-card h3 {
+      font-size: 22px; font-weight: 800; color: #fff;
+      margin-bottom: 6px; letter-spacing: -0.02em;
+    }
+    .release-hero-card .rh-meta {
+      font-size: 12px; font-family: monospace; color: rgba(255,255,255,0.45);
+      margin-bottom: 20px;
+    }
+    .dl-btn-hero {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: linear-gradient(135deg, #10b981, #06b6d4);
+      color: #fff; font-weight: 700; font-size: 15px;
+      padding: 13px 28px; border-radius: 12px; text-decoration: none;
+      border: none; cursor: pointer;
+      transition: transform var(--dur-input) var(--ease-quick),
+                  box-shadow var(--dur-input) var(--ease-quick),
+                  filter var(--dur-input) var(--ease-quick);
+      box-shadow: 0 4px 20px rgba(16,185,129,0.35);
+    }
+    .dl-btn-hero:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(16,185,129,0.45);
+      filter: brightness(1.05);
+    }
+    .dl-btn-hero:active { transform: translateY(0); }
+    .sha-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 10px; font-family: monospace; color: rgba(255,255,255,0.4);
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 6px; padding: 3px 8px; margin-top: 12px;
+    }
+
+    /* ── Platform Spotlight Cards ────────────────────────────── */
+    .platform-cards-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+      max-width: 900px; margin: 0 auto 48px;
+    }
+    @media (max-width: 768px) {
+      .platform-cards-grid { grid-template-columns: 1fr; }
+    }
+    .platform-card {
+      position: relative; overflow: hidden;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px; padding: 24px;
+      transition: border-color var(--dur-state) var(--ease-quick),
+                  transform var(--dur-state) var(--ease-quick),
+                  box-shadow var(--dur-state) var(--ease-quick);
+    }
+    .platform-card::after {
+      content: ''; position: absolute; inset: 0; border-radius: 16px;
+      background: radial-gradient(circle at var(--mx,50%) var(--my,50%),
+        rgba(255,255,255,0.08) 0%, transparent 60%);
+      opacity: 0; transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .platform-card:hover::after { opacity: 1; }
+    .platform-card:hover {
+      border-color: rgba(255,255,255,0.18);
+      transform: translateY(-3px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+    }
+    .platform-card .pc-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 14px;
+    }
+    .platform-card .pc-name {
+      font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 4px;
+    }
+    .platform-card .pc-spec {
+      font-size: 11px; font-family: monospace; color: rgba(255,255,255,0.4);
+      margin-bottom: 10px;
+    }
+    .platform-card .pc-desc {
+      font-size: 12px; color: rgba(255,255,255,0.55); line-height: 1.6;
+      margin-bottom: 16px;
+    }
+    .pc-dl-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 10px; border-radius: 10px;
+      font-size: 13px; font-weight: 600; text-decoration: none;
+      transition: filter var(--dur-input), transform var(--dur-input);
+      border: 1px solid transparent;
+    }
+    .pc-dl-btn:hover { filter: brightness(1.15); transform: scale(1.02); }
+    .pc-dl-btn:active { transform: scale(0.98); }
+    .pc-dl-btn.win  { background: rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.3); color: #93c5fd; }
+    .pc-dl-btn.and  { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.3); color: #6ee7b7; }
+    .pc-dl-btn.vsc  { background: rgba(167,139,250,0.15); border-color: rgba(167,139,250,0.3); color: #c4b5fd; }
+    .pc-help { font-size: 10px; color: rgba(255,255,255,0.3); text-align: center; margin-top: 8px; }
+    .pc-help a { color: rgba(255,255,255,0.5); text-decoration: underline; }
+
+    /* ── Changelog Accordion ─────────────────────────────────── */
+    .changelog-wrap {
+      max-width: 680px; margin: 0 auto 24px;
+      border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; overflow: hidden;
+    }
+    .changelog-trigger {
+      width: 100%; display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; background: rgba(255,255,255,0.03);
+      border: none; cursor: pointer; color: #fff; font-size: 13px; font-weight: 600;
+      transition: background var(--dur-input);
+    }
+    .changelog-trigger:hover { background: rgba(255,255,255,0.06); }
+    .changelog-trigger svg {
+      transition: transform var(--dur-state) var(--ease-quick);
+      flex-shrink: 0;
+    }
+    .changelog-trigger[aria-expanded="true"] svg { transform: rotate(180deg); }
+    .changelog-body {
+      max-height: 0; overflow: hidden;
+      transition: max-height var(--dur-enter) var(--ease-quick);
+    }
+    .changelog-body.open { max-height: 600px; }
+    .changelog-inner {
+      padding: 20px; border-top: 1px solid rgba(255,255,255,0.06);
+      font-size: 12px; color: rgba(255,255,255,0.6); line-height: 1.8;
+    }
+    .changelog-inner h4 {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: rgba(255,255,255,0.3);
+      margin: 14px 0 6px;
+    }
+    .changelog-inner h4:first-child { margin-top: 0; }
+    .changelog-inner ul { list-style: none; padding: 0; }
+    .changelog-inner li::before { content: '+ '; color: #34d399; font-weight: 700; }
+    .changelog-inner .cl-tag {
+      display: inline-block; font-size: 9px; padding: 2px 6px; border-radius: 4px;
+      font-weight: 700; letter-spacing: 0.05em; vertical-align: middle; margin-left: 4px;
+    }
+    .changelog-inner .cl-tag.new { background: rgba(16,185,129,0.2); color: #34d399; }
+    .changelog-inner .cl-tag.fix { background: rgba(239,68,68,0.15); color: #f87171; }
+    .changelog-inner .cl-tag.imp { background: rgba(99,102,241,0.2); color: #a5b4fc; }
   </style>
 </head>
 <body class="bg-brand-dark text-slate-200 antialiased font-sans selection:bg-brand-emerald selection:text-black overflow-x-hidden min-h-screen relative noise-bg">
@@ -998,6 +1199,11 @@
 
           <!-- Pip Main Stage Canvas -->
           <canvas id="pipHeroCanvas" width="400" height="300" class="relative z-10 max-w-full drop-shadow-2xl"></canvas>
+          <!-- Scroll hint -->
+          <div id="pipScrollHint" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+            <span>scroll</span>
+          </div>
 
           <!-- Speech / Thought Bubble -->
           <div id="pipHeroBubble" class="absolute -top-3 z-20 px-4 py-2 rounded-2xl glass-card border border-emerald-500/40 text-xs sm:text-sm font-medium text-white shadow-xl opacity-0 translate-y-3 transition-all duration-300 pointer-events-none">
@@ -1420,109 +1626,137 @@
   <!-- ==================================================================== -->
   <!-- DOWNLOADS & RELEASE ARTIFACTS DOCK                                   -->
   <!-- ==================================================================== -->
-  <section role="region" aria-labelledby="downloads-heading" id="downloads" class="py-24 sm:py-32 px-4 max-w-7xl mx-auto border-t border-white/10 relative z-10">
-    <div class="text-center max-w-3xl mx-auto mb-16">
-      <div class="section-pill mb-4 inline-flex">v1.0.0-beta.1 · Official Releases</div>
-      <h2 id="downloads-heading" class="font-display font-extrabold text-3xl sm:text-5xl text-white tracking-tight mb-4">
-        Ready to take back your attention?
-      </h2>
-      <p class="max-w-xl sm:max-w-2xl mx-auto text-base sm:text-lg text-slate-300">
-        Free and open source. Download verified beta builds directly from GitHub Releases.
-      </p>
-    </div>
+  <section role="region" aria-labelledby="downloads-heading" id="downloads" class="py-24 sm:py-32 px-4">
+    <div class="max-w-5xl mx-auto">
+      <div class="text-center mb-16">
+        <div class="section-pill mb-4 inline-flex">v1.0.0-beta.1 · Official Releases</div>
+        <h2 id="downloads-heading" class="font-display font-extrabold text-3xl sm:text-5xl text-white tracking-tight mb-4">
+          Ready to take back your attention?
+        </h2>
+        <p class="max-w-xl mx-auto text-base text-slate-300">
+          Free and open source. Verified beta builds, downloaded directly from GitHub Releases.
+        </p>
+      </div>
 
-    <!-- Platform Switcher (#26 Option B) -->
-    <div class="platform-tabs" role="tablist" aria-label="Choose platform">
-      <button class="platform-tab" role="tab" aria-selected="true"  aria-controls="dl-windows" onclick="switchPlatform('windows',this)">🖥 Windows</button>
-      <button class="platform-tab" role="tab" aria-selected="false" aria-controls="dl-android" onclick="switchPlatform('android',this)">📱 Android</button>
-      <button class="platform-tab" role="tab" aria-selected="false" aria-controls="dl-vscode"  onclick="switchPlatform('vscode',this)">⚡ VS Code</button>
-    </div>
-    <div class="download-grid grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-16">
-      
-      <!-- Windows Desktop -->
-      <div id="dl-windows" class="platform-panel active glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
-        <div>
-          <div class="w-12 h-12 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 mb-5">
-            <i data-lucide="laptop" class="w-6 h-6"></i>
-          </div>
-          <h3 class="font-display font-bold text-xl text-white mb-1">Windows Desktop</h3>
-          <p class="text-xs font-mono text-slate-300 mb-4">Windows 10/11 · .exe setup</p>
-          <p class="text-xs text-slate-300 leading-relaxed mb-6">
-            Tray companion, floating Pip widget, local heuristics engine, and real-time pairing sync.
-          </p>
+      <!-- Auto-detect hero card -->
+      <div class="release-hero-card">
+        <div class="rh-eyebrow">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Recommended for your platform
         </div>
-        <div>
-          <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/Hunch-Setup-1.0.0-beta.1.exe" class="w-full py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-black font-display font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 ripple-host" onclick="AudioEngine.playChime(); showDownloadFeedback(this, 'windows')">
-            <i data-lucide="download" class="w-4 h-4"></i>
-            <span>Download .exe (Setup)</span>
-          </a>
-          <span class="block text-center text-[10px] font-mono text-slate-300 mt-2">SHA-256 verified in release</span>
-          <p class="download-status" role="status" aria-live="polite"></p>
-          <details class="install-help">
-            <summary>Windows installation help</summary>
-            <p>Run the downloaded setup file. If SmartScreen appears, verify that the file came from this project’s GitHub release. To proceed with a trusted file, choose <strong>More info → Run anyway</strong>.</p>
-          </details>
+        <h3 id="rh-platform-name">Detecting your platform…</h3>
+        <p class="rh-meta" id="rh-platform-spec">—</p>
+        <a id="rh-dl-btn" href="#" class="dl-btn-hero" onclick="AudioEngine.playChime(); showDownloadFeedback(this, 'auto')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span id="rh-dl-label">Download</span>
+        </a>
+        <div class="sha-chip">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          SHA-256 · verified in GitHub release
         </div>
       </div>
 
-      <!-- Android Mobile -->
-      <div id="dl-android" class="platform-panel active glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
-        <div>
-          <div class="w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-5">
-            <i data-lucide="smartphone" class="w-6 h-6"></i>
+      <!-- Three platform cards with spotlight -->
+      <div class="platform-cards-grid">
+
+        <!-- Windows -->
+        <div class="platform-card" id="pc-windows" onmousemove="spotlightCard(event,this)" onmouseleave="this.style.setProperty('--mx','50%');this.style.setProperty('--my','50%')">
+          <div class="pc-icon" style="background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.25)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
           </div>
-          <h3 class="font-display font-bold text-xl text-white mb-1">Android Companion</h3>
-          <p class="text-xs font-mono text-slate-300 mb-4">Android 14–16 · .apk package</p>
-          <p class="text-xs text-slate-300 leading-relaxed mb-6">
-            Notification listener, quiet lease actuator, batch digest poster, and local SQLite store.
-          </p>
-        </div>
-        <div>
-          <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/Hunch-1.0.0-beta.1-debug-signed.apk" class="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-display font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 ripple-host" onclick="AudioEngine.playChime(); showDownloadFeedback(this, 'android')">
-            <i data-lucide="download" class="w-4 h-4"></i>
-            <span>Download .apk (Signed)</span>
+          <div class="pc-name">Windows Desktop</div>
+          <div class="pc-spec">Windows 10 / 11 &nbsp;·&nbsp; .exe setup</div>
+          <div class="pc-desc">Tray companion, floating Pip widget, local heuristics engine, real-time pairing sync.</div>
+          <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/Hunch-Setup-1.0.0-beta.1.exe"
+             class="pc-dl-btn win" onclick="AudioEngine.playChime(); showDownloadFeedback(this,'windows')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download .exe
           </a>
-          <span class="block text-center text-[10px] font-mono text-slate-300 mt-2">See restricted settings note</span>
-          <p class="download-status" role="status" aria-live="polite"></p>
-          <details class="install-help">
-            <summary>Android installation help</summary>
-            <p>Install the APK, then grant Notification Access. If access is restricted, open <strong>Settings → Apps → Hunch → ⋮ → Allow restricted settings</strong> and try again. Labels may vary by Android version.</p>
-          </details>
+          <div class="pc-help">SmartScreen warning? <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/tag/v1.0.0-beta.1" target="_blank" rel="noopener">Verify on GitHub</a></div>
+        </div>
+
+        <!-- Android -->
+        <div class="platform-card" id="pc-android" onmousemove="spotlightCard(event,this)" onmouseleave="this.style.setProperty('--mx','50%');this.style.setProperty('--my','50%')">
+          <div class="pc-icon" style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.25)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="1.8" stroke-linecap="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
+          </div>
+          <div class="pc-name">Android Companion</div>
+          <div class="pc-spec">Android 14–16 &nbsp;·&nbsp; .apk sideload</div>
+          <div class="pc-desc">Notification listener, quiet lease actuator, batch digest poster, local SQLite store.</div>
+          <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/Hunch-1.0.0-beta.1-debug-signed.apk"
+             class="pc-dl-btn and" onclick="AudioEngine.playChime(); showDownloadFeedback(this,'android')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download .apk
+          </a>
+          <div class="pc-help">Need sideload help? <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/tag/v1.0.0-beta.1" target="_blank" rel="noopener">Restricted settings guide</a></div>
+        </div>
+
+        <!-- VS Code -->
+        <div class="platform-card" id="pc-vscode" onmousemove="spotlightCard(event,this)" onmouseleave="this.style.setProperty('--mx','50%');this.style.setProperty('--my','50%')">
+          <div class="pc-icon" style="background:rgba(167,139,250,0.12);border:1px solid rgba(167,139,250,0.25)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="1.8" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          </div>
+          <div class="pc-name">VS Code Extension</div>
+          <div class="pc-spec">VS Code 1.85+ &nbsp;·&nbsp; .vsix package</div>
+          <div class="pc-desc">Status bar focus meter, IDE keystroke velocity collector, one-click manual quiet lease.</div>
+          <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/dhyan-1.0.0.vsix"
+             class="pc-dl-btn vsc" onclick="AudioEngine.playChime(); showDownloadFeedback(this,'vscode')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download .vsix
+          </a>
+          <div class="pc-help">Extensions → ⋯ → Install from VSIX</div>
+        </div>
+
+      </div>
+
+      <!-- Changelog accordion -->
+      <div class="changelog-wrap">
+        <button class="changelog-trigger" aria-expanded="false" aria-controls="changelog-body" onclick="toggleChangelog(this)">
+          <span>What's in v1.0.0-beta.1</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="changelog-body" id="changelog-body" role="region" aria-label="Changelog v1.0.0-beta.1">
+          <div class="changelog-inner">
+            <h4>Core</h4>
+            <ul>
+              <li>Local attention-twin heuristic engine — zero cloud dependency <span class="cl-tag new">new</span></li>
+              <li>Quiet Lease: suppress all non-VIP notifications during deep work <span class="cl-tag new">new</span></li>
+              <li>Batch Digest: group held notifications into one end-of-session summary <span class="cl-tag new">new</span></li>
+              <li>Fail-Open guarantee — if the engine errors, notifications pass through <span class="cl-tag imp">imp</span></li>
+            </ul>
+            <h4>Android</h4>
+            <ul>
+              <li>Notification listener with on-device SQLite store (dhyan.db) <span class="cl-tag new">new</span></li>
+              <li>Bluetooth pairing sync to Windows companion <span class="cl-tag new">new</span></li>
+            </ul>
+            <h4>VS Code</h4>
+            <ul>
+              <li>Keystroke velocity collector feeds the attention twin <span class="cl-tag new">new</span></li>
+              <li>Status bar focus meter + manual quiet lease toggle <span class="cl-tag new">new</span></li>
+            </ul>
+            <h4>Known</h4>
+            <ul>
+              <li>Windows SmartScreen prompt on first run (unsigned beta) <span class="cl-tag fix">note</span></li>
+              <li>Android sideload requires restricted-settings override <span class="cl-tag fix">note</span></li>
+            </ul>
+          </div>
         </div>
       </div>
 
-      <!-- VS Code Extension -->
-      <div id="dl-vscode" class="platform-panel active glass-card glass-card-hover rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
-        <div>
-          <div class="w-12 h-12 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 mb-5">
-            <i data-lucide="code-2" class="w-6 h-6"></i>
-          </div>
-          <h3 class="font-display font-bold text-xl text-white mb-1">VS Code Extension</h3>
-          <p class="text-xs font-mono text-slate-300 mb-4">VS Code 1.85+ · .vsix extension</p>
-          <p class="text-xs text-slate-300 leading-relaxed mb-6">
-            Status bar focus meter, IDE keystroke velocity collector, and one-click manual quiet lease.
-          </p>
-        </div>
-        <div>
-          <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/dhyan-1.0.0.vsix" class="w-full py-2.5 rounded-xl bg-purple-500 hover:bg-purple-400 text-white font-display font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 ripple-host" onclick="AudioEngine.playChime(); showDownloadFeedback(this, 'vscode')">
-            <i data-lucide="download" class="w-4 h-4"></i>
-            <span>Download .vsix Package</span>
-          </a>
-          <span class="block text-center text-[10px] font-mono text-slate-300 mt-2">Install via Extensions &gt; VSIX</span>
-          <p class="download-status" role="status" aria-live="polite"></p>
-          <details class="install-help">
-            <summary>VS Code installation help</summary>
-            <p>Open <strong>Extensions → ⋯ → Install from VSIX</strong>, select the downloaded file, then reload VS Code if prompted.</p>
-          </details>
-        </div>
+      <!-- Support -->
+      <div class="text-center mt-10">
+        <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/tag/v1.0.0-beta.1"
+           target="_blank" rel="noopener noreferrer"
+           class="text-xs font-mono text-slate-400 hover:text-white transition-colors inline-flex items-center gap-2">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          View full release on GitHub
+        </a>
+        <span class="mx-3 text-slate-600">·</span>
+        <a href="mailto:hunch_support@googlegroups.com"
+           class="text-xs font-mono text-slate-400 hover:text-white transition-colors">
+          hunch_support@googlegroups.com
+        </a>
       </div>
-
-    </div>
-
-    <!-- Troubleshooting & Support Box -->
-    <div class="download-support">
-      <p>Need a hand installing Hunch? <a href="mailto:hunch_support@googlegroups.com">Email community support</a>.</p>
-      <a href="https://github.com/abhigyan24-ops/hunch-attention-twin/releases/tag/v1.0.0-beta.1" target="_blank" rel="noopener noreferrer">Release notes &amp; checksums <span aria-hidden="true">↗</span></a>
     </div>
   </section>
 
@@ -2123,6 +2357,136 @@
     addEventListener('resize', updateProgress); updateProgress();
     // Reading-line nav spy (#30 Option B)
     const navSectionIds = ['simulator','pipeline','privacy','downloads'];
+    
+    // ── Scroll-linked Pip emotions ───────────────────────────────
+    const SCROLL_EMOTION_MAP = [
+      { section: 'hero',      emotion: 'FOCUSED'    },
+      { section: 'features',  emotion: 'CURIOUS'    },
+      { section: 'simulator', emotion: 'SHIELDING'  },
+      { section: 'pipeline',  emotion: 'CURIOUS'    },
+      { section: 'privacy',   emotion: 'HAPPY'      },
+      { section: 'downloads', emotion: 'SURPRISED'  },
+    ];
+
+    function updateScrollEmotion() {
+      if (Date.now() < manualMoodUntil) return;
+      const midY = window.innerHeight / 2;
+      let activeEmotion = 'FOCUSED';
+      for (const { section, emotion } of SCROLL_EMOTION_MAP) {
+        const el = document.getElementById(section);
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+        if (rect.top <= midY && rect.bottom >= midY) {
+          activeEmotion = emotion; break;
+        }
+      }
+      if (heroEmotion !== activeEmotion && Date.now() > manualMoodUntil) {
+        heroEmotion = activeEmotion;
+      }
+    }
+    addEventListener('scroll', updateScrollEmotion, { passive: true });
+    updateScrollEmotion();
+
+    // ── Scroll hint hide ─────────────────────────────────────────
+    const scrollHint = document.getElementById('pipScrollHint');
+    addEventListener('scroll', () => {
+      if (scrollY > 60 && scrollHint) scrollHint.classList.add('hidden');
+    }, { passive: true, once: false });
+
+    // ── Floating Pip Badge ───────────────────────────────────────
+    const pipBadge = document.getElementById('pipFloatBadge');
+    const pipBadgeCanvas = document.getElementById('pipBadgeCanvas');
+    let pipBadgeCtx = null, pipBadgeVisible = false;
+    if (pipBadgeCanvas) {
+      pipBadgeCtx = pipBadgeCanvas.getContext('2d');
+    }
+    function updatePipBadge() {
+      const heroEl = document.getElementById('hero');
+      const heroBot = heroEl ? heroEl.getBoundingClientRect().bottom : 0;
+      const shouldShow = heroBot < 0;
+      if (shouldShow !== pipBadgeVisible) {
+        pipBadgeVisible = shouldShow;
+        pipBadge && pipBadge.classList.toggle('visible', shouldShow);
+      }
+      // Update badge state label
+      const stateEl = document.getElementById('pipBadgeState');
+      if (stateEl) {
+        const em = heroEmotion || 'FOCUSED';
+        const stateMap = {
+          FOCUSED: '● Guarding', SHIELDING: '⬛ Shielding',
+          HAPPY: '✓ All clear', CURIOUS: '◎ Watching',
+          SLEEPY: '◌ Resting', SURPRISED: '! Alert'
+        };
+        stateEl.textContent = stateMap[em] || '● Active';
+      }
+      // Draw tiny Pip in badge canvas
+      if (pipBadgeCtx) {
+        try {
+          drawCloudSpirit(pipBadgeCtx, 72, 72, 36, 36, 0.9, 0.9, heroEmotion || 'FOCUSED', []);
+        } catch(e) {}
+      }
+    }
+    addEventListener('scroll', updatePipBadge, { passive: true });
+    updatePipBadge();
+
+    // ── OS auto-detect for hero download card ───────────────────
+    function detectOS() {
+      const ua = navigator.userAgent;
+      if (/Windows/i.test(ua)) return 'windows';
+      if (/Android/i.test(ua)) return 'android';
+      return 'vscode';
+    }
+    (function initReleaseHeroCard() {
+      const os = detectOS();
+      const nameEl = document.getElementById('rh-platform-name');
+      const specEl = document.getElementById('rh-platform-spec');
+      const dlBtn  = document.getElementById('rh-dl-btn');
+      const lblEl  = document.getElementById('rh-dl-label');
+      const cfg = {
+        windows: {
+          name: 'Windows Desktop',
+          spec: 'Windows 10 / 11  ·  .exe setup  ·  64-bit',
+          label: 'Download .exe for Windows',
+          href: 'https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/Hunch-Setup-1.0.0-beta.1.exe'
+        },
+        android: {
+          name: 'Android Companion',
+          spec: 'Android 14–16  ·  .apk sideload',
+          label: 'Download .apk for Android',
+          href: 'https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/Hunch-1.0.0-beta.1-debug-signed.apk'
+        },
+        vscode: {
+          name: 'VS Code Extension',
+          spec: 'VS Code 1.85+  ·  .vsix package',
+          label: 'Download .vsix for VS Code',
+          href: 'https://github.com/abhigyan24-ops/hunch-attention-twin/releases/download/v1.0.0-beta.1/dhyan-1.0.0.vsix'
+        }
+      };
+      const c = cfg[os] || cfg.windows;
+      if (nameEl) nameEl.textContent = c.name;
+      if (specEl) specEl.textContent = c.spec;
+      if (dlBtn)  dlBtn.href = c.href;
+      if (lblEl)  lblEl.textContent = c.label;
+    })();
+
+    // ── Spotlight on platform cards ──────────────────────────────
+    function spotlightCard(e, card) {
+      const r = card.getBoundingClientRect();
+      const mx = ((e.clientX - r.left) / r.width  * 100).toFixed(1) + '%';
+      const my = ((e.clientY - r.top)  / r.height * 100).toFixed(1) + '%';
+      card.style.setProperty('--mx', mx);
+      card.style.setProperty('--my', my);
+    }
+
+    // ── Changelog accordion ──────────────────────────────────────
+    function toggleChangelog(btn) {
+      const body = document.getElementById(btn.getAttribute('aria-controls'));
+      if (!body) return;
+      const isOpen = btn.getAttribute('aria-expanded') === 'true';
+      btn.setAttribute('aria-expanded', String(!isOpen));
+      body.classList.toggle('open', !isOpen);
+    }
+
     function updateNavActive() {
       const readingY = (document.documentElement.scrollTop || document.body.scrollTop) + 120;
       let activeId = null;
@@ -2453,5 +2817,16 @@
     updateProgressMarkers();
   </script>
 
+
+  <!-- Floating Pip Badge -->
+  <div id="pipFloatBadge" role="button" tabindex="0" aria-label="Back to top — Hunch is active"
+       onclick="window.scrollTo({top:0,behavior:'smooth'})"
+       onkeydown="if(event.key==='Enter'||event.key===' ')window.scrollTo({top:0,behavior:'smooth'})">
+    <canvas id="pipBadgeCanvas" width="72" height="72"></canvas>
+    <div>
+      <div class="badge-label">Hunch</div>
+      <div class="badge-state" id="pipBadgeState">● Guarding</div>
+    </div>
+  </div>
 </body>
 </html>
