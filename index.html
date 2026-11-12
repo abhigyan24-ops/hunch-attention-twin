@@ -457,11 +457,112 @@
     body.amb-hero .amb-blob-em { opacity: 1; }
     body.amb-lab .amb-blob-vi { opacity: 1; }
     body.amb-pipeline .amb-blob-cy { opacity: 1; }
+
+    /* ── #33: Three canonical motion durations ──────────── */
+    :root {
+      --dur-input:   130ms;
+      --dur-state:   220ms;
+      --dur-enter:   380ms;
+      --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-quick:  cubic-bezier(0.4,  0, 0.2, 1);
+    }
+
+    /* ── #32b: Section progress markers ─────────────────── */
+    #scrollProgress { overflow: visible; }
+    .progress-marker {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      width: 4px; height: 4px; border-radius: 50%;
+      background: rgba(255,255,255,0.35); pointer-events: none;
+      transition: background var(--dur-state);
+    }
+    .progress-marker.passed { background: rgba(52,211,153,0.7); }
+
+    /* ── #34: Reveal wrapper / hover surface separation ─── */
+    /* Outer .reveal-wrap handles opacity+translateY         */
+    /* Inner .hover-surface handles lift on hover            */
+    .reveal-wrap {
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity var(--dur-enter) var(--ease-spring),
+                  transform var(--dur-enter) var(--ease-spring);
+      transition-delay: var(--reveal-delay, 0ms);
+    }
+    .reveal-wrap.is-visible { opacity: 1; transform: translateY(0); }
+    /* Hover lift on the inner surface only — no rotation */
+    @media (hover: hover) and (pointer: fine) {
+      .hover-surface {
+        transition: transform var(--dur-state) var(--ease-quick),
+                    border-color var(--dur-state),
+                    box-shadow var(--dur-state);
+      }
+      .hover-surface:hover {
+        transform: translateY(-3px);
+        border-color: rgba(16,185,129,0.3) !important;
+        box-shadow: 0 16px 40px -12px rgba(0,0,0,0.6),
+                    0 0 28px -6px rgba(16,185,129,0.12),
+                    inset 0 1px 0 rgba(255,255,255,0.12);
+      }
+    }
+
+    /* ── #36: Surface hierarchy ──────────────────────────── */
+    /* Navbar — strongest glass (already has backdrop-filter) */
+    /* Pip theater card — medium glass (kept) */
+    /* Trust / Privacy — flat, no blur */
+    #trust .trust-grid > div { backdrop-filter: none; -webkit-backdrop-filter: none; background: transparent; }
+    #privacy .glass-card { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(13,17,24,0.6); }
+    /* Lab control panel — matte */
+    #simulator .glass-card { backdrop-filter: none; -webkit-backdrop-filter: none; background: #10151f; }
+    /* Lab verdict panel — slightly brighter */
+    #lab-result-column > .glass-card { background: #131c2c; border-color: rgba(255,255,255,0.14); }
+    /* Decision badge — ensure min-width so crossfade never reflows (#40) */
+    #decision-badge { min-width: 240px; justify-content: center; }
+
+    /* ── #37: Stats fixed-width digits ───────────────────── */
+    #stats .grid > div > span:first-child {
+      font-variant-numeric: tabular-nums;
+      display: inline-block; min-width: 5ch;
+    }
+
+    /* ── #40: Star count fixed slot ──────────────────────── */
+    #starCount { min-width: 6ch; display: inline-block; }
+
+    /* ── #31: Mobile menu as one surface ────────────────── */
+    #mobileMenu {
+      position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+      opacity: 0; visibility: hidden;
+      transform: translateY(-6px);
+      transition: opacity var(--dur-state) var(--ease-quick),
+                  transform var(--dur-state) var(--ease-spring),
+                  visibility var(--dur-state);
+    }
+    #mobileMenu.open { opacity: 1; visibility: visible; transform: translateY(0); }
+    /* Hamburger → X morph via CSS */
+    .menu-lines::before { top: 5px; }
+    .menu-lines::after  { top: 11px; }
+    #menuToggle[aria-expanded="true"] .menu-lines::before {
+      transform: translateY(3px) rotate(45deg);
+      transition: transform var(--dur-state) var(--ease-spring);
+    }
+    #menuToggle[aria-expanded="true"] .menu-lines::after {
+      transform: translateY(-3px) rotate(-45deg);
+      transition: transform var(--dur-state) var(--ease-spring);
+    }
+    .menu-lines::before, .menu-lines::after {
+      transition: transform var(--dur-state) var(--ease-quick);
+    }
+
+    /* ── #38: motion-paused wires into RAF flag ──────────── */
+    /* (JS handles RAF; CSS still pauses CSS animations)      */
   </style>
 </head>
 <body class="bg-brand-dark text-slate-200 antialiased font-sans selection:bg-brand-emerald selection:text-black overflow-x-hidden min-h-screen relative noise-bg">
 
-  <div id="scrollProgress" aria-hidden="true"></div>
+  <div id="scrollProgress" aria-hidden="true">
+    <span class="progress-marker" style="left:20%"  data-section="simulator"></span>
+    <span class="progress-marker" style="left:45%"  data-section="pipeline"></span>
+    <span class="progress-marker" style="left:67%"  data-section="privacy"></span>
+    <span class="progress-marker" style="left:85%"  data-section="downloads"></span>
+  </div>
 
   <!-- Ambient Animated Gradient Mesh Orbs (section-reactive #35) -->
   <div class="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden="true">
@@ -1560,42 +1661,40 @@
       }
     }
 
-    // Hero Loop
-    function updateHeroPip() {
-      heroBreathTime += 0.04;
-      
-      // Smooth lerp for eye gaze tracking
-      heroLookX += (heroTargetLookX - heroLookX) * 0.12;
-      heroLookY += (heroTargetLookY - heroLookY) * 0.12;
+    // Hero Loop — elapsed-time physics (#39 Option B)
+    function updateHeroPip(dt = 1) {
+      heroBreathTime += 0.04 * dt;
 
-      // Spring physics for squash and stretch
-      const k = 0.2;
-      const d = 0.75;
+      // Smooth lerp for eye gaze tracking (dt-scaled)
+      const lerpGaze = 1 - Math.pow(1 - 0.12, dt);
+      heroLookX += (heroTargetLookX - heroLookX) * lerpGaze;
+      heroLookY += (heroTargetLookY - heroLookY) * lerpGaze;
+
+      // Spring physics — #33: Pip alone on spring settle
+      const k = 0.2, damp = 0.75;
       const targetScaleY = 1 + Math.sin(heroBreathTime) * 0.035;
       const targetScaleX = 1 - Math.sin(heroBreathTime) * 0.025;
 
-      heroVelX += (targetScaleX - heroScaleX) * k;
-      heroVelX *= d;
-      heroScaleX += heroVelX;
+      for (let i = 0; i < dt; i++) {
+        heroVelX += (targetScaleX - heroScaleX) * k;
+        heroVelX *= damp;
+        heroScaleX += heroVelX;
+        heroVelY += (targetScaleY - heroScaleY) * k;
+        heroVelY *= damp;
+        heroScaleY += heroVelY;
+      }
 
-      heroVelY += (targetScaleY - heroScaleY) * k;
-      heroVelY *= d;
-      heroScaleY += heroVelY;
-
-      // Particle physics
+      // Particle physics (dt-scaled)
       for (let i = heroParticles.length - 1; i >= 0; i--) {
         const p = heroParticles[i];
-        p.x += p.vx;
-        p.y += p.vy;
-        p.life++;
-        p.alpha = 1 - (p.life / p.maxLife);
-        if (p.life >= p.maxLife) {
-          heroParticles.splice(i, 1);
-        }
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.life += dt;
+        p.alpha = Math.max(0, 1 - (p.life / p.maxLife));
+        if (p.life >= p.maxLife) heroParticles.splice(i, 1);
       }
 
       drawCloudSpirit(heroCtx, 400, 300, heroLookX, heroLookY, heroScaleX, heroScaleY, heroEmotion, heroParticles);
-
     }
 
 
@@ -1776,11 +1875,17 @@
       statsObserver.disconnect();
       const values = document.querySelectorAll('#stats .grid > div > span:first-child');
       const start = performance.now();
+      // Set final Fail-Open immediately but hidden; fade in after count (#37)
+      values[3].style.opacity = '0';
+      values[3].style.transition = 'opacity 400ms ease';
+      values[3].textContent = 'Fail-Open';
       function count(now) {
-        const elapsed = reducedMotion.matches ? 1500 : now-start;
-        values[0].textContent = '< ' + Math.round(10*easeOutQuart(Math.min(1,elapsed/1200))) + 'ms';
-        values[2].textContent = '~' + (2.4*easeOutQuart(Math.min(1,elapsed/1500))).toFixed(1) + ' hrs';
-        values[3].textContent = 'Fail-Open'.slice(0,Math.floor(9*Math.min(1,elapsed/1200)));
+        const elapsed = reducedMotion.matches ? 1500 : now - start;
+        const t0 = Math.min(1, elapsed / 1200);
+        const t1 = Math.min(1, elapsed / 1500);
+        values[0].textContent = '< ' + Math.round(10 * easeOutQuart(t0)) + 'ms';
+        values[2].textContent = '~' + (2.4 * easeOutQuart(t1)).toFixed(1) + ' hrs';
+        if (elapsed >= 1200) values[3].style.opacity = '1';
         if (elapsed < 1500) requestAnimationFrame(count);
       }
       requestAnimationFrame(count);
@@ -1798,17 +1903,31 @@
 
     const menuToggle = document.getElementById('menuToggle');
     const mobileMenu = document.getElementById('mobileMenu');
-    function closeMenu() { setMenu(false); }
+    // ── #31: Mobile menu — focus returns to trigger on Escape ──
+    function closeMenu() { setMenu(false); menuToggle.focus(); }
     function setMenu(open) {
-      mobileMenu.classList.toggle('open',open); mobileMenu.inert = !open;
-      menuToggle.setAttribute('aria-expanded',String(open));
-      menuToggle.setAttribute('aria-label',open ? 'Close navigation' : 'Open navigation');
+      mobileMenu.classList.toggle('open', open);
+      mobileMenu.inert = !open;
+      menuToggle.setAttribute('aria-expanded', String(open));
+      menuToggle.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
+      if (open) {
+        // Move focus into menu
+        const firstLink = mobileMenu.querySelector('a');
+        if (firstLink) requestAnimationFrame(() => firstLink.focus());
+      }
     }
-    menuToggle.addEventListener('click', () => setMenu(menuToggle.getAttribute('aria-expanded') !== 'true'));
-    mobileMenu.querySelectorAll('a').forEach(a => a.addEventListener('click',closeMenu));
-    document.addEventListener('pointerdown',e => { if (!e.target.closest('nav')) closeMenu(); });
-    document.addEventListener('keydown',e => { if (e.key === 'Escape' && mobileMenu.classList.contains('open')) { closeMenu(); menuToggle.focus(); } });
-    addEventListener('resize', () => { if (innerWidth >= 768) closeMenu(); });
+    menuToggle.addEventListener('click', () => {
+      const isOpen = menuToggle.getAttribute('aria-expanded') === 'true';
+      setMenu(!isOpen);
+    });
+    mobileMenu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => setMenu(false)));
+    document.addEventListener('pointerdown', e => { if (!e.target.closest('nav')) setMenu(false); });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && mobileMenu.classList.contains('open')) {
+        closeMenu();
+      }
+    });
+    addEventListener('resize', () => { if (innerWidth >= 768) setMenu(false); });
     document.querySelectorAll('a[href*="/releases/download/"], a[href="#downloads"], #downloads button').forEach(button => {
       button.classList.add('ripple-host');
       button.addEventListener('click',e => {
@@ -1830,33 +1949,70 @@
     addEventListener('pointermove',wakePip,{ passive:true });
     addEventListener('pointerdown',wakePip,{ passive:true });
     addEventListener('keydown',wakePip);
+    // ── #39: Pip RAF — only render when needed; pause when offscreen ──
+    let pipVisible = true;
+    let lastPipInteract = Date.now();
+    const pipStage = document.getElementById('pipHeroStageContainer');
+    // Track pointer near Pip for "needs render" heuristic
+    function markPipActive() { lastPipInteract = Date.now(); }
+    addEventListener('pointermove', markPipActive, { passive: true });
+    addEventListener('pointerdown', markPipActive, { passive: true });
+
+    // Offscreen observer for Pip theater (#39)
+    const pipVisObs = new IntersectionObserver(entries => {
+      pipVisible = entries[0].isIntersecting;
+    }, { threshold: 0 });
+    if (pipStage) pipVisObs.observe(pipStage);
+
     let lastFrame = 0;
+    let lastTickTime = performance.now();
     function tick(now) {
       requestAnimationFrame(tick);
-      if (document.hidden || now-lastFrame < 1000/60) return;
-      document.getElementById('pipHeroStageContainer').dataset.emotion = heroEmotion;
+      // Throttle to 60fps max
+      if (now - lastFrame < 1000/61) return;
+      const dt = Math.min((now - lastTickTime) / (1000/60), 3); // elapsed frames, capped at 3
+      lastTickTime = now;
+      lastFrame = now;
+
+      // Update emotion state tag and mood button aria
+      if (pipStage) pipStage.dataset.emotion = heroEmotion;
       document.querySelectorAll('.pip-hero-btn').forEach(button => {
-        const selected = button.getAttribute('onclick').includes("'" + heroEmotion + "'");
+        const selected = button.getAttribute('onclick') && button.getAttribute('onclick').includes("'" + heroEmotion + "'");
         button.setAttribute('aria-pressed', String(selected));
         button.style.backgroundColor = selected ? '#10b98126' : '';
         button.style.borderColor = selected ? '#34d39988' : '';
       });
-      lastFrame = now - ((now-lastFrame) % (1000/60));
-      if (Date.now()-lastMoveTime >= 8000 && Date.now() > manualMoodUntil) {
+
+      // Idle → sleepy after 8s
+      if (Date.now() - lastMoveTime >= 8000 && Date.now() > manualMoodUntil) {
         idleSleeping = true; heroEmotion = 'SLEEPY';
-        if (!reducedMotion.matches && Date.now()-lastZzzTime >= 1500) {
+        if (!reducedMotion.matches && Date.now() - lastZzzTime >= 1500) {
           lastZzzTime = Date.now();
           heroParticles.push({ x:45,y:-35,vx:.15,vy:-.45,size:16,alpha:1,life:0,maxLife:140,type:'zzz' });
         }
       }
-      if (reducedMotion.matches) {
-        heroParticles.length = 0;
-        drawCloudSpirit(heroCtx,400,300,0,0,1,1,heroEmotion,[]);
-      } else { updateHeroPip(); }
+
+      // ── #39: Skip render when offscreen, motion paused, or truly idle ──
+      const hasParticles = heroParticles.length > 0;
+      const recentInteract = (Date.now() - lastPipInteract) < 2000;
+      const needsRender = pipVisible && !document.hidden && (hasParticles || recentInteract || idleSleeping || Date.now() - lastMoveTime < 500);
+
+      if (needsRender) {
+        if (reducedMotion.matches || motionPaused) {
+          heroParticles.length = 0;
+          drawCloudSpirit(heroCtx, 400, 300, 0, 0, 1, 1, heroEmotion, []);
+        } else {
+          updateHeroPip(dt);
+        }
+      }
+
+      // Light position lerp for tilt cards (always run, cheap)
       tiltCards.forEach(state => {
-        if (Math.abs(state.tx-state.x)+Math.abs(state.ty-state.y) < .05) return;
-        state.x += (state.tx-state.x)*.12; state.y += (state.ty-state.y)*.12;
-        state.card.style.setProperty('--light-x',state.x+'%'); state.card.style.setProperty('--light-y',state.y+'%');
+        if (Math.abs(state.tx-state.x)+Math.abs(state.ty-state.y) < 0.05) return;
+        state.x += (state.tx-state.x)*0.12;
+        state.y += (state.ty-state.y)*0.12;
+        state.card.style.setProperty('--light-x', state.x+'%');
+        state.card.style.setProperty('--light-y', state.y+'%');
       });
     }
     requestAnimationFrame(tick);
@@ -1992,8 +2148,34 @@
         setTimeout(() => { applyLabPreset('social'); }, 300);
       });
 
+    // ── #38: Wire motion toggle to RAF flag + CSS class ──
+    let motionPaused = false;
+    const motionToggleBtn = document.getElementById('motionToggle');
+    if (motionToggleBtn) {
+      motionToggleBtn.addEventListener('click', () => {
+        motionPaused = !motionPaused;
+        document.body.classList.toggle('motion-paused', motionPaused);
+        motionToggleBtn.setAttribute('aria-pressed', String(motionPaused));
+        // Redraw Pip in its current state when resuming
+        if (!motionPaused) {
+          drawCloudSpirit(heroCtx, 400, 300, heroLookX, heroLookY, heroScaleX, heroScaleY, heroEmotion, heroParticles);
+        }
+      });
+    }
+
+    // ── #32b: Progress marker "passed" highlight ──
+    function updateProgressMarkers() {
+      const pct = (scrollY / Math.max(1, document.body.scrollHeight - innerHeight));
+      document.querySelectorAll('#scrollProgress .progress-marker').forEach(m => {
+        const threshold = parseFloat(m.style.left) / 100;
+        m.classList.toggle('passed', pct >= threshold - 0.03);
+      });
+    }
+    addEventListener('scroll', updateProgressMarkers, { passive: true });
+
     // Initialize Lucide Icons, including the initial Twin Lab verdict.
     recalculateTwin();
+    updateProgressMarkers();
   </script>
 
 </body>
