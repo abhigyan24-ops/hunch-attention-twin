@@ -797,33 +797,61 @@
     }
 
 
-    /* ── Pip Float Badge ───────────────────────────────────── */
+    /* ── Pip Float Badge (scroll companion) ──────────────────── */
     #pipFloatBadge {
-      position: fixed; bottom: 24px; right: 24px; z-index: 9000;
-      display: flex; align-items: center; gap: 10px;
-      background: rgba(10,12,20,0.88);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 100px; padding: 8px 16px 8px 10px;
-      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05);
+      position: fixed; bottom: 28px; right: 28px; z-index: 9000;
+      display: flex; flex-direction: column; align-items: center;
+      gap: 0;
+      width: 96px;
+      background: rgba(8,10,20,0.92);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px; padding: 14px 10px 10px;
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      box-shadow: 0 12px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
       cursor: pointer;
-      opacity: 0; transform: translateY(16px) scale(0.95);
-      transition: opacity var(--dur-state) var(--ease-quick),
-                  transform var(--dur-state) var(--ease-quick);
+      opacity: 0; transform: translateY(20px) scale(0.9);
+      transition: opacity 0.3s ease, transform 0.3s ease,
+                  border-color 0.4s ease, box-shadow 0.4s ease;
       pointer-events: none;
     }
     #pipFloatBadge.visible {
       opacity: 1; transform: translateY(0) scale(1); pointer-events: auto;
     }
-    #pipFloatBadge canvas { width: 36px; height: 36px; border-radius: 50%; }
-    #pipFloatBadge .badge-label {
-      font-size: 11px; font-weight: 600; letter-spacing: 0.03em;
-      color: rgba(255,255,255,0.75); line-height: 1.3;
+    #pipFloatBadge:hover {
+      border-color: rgba(255,255,255,0.22);
+      box-shadow: 0 16px 56px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08);
+      transform: translateY(-2px) scale(1);
     }
-    #pipFloatBadge .badge-state {
-      font-size: 10px; font-family: var(--font-mono, monospace);
-      color: #34d399; opacity: 0.8;
+    #pipFloatBadge canvas {
+      width: 72px; height: 72px; display: block;
+      /* no border-radius — cloud spirit is organically shaped */
     }
+    #pipFloatBadge .badge-emotion {
+      font-size: 9px; font-weight: 800; letter-spacing: 0.12em;
+      text-transform: uppercase; margin-top: 6px; line-height: 1;
+      transition: color 0.4s ease;
+    }
+    #pipFloatBadge .badge-section {
+      font-size: 9px; font-family: var(--font-mono, monospace);
+      color: rgba(255,255,255,0.3); margin-top: 3px; line-height: 1;
+    }
+    #pipFloatBadge .badge-hint {
+      font-size: 8px; color: rgba(255,255,255,0.2); margin-top: 5px;
+      letter-spacing: 0.05em;
+    }
+    /* Emotion-tinted border */
+    #pipFloatBadge[data-emotion="FOCUSED"]   { border-color: rgba(99,102,241,0.35); }
+    #pipFloatBadge[data-emotion="FOCUSED"]   .badge-emotion { color: #818cf8; }
+    #pipFloatBadge[data-emotion="CURIOUS"]   { border-color: rgba(234,179,8,0.35); }
+    #pipFloatBadge[data-emotion="CURIOUS"]   .badge-emotion { color: #fbbf24; }
+    #pipFloatBadge[data-emotion="SHIELDING"] { border-color: rgba(239,68,68,0.35); }
+    #pipFloatBadge[data-emotion="SHIELDING"] .badge-emotion { color: #f87171; }
+    #pipFloatBadge[data-emotion="HAPPY"]     { border-color: rgba(16,185,129,0.35); }
+    #pipFloatBadge[data-emotion="HAPPY"]     .badge-emotion { color: #34d399; }
+    #pipFloatBadge[data-emotion="SURPRISED"] { border-color: rgba(6,182,212,0.35); }
+    #pipFloatBadge[data-emotion="SURPRISED"] .badge-emotion { color: #22d3ee; }
+    #pipFloatBadge[data-emotion="SLEEPY"]    { border-color: rgba(148,163,184,0.2); }
+    #pipFloatBadge[data-emotion="SLEEPY"]    .badge-emotion { color: rgba(148,163,184,0.6); }
 
     /* ── Scroll hint ─────────────────────────────────────────── */
     #pipScrollHint {
@@ -2401,39 +2429,85 @@
       if (scrollY > 60 && scrollHint) scrollHint.classList.add('hidden');
     }, { passive: true, once: false });
 
-    // ── Floating Pip Badge ───────────────────────────────────────
-    const pipBadge = document.getElementById('pipFloatBadge');
+    // ── Floating Pip Badge — scroll companion ───────────────────
+    const pipBadge       = document.getElementById('pipFloatBadge');
     const pipBadgeCanvas = document.getElementById('pipBadgeCanvas');
-    let pipBadgeCtx = null, pipBadgeVisible = false;
+    const pipBadgeEmotionEl = document.getElementById('pipBadgeEmotion');
+    const pipBadgeSectionEl = document.getElementById('pipBadgeSection');
+    let pipBadgeCtx      = null;
+    let pipBadgeVisible  = false;
+    let lastBadgeEmotion = '';
+    let badgeRafId       = null;
+
+    // HiDPI setup for badge canvas (canvas is 144×144 CSS → renders at 288px internally on 2× screens)
     if (pipBadgeCanvas) {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      pipBadgeCanvas.width  = 144 * dpr;
+      pipBadgeCanvas.height = 144 * dpr;
       pipBadgeCtx = pipBadgeCanvas.getContext('2d');
+      pipBadgeCtx.scale(dpr, dpr);
     }
+
+    // Section labels matching SCROLL_EMOTION_MAP
+    const SECTION_LABELS = {
+      hero: 'Hero', features: 'Features', simulator: 'Lab',
+      pipeline: 'Pipeline', privacy: 'Privacy', downloads: 'Releases'
+    };
+
+    // Which section are we in?
+    function getCurrentSection() {
+      const midY = window.innerHeight / 2;
+      for (const { section } of SCROLL_EMOTION_MAP) {
+        const el = document.getElementById(section);
+        if (!el) continue;
+        const r = el.getBoundingClientRect();
+        if (r.top <= midY && r.bottom >= midY) return section;
+      }
+      return 'hero';
+    }
+
+    // Animate the badge Pip — runs its own lightweight rAF while badge is visible
+    function drawBadgePip() {
+      if (!pipBadgeCtx || !pipBadgeVisible) return;
+      try {
+        pipBadgeCtx.clearRect(0, 0, 144, 144);
+        drawCloudSpirit(pipBadgeCtx, 144, 144, 72, 72, 1, 1, heroEmotion || 'FOCUSED', []);
+      } catch(e) {}
+      badgeRafId = requestAnimationFrame(drawBadgePip);
+    }
+
     function updatePipBadge() {
-      const heroEl = document.getElementById('hero');
+      const heroEl  = document.getElementById('hero');
       const heroBot = heroEl ? heroEl.getBoundingClientRect().bottom : 0;
-      const shouldShow = heroBot < 0;
+      const shouldShow = heroBot < 60; // show once hero is nearly scrolled out
+
       if (shouldShow !== pipBadgeVisible) {
         pipBadgeVisible = shouldShow;
         pipBadge && pipBadge.classList.toggle('visible', shouldShow);
+        if (shouldShow) {
+          // Start badge animation loop
+          if (badgeRafId) cancelAnimationFrame(badgeRafId);
+          drawBadgePip();
+        } else {
+          if (badgeRafId) { cancelAnimationFrame(badgeRafId); badgeRafId = null; }
+        }
       }
-      // Update badge state label
-      const stateEl = document.getElementById('pipBadgeState');
-      if (stateEl) {
-        const em = heroEmotion || 'FOCUSED';
-        const stateMap = {
-          FOCUSED: '● Guarding', SHIELDING: '⬛ Shielding',
-          HAPPY: '✓ All clear', CURIOUS: '◎ Watching',
-          SLEEPY: '◌ Resting', SURPRISED: '! Alert'
-        };
-        stateEl.textContent = stateMap[em] || '● Active';
+
+      if (!pipBadge || !pipBadgeVisible) return;
+
+      // Update emotion label + data attr (for CSS tinting)
+      const em = heroEmotion || 'FOCUSED';
+      if (em !== lastBadgeEmotion) {
+        lastBadgeEmotion = em;
+        pipBadge.dataset.emotion = em;
+        if (pipBadgeEmotionEl) pipBadgeEmotionEl.textContent = em;
       }
-      // Draw tiny Pip in badge canvas
-      if (pipBadgeCtx) {
-        try {
-          drawCloudSpirit(pipBadgeCtx, 72, 72, 36, 36, 0.9, 0.9, heroEmotion || 'FOCUSED', []);
-        } catch(e) {}
-      }
+
+      // Update section label
+      const sec = getCurrentSection();
+      if (pipBadgeSectionEl) pipBadgeSectionEl.textContent = SECTION_LABELS[sec] || sec;
     }
+
     addEventListener('scroll', updatePipBadge, { passive: true });
     updatePipBadge();
 
@@ -2827,15 +2901,15 @@
   </script>
 
 
-  <!-- Floating Pip Badge -->
-  <div id="pipFloatBadge" role="button" tabindex="0" aria-label="Back to top — Hunch is active"
+  <!-- Floating Pip Badge — scroll companion -->
+  <div id="pipFloatBadge" role="button" tabindex="0" data-emotion="FOCUSED"
+       aria-label="Pip companion — click to scroll to top"
        onclick="window.scrollTo({top:0,behavior:'smooth'})"
        onkeydown="if(event.key==='Enter'||event.key===' ')window.scrollTo({top:0,behavior:'smooth'})">
-    <canvas id="pipBadgeCanvas" width="72" height="72"></canvas>
-    <div>
-      <div class="badge-label">Hunch</div>
-      <div class="badge-state" id="pipBadgeState">● Guarding</div>
-    </div>
+    <canvas id="pipBadgeCanvas" width="144" height="144"></canvas>
+    <div class="badge-emotion" id="pipBadgeEmotion">FOCUSED</div>
+    <div class="badge-section" id="pipBadgeSection">Hero</div>
+    <div class="badge-hint">↑ top</div>
   </div>
 </body>
 </html>
