@@ -46,15 +46,27 @@ object PhantomUnlockEvaluator {
         "bhim", "whatsapp.voip", "alarm", "wallet"
     )
 
-    val SOCIAL_DOPAMINE_PACKAGES = setOf(
+    val ALLOWED_BROWSER_PACKAGES = setOf(
+        "com.android.chrome",
+        "org.mozilla.firefox",
+        "com.brave.browser",
+        "com.microsoft.emmx"
+    )
+
+    val PURE_SOCIAL_DOPAMINE_PACKAGES = setOf(
         "com.instagram.android",
-        "com.google.android.youtube",
-        "com.reddit.frontpage",
         "com.twitter.android",
         "com.zhiliaoapp.musically",
         "com.snapchat.android",
         "com.facebook.katana"
     )
+
+    val DUAL_USE_PACKAGES = setOf(
+        "com.google.android.youtube",
+        "com.reddit.frontpage"
+    )
+
+    val SOCIAL_DOPAMINE_PACKAGES = PURE_SOCIAL_DOPAMINE_PACKAGES + DUAL_USE_PACKAGES
 
     fun isUtilityPackage(pkg: String?): Boolean {
         if (pkg.isNullOrBlank()) return false
@@ -62,8 +74,14 @@ object PhantomUnlockEvaluator {
         return UTILITY_PACKAGE_FRAGMENTS.any { lower.contains(it) }
     }
 
+    fun isBrowserPackage(pkg: String?): Boolean {
+        if (pkg.isNullOrBlank()) return false
+        return ALLOWED_BROWSER_PACKAGES.contains(pkg.lowercase())
+    }
+
     fun isSocialPackage(pkg: String?): Boolean {
         if (pkg.isNullOrBlank()) return false
+        if (isBrowserPackage(pkg)) return false
         return SOCIAL_DOPAMINE_PACKAGES.contains(pkg.lowercase())
     }
 
@@ -75,7 +93,9 @@ object PhantomUnlockEvaluator {
         currentUnlockTimestampMillis: Long,
         currentDurationMillis: Long,
         currentFirstForegroundPackage: String?,
-        lastNudgeTimestampMillis: Long
+        lastNudgeTimestampMillis: Long,
+        isStudyModeActive: Boolean = false,
+        isLaptopCodingActive: Boolean = false
     ): PhantomDecision {
         // 1. Enforce 20-minute cooldown between reality checks
         if (lastNudgeTimestampMillis > 0 &&
@@ -84,8 +104,15 @@ object PhantomUnlockEvaluator {
             return PhantomDecision(PhantomTrigger.NONE)
         }
 
-        // 2. Ignore intentional utility pickups (calls, navigation, camera, authenticator)
-        if (isUtilityPackage(currentFirstForegroundPackage)) {
+        // 2. Browsers and intentional utilities are 100% exempt from phantom triggers
+        if (isBrowserPackage(currentFirstForegroundPackage) || isUtilityPackage(currentFirstForegroundPackage)) {
+            return PhantomDecision(PhantomTrigger.NONE)
+        }
+
+        // 3. Dual-use study tools (YouTube, Reddit) are exempt during active study or live laptop code-along
+        if (DUAL_USE_PACKAGES.contains(currentFirstForegroundPackage?.lowercase()) &&
+            (isStudyModeActive || isLaptopCodingActive)
+        ) {
             return PhantomDecision(PhantomTrigger.NONE)
         }
 

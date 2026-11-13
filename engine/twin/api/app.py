@@ -830,6 +830,14 @@ class ParkTabRequest(BaseModel):
     url: str
     title: str = ""
     from_workspace: str = ""
+    resumeTimestampSeconds: Optional[int] = None
+
+
+class StudyModeRequest(BaseModel):
+    active: bool = True
+    durationMinutes: int = 60
+    source: str = "user"
+    topicTitle: Optional[str] = None
 
 
 class ConsumeParkedTabRequest(BaseModel):
@@ -916,6 +924,59 @@ _active_coding_state = {
     "last_active_ts": 0,
 }
 
+_code_activity_lock = threading.RLock()
+_last_code_activity_ts = 0.0
+
+_study_mode_lock = threading.RLock()
+_study_mode_state = {
+    "active": False,
+    "until_ts": 0,
+    "duration_minutes": 0,
+    "source": "",
+    "topic_title": None,
+}
+
+
+def mark_code_activity() -> None:
+    global _last_code_activity_ts
+    with _code_activity_lock:
+        _last_code_activity_ts = time.time()
+
+
+def is_coding_active_recently() -> bool:
+    with _code_activity_lock:
+        return (time.time() - _last_code_activity_ts) <= 180.0
+
+
+def is_study_mode_active() -> bool:
+    with _study_mode_lock:
+        if not _study_mode_state["active"]:
+            active_db = db.get_active_study_mode()
+            if active_db:
+                _study_mode_state["active"] = True
+                _study_mode_state["until_ts"] = active_db["until_ts"]
+                _study_mode_state["duration_minutes"] = active_db["duration_minutes"]
+                _study_mode_state["source"] = active_db["source"]
+                _study_mode_state["topic_title"] = active_db.get("topic_title")
+                return True
+            return False
+        now_ms = int(time.time() * 1000)
+        if now_ms >= _study_mode_state["until_ts"]:
+            _study_mode_state["active"] = False
+            db.deactivate_study_mode()
+            return False
+        return True
+
+
+def get_study_mode_remaining_minutes() -> int:
+    with _study_mode_lock:
+        if not is_study_mode_active():
+            return 0
+        now_ms = int(time.time() * 1000)
+        remaining_ms = max(0, _study_mode_state["until_ts"] - now_ms)
+        import math
+        return int(math.ceil(remaining_ms / 60000.0))
+
 
 @app.get("/v1/insights/human-summary")
 def get_human_summary(
@@ -962,6 +1023,12 @@ def get_human_summary(
         if ml_status.get("is_calibrated"):
             df["humanActionLabel"] = ml_status["recommended_action_label"]
 
+    summary["studyModeActive"] = is_study_mode_active()
+    summary["isCodingActiveRecently"] = is_coding_active_recently()
+    summary["remainingStudyMinutes"] = get_study_mode_remaining_minutes()
+    with _study_mode_lock:
+        summary["activeStudyTopic"] = _study_mode_state.get("topic_title") if is_study_mode_active() else None
+
     return summary
 
 
@@ -975,6 +1042,8 @@ def record_activity_bucket(
         bucket["hour_of_day"] = datetime.datetime.fromtimestamp(bucket["bucket_start_ts"] / 1000).hour
     if bucket.get("day_of_week") is None:
         bucket["day_of_week"] = datetime.datetime.fromtimestamp(bucket["bucket_start_ts"] / 1000).weekday()
+    if is_study_mode_active() or is_coding_active_recently():
+        bucket["was_distracted"] = 0
     db.record_activity_bucket(bucket)
     return {"success": True}
 
@@ -996,6 +1065,7 @@ def record_context_snapshot(
     req: ContextSnapshotRequest,
     _: bool = Depends(verify_token),
 ) -> Dict[str, Any]:
+    mark_code_activity()
     # Guard against overwriting an existing valid file snapshot with an empty editor blur
     if not req.file_path:
         existing = db.get_latest_context_snapshot(workspace_name=req.workspace_name)
@@ -1067,6 +1137,7 @@ def get_call_state(_: bool = Depends(verify_token)) -> Dict[str, Any]:
 
 @app.post("/v1/flow/compile-shield")
 def set_compile_shield(req: CompileShieldRequest, _: bool = Depends(verify_token)) -> Dict[str, Any]:
+    mark_code_activity()
     with _compile_shield_lock:
         _compile_shield_state["active"] = req.active
         _compile_shield_state["task_name"] = req.task_name
@@ -1103,6 +1174,7 @@ def park_tab(req: ParkTabRequest, _: bool = Depends(verify_token)) -> Dict[str, 
         "title": req.title or req.url,
         "from_workspace": req.from_workspace,
         "consumed_at_break": False,
+        "resume_timestamp_seconds": req.resumeTimestampSeconds,
     })
     return {"success": True, "tab_id": tab_id}
 
@@ -1124,6 +1196,8 @@ def consume_parked_tab(req: ConsumeParkedTabRequest, _: bool = Depends(verify_to
 
 @app.post("/v1/flow/active-coding")
 def set_active_coding(req: ActiveCodingRequest, _: bool = Depends(verify_token)) -> Dict[str, Any]:
+    if req.is_coding:
+        mark_code_activity()
     with _active_coding_lock:
         _active_coding_state["is_coding"] = req.is_coding
         _active_coding_state["active_workspace"] = req.active_workspace
@@ -1139,6 +1213,66 @@ def get_active_coding(_: bool = Depends(verify_token)) -> Dict[str, Any]:
         state = dict(_active_coding_state)
         state["is_coding"] = state["is_coding"] and is_fresh
         return state
+
+
+@app.post("/v1/flow/study-mode")
+def set_study_mode(req: StudyModeRequest, _: bool = Depends(verify_token)) -> Dict[str, Any]:
+    now_ms = int(time.time() * 1000)
+    duration_mins = max(1, req.durationMinutes)
+    until_ts = now_ms + duration_mins * 60 * 1000 if req.active else 0
+
+    with _study_mode_lock:
+        _study_mode_state["active"] = req.active
+        _study_mode_state["until_ts"] = until_ts
+        _study_mode_state["duration_minutes"] = duration_mins if req.active else 0
+        _study_mode_state["source"] = req.source
+        _study_mode_state["topic_title"] = req.topicTitle if req.active else None
+
+    if req.active:
+        db.record_study_mode(
+            until_ts=until_ts,
+            duration_minutes=duration_mins,
+            source=req.source,
+            topic_title=req.topicTitle,
+            active=True,
+        )
+    else:
+        db.deactivate_study_mode()
+
+    return {
+        "success": True,
+        "studyModeActive": req.active,
+        "remainingMinutes": duration_mins if req.active else 0,
+        "topicTitle": req.topicTitle if req.active else None,
+    }
+
+
+@app.get("/v1/flow/study-mode")
+def get_study_mode(_: bool = Depends(verify_token)) -> Dict[str, Any]:
+    with _study_mode_lock:
+        topic = _study_mode_state.get("topic_title") if is_study_mode_active() else None
+    return {
+        "studyModeActive": is_study_mode_active(),
+        "remainingMinutes": get_study_mode_remaining_minutes(),
+        "isCodingActiveRecently": is_coding_active_recently(),
+        "activeTopic": topic,
+    }
+
+
+@app.get("/v1/flow/active-context")
+def get_active_context(_: bool = Depends(verify_token)) -> Dict[str, Any]:
+    with _study_mode_lock:
+        topic = _study_mode_state.get("topic_title") if is_study_mode_active() else None
+    with _active_coding_lock:
+        workspace = _active_coding_state.get("active_workspace") if _active_coding_state.get("is_coding") else None
+    return {
+        "studyModeActive": is_study_mode_active(),
+        "isCodingActiveRecently": is_coding_active_recently(),
+        "remainingStudyMinutes": get_study_mode_remaining_minutes(),
+        "activeTopic": topic,
+        "lastCodeActivityTs": _last_code_activity_ts,
+        "activeWorkspace": workspace,
+    }
 
 
 @app.post("/v1/flow/walk-away")

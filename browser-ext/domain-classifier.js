@@ -119,45 +119,110 @@ export const TECHNICAL_SUBREDDITS = [
   'r/programming',
   'r/rust',
   'r/typescript',
+  'r/javascript',
+  'r/reactjs',
+  'r/node',
   'r/python',
-  'r/devops',
-  'r/machinelearning',
-  'r/neovim',
-  'r/golang',
-  'r/webdev',
+  'r/learnpython',
   'r/cpp',
-  'r/learnprogramming',
-  'r/coding',
+  'r/java',
+  'r/androiddev',
+  'r/kotlin',
+  'r/golang',
+  'r/devops',
+  'r/docker',
+  'r/kubernetes',
+  'r/linux',
+  'r/neovim',
+  'r/vim',
+  'r/vscode',
+  'r/cscareerquestions',
+  'r/experienceddevs',
+  'r/machinelearning',
+  'r/localllama',
+  'r/artificial',
+  'r/compsci',
+  'r/algorithms',
+  'r/leetcode',
+  'r/askcomputer',
+  'r/gate',
+  'r/indianacademia',
+  'r/engineeringstudents',
+  'r/webdev',
   'r/datascience',
-  'r/linux'
+  'r/coding',
+  'r/learnprogramming'
 ];
 
 export const WORK_LEARNING_KEYWORDS = [
   'tutorial',
   'lecture',
   'course',
-  'documentation',
   'crash course',
+  'programming',
+  'algorithm',
+  'data structures',
+  'dsa',
   'system design',
+  'distributed systems',
+  'operating systems',
+  'dbms',
+  'compiler',
+  'machine learning',
+  'deep learning',
+  'neural network',
+  'math',
+  'calculus',
+  'linear algebra',
+  'probability',
+  'physics',
+  'engineering',
+  'gate',
+  'nptel',
+  'mit',
+  'stanford',
+  'harvard',
+  'cs50',
+  'leetcode',
+  'codeforces',
+  'python',
+  'rust',
+  'typescript',
+  'javascript',
+  'react',
+  'nextjs',
+  'android',
+  'kotlin',
+  'java',
+  'c++',
+  'golang',
+  'docker',
+  'kubernetes',
+  'aws',
+  'linux',
+  'git',
   'debugging',
-  'stack trace',
-  'how to',
-  'api',
+  'documentation',
   'conference',
+  'keynote',
+  'walkthrough',
   'refactoring',
   'deep dive',
   'benchmark',
-  'walkthrough'
+  'stack trace',
+  'how to',
+  'api'
 ];
+
+export const EDUCATIONAL_TITLE_KEYWORDS = WORK_LEARNING_KEYWORDS;
+
+export function matchesEducationalTitle(title = '', urlStr = '') {
+  const combined = ((title || '') + ' ' + (urlStr || '')).toLowerCase();
+  return EDUCATIONAL_TITLE_KEYWORDS.some(kw => combined.includes(kw.toLowerCase()));
+}
 
 /**
  * Determines whether a URL or page represents productive technical/work activity.
- * Prevents false-positive drift warnings on technical tutorials or engineering subreddits.
- *
- * @param {string} urlStr Full URL of the page.
- * @param {string} pageTitle Document title of the page.
- * @param {string[]} whitelistedUrls User-approved session whitelist URLs.
- * @returns {boolean} True if the page should be classified as Work, false if potential drift.
  */
 export function isWorkRelatedPage(urlStr, pageTitle = '', whitelistedUrls = []) {
   if (!urlStr || typeof urlStr !== 'string') return false;
@@ -180,7 +245,6 @@ export function isWorkRelatedPage(urlStr, pageTitle = '', whitelistedUrls = []) 
 
   const hostname = parsed.hostname.toLowerCase();
   const pathname = parsed.pathname.toLowerCase();
-  const titleLower = (pageTitle || '').toLowerCase();
 
   // 2. Technical subreddit check
   if (hostname.includes('reddit.com')) {
@@ -193,10 +257,8 @@ export function isWorkRelatedPage(urlStr, pageTitle = '', whitelistedUrls = []) 
 
   // 3. Technical & educational video/article check
   if (hostname.includes('youtube.com') || hostname.includes('reddit.com')) {
-    for (const kw of WORK_LEARNING_KEYWORDS) {
-      if (titleLower.includes(kw.toLowerCase())) {
-        return true;
-      }
+    if (matchesEducationalTitle(pageTitle, urlStr)) {
+      return true;
     }
   }
 
@@ -211,4 +273,123 @@ export function classifyUrlWithContext(urlStr, pageTitle = '', whitelistedUrls =
     return 'learning';
   }
   return classifyUrl(urlStr);
+}
+
+/**
+ * Surgical classification of browser tabs for dual-use study mode, Shorts filter,
+ * and Code-Along IDE synchronization.
+ *
+ * @param {string} urlStr Full URL of the page.
+ * @param {string} pageTitle Document title of the page.
+ * @param {boolean} isCodingActiveRecently Whether user actively coded in VS Code within 180s.
+ * @param {boolean} isStudyModeActive Whether study pass is active.
+ * @param {Set<string>|Array<string>} sessionWhitelistedUrls User-approved session whitelist.
+ * @returns {'HIGH_DOPAMINE_SHORTS'|'PRODUCTIVE_STUDY'|'ASK_STUDY_CONFIRMATION'|'PURE_SOCIAL_DRIFT'|'ALWAYS_ALLOWED'}
+ */
+export function classifyBrowserTab(
+  urlStr,
+  pageTitle = '',
+  isCodingActiveRecently = false,
+  isStudyModeActive = false,
+  sessionWhitelistedUrls = []
+) {
+  if (!urlStr || typeof urlStr !== 'string') return 'ALWAYS_ALLOWED';
+
+  let parsed;
+  try {
+    parsed = new URL(urlStr);
+  } catch (_) {
+    return 'ALWAYS_ALLOWED';
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+  const pathname = parsed.pathname.toLowerCase();
+
+  // Tier 1: Always-Allowed Research, Documentation & Dev Environments
+  const ALWAYS_ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'github.com',
+    'gitlab.com',
+    'stackoverflow.com',
+    'stackexchange.com',
+    'developer.mozilla.org',
+    'arxiv.org',
+    'leetcode.com',
+    'codeforces.com',
+    'pypi.org',
+    'npmjs.com'
+  ];
+  if (
+    ALWAYS_ALLOWED_HOSTS.some(h => hostname === h || hostname.endsWith('.' + h)) ||
+    hostname.endsWith('.edu') ||
+    hostname.endsWith('.ac.in') ||
+    hostname.startsWith('docs.') ||
+    hostname.startsWith('developer.')
+  ) {
+    return 'ALWAYS_ALLOWED';
+  }
+
+  // User-approved session whitelist or active global study mode
+  const whitelistList = Array.isArray(sessionWhitelistedUrls)
+    ? sessionWhitelistedUrls
+    : Array.from(sessionWhitelistedUrls || []);
+  if (
+    isStudyModeActive ||
+    whitelistList.some(allowed => allowed && (urlStr.startsWith(allowed) || allowed.startsWith(urlStr)))
+  ) {
+    return 'PRODUCTIVE_STUDY';
+  }
+
+  // Tier 2: YouTube Surgical Classification
+  if (hostname.includes('youtube.com') || hostname === 'youtu.be') {
+    // 1. YouTube Shorts loop
+    if (pathname.startsWith('/shorts')) {
+      return 'HIGH_DOPAMINE_SHORTS';
+    }
+
+    // 2. Long-form video or playlist
+    if (pathname.startsWith('/watch') || pathname.startsWith('/playlist')) {
+      if (isCodingActiveRecently || matchesEducationalTitle(pageTitle, urlStr)) {
+        return 'PRODUCTIVE_STUDY';
+      }
+      return 'ASK_STUDY_CONFIRMATION';
+    }
+
+    // Search results or channel pages during research
+    if (pathname.startsWith('/results') || pathname.includes('/channel/') || pathname.includes('/@')) {
+      return 'PRODUCTIVE_STUDY';
+    }
+
+    // Root home feed
+    return 'PURE_SOCIAL_DRIFT';
+  }
+
+  // Tier 2: Reddit Subreddit Classification
+  if (hostname.includes('reddit.com')) {
+    if (pathname.includes('/r/')) {
+      const isTechSubreddit = TECHNICAL_SUBREDDITS.some(sub => pathname.includes('/' + sub.toLowerCase()));
+      if (isTechSubreddit || isCodingActiveRecently || matchesEducationalTitle(pageTitle, urlStr)) {
+        return 'PRODUCTIVE_STUDY';
+      }
+      return 'PURE_SOCIAL_DRIFT';
+    }
+    // Root reddit feed
+    return 'PURE_SOCIAL_DRIFT';
+  }
+
+  // Tier 3: Pure Social Feeds
+  const PURE_SOCIAL_DOMAINS = [
+    'instagram.com',
+    'tiktok.com',
+    'x.com',
+    'twitter.com',
+    'facebook.com',
+    'netflix.com'
+  ];
+  if (PURE_SOCIAL_DOMAINS.some(d => hostname.endsWith(d))) {
+    return 'PURE_SOCIAL_DRIFT';
+  }
+
+  return 'ALWAYS_ALLOWED';
 }

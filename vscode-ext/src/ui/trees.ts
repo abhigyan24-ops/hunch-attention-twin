@@ -241,6 +241,40 @@ export class TodayTreeDataProvider {
             iconPath: this.getThemeIcon('zap')
           });
         }
+
+        // Dual-Use Study Mode or Code-Along Active indicator
+        if (summary?.studyModeActive) {
+          items.push({
+            label: `📚 Study Mode Active (${summary?.remainingStudyMinutes ?? 60}m)`,
+            description: 'YouTube & Docs Allowed',
+            tooltip: 'Dual-Use Study Mode is active. Educational videos and documentation are whitelisted.',
+            iconPath: this.getThemeIcon('book')
+          });
+        } else if (summary?.isCodingActiveRecently) {
+          items.push({
+            label: '💻 Code-Along Active',
+            description: 'Tutorials Whitelisted',
+            tooltip: 'Recent IDE activity detected. YouTube and technical Reddit pages are treated as study material.',
+            iconPath: this.getThemeIcon('code')
+          });
+        }
+      }
+
+      // Check Parked Tabs
+      const tabsRes = await fetch('http://127.0.0.1:8765/v1/flow/parked-tabs?unconsumed_only=true').catch(() => null);
+      if (tabsRes && tabsRes.ok) {
+        const tabsData = (await tabsRes.json()) as any;
+        if (tabsData?.tabs?.length > 0) {
+          for (const tab of tabsData.tabs) {
+            const badge = tab.paused_badge ? ` [${tab.paused_badge}]` : '';
+            items.push({
+              label: `🌐 ${tab.title || tab.url}${badge}`,
+              description: 'Parked for Break',
+              tooltip: `Parked tab: ${tab.url}${tab.paused_badge ? ` (${tab.paused_badge})` : ''}`,
+              iconPath: this.getThemeIcon('bookmark')
+            });
+          }
+        }
       }
 
       // Check Thrash Shield

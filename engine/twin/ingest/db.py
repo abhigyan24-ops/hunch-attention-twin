@@ -1,4 +1,6 @@
 import os
+import re
+import secrets
 import shutil
 import sqlite3
 import sys
@@ -87,6 +89,8 @@ def ensure_schema_migrations(conn: sqlite3.Connection) -> None:
         "parked_tabs": {
             "from_workspace": "TEXT",
             "consumed_at_break": "INTEGER DEFAULT 0",
+            "resume_timestamp_seconds": "INTEGER DEFAULT NULL",
+            "paused_badge": "TEXT DEFAULT NULL",
         },
     }
 
@@ -175,7 +179,20 @@ class Database:
                     url TEXT NOT NULL,
                     title TEXT NOT NULL,
                     from_workspace TEXT,
-                    consumed_at_break INTEGER DEFAULT 0
+                    consumed_at_break INTEGER DEFAULT 0,
+                    resume_timestamp_seconds INTEGER DEFAULT NULL,
+                    paused_badge TEXT DEFAULT NULL
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS study_mode_sessions (
+                    session_id TEXT PRIMARY KEY,
+                    started_at_ts INTEGER NOT NULL,
+                    until_ts INTEGER NOT NULL,
+                    duration_minutes INTEGER NOT NULL,
+                    source TEXT NOT NULL,
+                    topic_title TEXT,
+                    active INTEGER DEFAULT 1
                 )
             """)
             conn.execute("""
@@ -555,22 +572,94 @@ class Database:
             conn.commit()
 
     def record_parked_tab(self, tab: Dict[str, Any]) -> None:
+        url = tab.get("url", "")
+        resume_secs = tab.get("resume_timestamp_seconds")
+        paused_badge = tab.get("paused_badge")
+
+        if resume_secs is not None and resume_secs > 0:
+            if not paused_badge:
+                if resume_secs >= 3600:
+                    h = resume_secs // 3600
+                    m = (resume_secs % 3600) // 60
+                    s = resume_secs % 60
+                    paused_badge = f"Paused at {h}:{m:02d}:{s:02d}"
+                else:
+                    m = resume_secs // 60
+                    s = resume_secs % 60
+                    paused_badge = f"Paused at {m}:{s:02d}"
+
+            # Format YouTube URL with timestamp parameter
+            lower_url = url.lower()
+            if "youtube.com" in lower_url or "youtu.be" in lower_url:
+                clean_url = re.sub(r'([?&])t=\d+s?', '', url).rstrip('&?')
+                sep = '&' if '?' in clean_url else '?'
+                url = f"{clean_url}{sep}t={resume_secs}s"
+
         with self.get_connection() as conn:
             conn.execute(
                 """
                 INSERT OR REPLACE INTO parked_tabs (
-                    tab_id, parked_at_ts, url, title, from_workspace, consumed_at_break
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    tab_id, parked_at_ts, url, title, from_workspace, consumed_at_break,
+                    resume_timestamp_seconds, paused_badge
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     tab["tab_id"],
                     tab.get("parked_at_ts") or int(time.time() * 1000),
-                    tab.get("url", ""),
+                    url,
                     tab.get("title", ""),
                     tab.get("from_workspace", ""),
                     1 if tab.get("consumed_at_break") else 0,
+                    resume_secs,
+                    paused_badge,
                 ),
             )
+            conn.commit()
+
+    def record_study_mode(
+        self,
+        until_ts: int,
+        duration_minutes: int,
+        source: str = "user",
+        topic_title: Optional[str] = None,
+        active: bool = True,
+    ) -> str:
+        session_id = f"study_{int(time.time() * 1000)}_{secrets.token_hex(4)}"
+        with self.get_connection() as conn:
+            conn.execute("UPDATE study_mode_sessions SET active = 0 WHERE active = 1")
+            conn.execute(
+                """
+                INSERT INTO study_mode_sessions (
+                    session_id, started_at_ts, until_ts, duration_minutes, source, topic_title, active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    session_id,
+                    int(time.time() * 1000),
+                    until_ts,
+                    duration_minutes,
+                    source,
+                    topic_title,
+                    1 if active else 0,
+                ),
+            )
+            conn.commit()
+        return session_id
+
+    def get_active_study_mode(self) -> Optional[Dict[str, Any]]:
+        with self.get_connection() as conn:
+            cur = conn.cursor()
+            now_ms = int(time.time() * 1000)
+            cur.execute(
+                "SELECT * FROM study_mode_sessions WHERE active = 1 AND until_ts > ? ORDER BY started_at_ts DESC LIMIT 1",
+                (now_ms,),
+            )
+            row = cur.fetchone()
+            return dict(row) if row else None
+
+    def deactivate_study_mode(self) -> None:
+        with self.get_connection() as conn:
+            conn.execute("UPDATE study_mode_sessions SET active = 0 WHERE active = 1")
             conn.commit()
 
     def get_parked_tabs(self, unconsumed_only: bool = True) -> List[Dict[str, Any]]:

@@ -117,4 +117,61 @@ class PhantomUnlockDetectorTest {
 
         assertEquals(PhantomTrigger.NONE, decision.trigger)
     }
+
+    @Test
+    fun `web browsers (Chrome, Firefox, Brave, Edge) are 100% exempt from phantom triggers`() {
+        val t0 = 1_000_000L
+        val prior = listOf(
+            UnlockSession(unlockTimestampMillis = t0, durationMillis = 60_000L, firstForegroundPackage = "com.slack")
+        )
+
+        val browsers = listOf(
+            "com.android.chrome",
+            "org.mozilla.firefox",
+            "com.brave.browser",
+            "com.microsoft.emmx"
+        )
+
+        for (pkg in browsers) {
+            val decision = PhantomUnlockEvaluator.evaluateUnlockEvent(
+                priorSessions = prior,
+                currentUnlockTimestampMillis = t0 + 70_000L,
+                currentDurationMillis = 1_500L, // rapid <3s open
+                currentFirstForegroundPackage = pkg,
+                lastNudgeTimestampMillis = 0L
+            )
+            assertEquals(PhantomTrigger.NONE, decision.trigger)
+            assertNull(decision.humanPrompt)
+        }
+    }
+
+    @Test
+    fun `YouTube does not trigger reflex social launch when study mode or laptop coding is active`() {
+        val t0 = 1_000_000L
+        val prior = listOf(
+            UnlockSession(unlockTimestampMillis = t0, durationMillis = 60_000L, firstForegroundPackage = "com.slack")
+        )
+
+        // Rapid YouTube open (<3s), but isStudyModeActive = true
+        val decisionStudy = PhantomUnlockEvaluator.evaluateUnlockEvent(
+            priorSessions = prior,
+            currentUnlockTimestampMillis = t0 + 70_000L,
+            currentDurationMillis = 1_500L,
+            currentFirstForegroundPackage = "com.google.android.youtube",
+            lastNudgeTimestampMillis = 0L,
+            isStudyModeActive = true
+        )
+        assertEquals(PhantomTrigger.NONE, decisionStudy.trigger)
+
+        // Rapid YouTube open (<3s), but isLaptopCodingActive = true
+        val decisionCode = PhantomUnlockEvaluator.evaluateUnlockEvent(
+            priorSessions = prior,
+            currentUnlockTimestampMillis = t0 + 70_000L,
+            currentDurationMillis = 1_500L,
+            currentFirstForegroundPackage = "com.google.android.youtube",
+            lastNudgeTimestampMillis = 0L,
+            isLaptopCodingActive = true
+        )
+        assertEquals(PhantomTrigger.NONE, decisionCode.trigger)
+    }
 }

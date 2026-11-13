@@ -88,6 +88,7 @@ import com.dhyan.app.ui.viewmodel.LiveDigestViewModel
 import com.dhyan.app.ui.viewmodel.LiveHeldItemUi
 import com.dhyan.app.ui.components.InteractiveBreakDigestCard
 import com.dhyan.app.ui.components.PocketParkCard
+import com.dhyan.app.ui.components.StudyPassCard
 import com.dhyan.app.ui.components.SmartFlowTriggersCard
 import com.dhyan.app.wellbeing.BedtimeSettingsCard
 import com.dhyan.app.privacy.PrivacyLedgerCard
@@ -473,7 +474,10 @@ fun LiveDigestContent(
         // 2e. Pocket Park Quick-Capture
         PocketParkCard()
 
-        // 2f. Smart Flow Triggers (Earbuds-In, Muscle-Memory, Doomscroll Breaker)
+        // 2f. 1-Tap Dual-Use Study Pass (Allow YouTube/Research 60m)
+        StudyPassCard()
+
+        // 2g. Smart Flow Triggers (Earbuds-In, Muscle-Memory, Doomscroll Breaker)
         SmartFlowTriggersCard()
 
         // 3. Notification Policy Card

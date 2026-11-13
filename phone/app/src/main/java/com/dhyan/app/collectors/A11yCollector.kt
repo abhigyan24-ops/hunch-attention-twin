@@ -91,7 +91,14 @@ class A11yCollector : AccessibilityService() {
         val distractionsShieldedCount = AtomicInteger(0)
         val doomscrollsPreventedCount = AtomicInteger(0)
 
-        /** Essential utility apps that are NEVER restricted (2FA, Phone, Clock, Calculator) */
+        val ALLOWED_BROWSER_PACKAGES = setOf(
+            "com.android.chrome",
+            "org.mozilla.firefox",
+            "com.brave.browser",
+            "com.microsoft.emmx"
+        )
+
+        /** Essential utility apps that are NEVER restricted (2FA, Phone, Clock, Calculator, Web Browsers) */
         val ESSENTIAL_WHITELIST_PACKAGES = setOf(
             "com.google.android.dialer",
             "com.samsung.android.dialer",
@@ -105,7 +112,11 @@ class A11yCollector : AccessibilityService() {
             "com.sec.android.app.popupcalculator",
             "com.google.android.deskclock",
             "com.sec.android.app.clockpackage",
-            "com.android.settings"
+            "com.android.settings",
+            "com.android.chrome",
+            "org.mozilla.firefox",
+            "com.brave.browser",
+            "com.microsoft.emmx"
         )
 
         /** User-defined whitelisted packages */

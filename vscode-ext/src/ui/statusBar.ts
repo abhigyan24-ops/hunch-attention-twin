@@ -1,4 +1,4 @@
-export type StatusBarMode = 'waiting' | 'paused' | 'focused' | 'resume' | 'remote-unsupported';
+export type StatusBarMode = 'waiting' | 'paused' | 'focused' | 'resume' | 'study-mode' | 'remote-unsupported';
 
 export interface FocusStateData {
   minutes: number;
@@ -57,6 +57,16 @@ export class DhyanStatusBar {
       this.item.command = 'dhyan.resume';
       this.item.text = `$(history) Resume: ${file}:${line}`;
       this.item.tooltip = `Click to resume where you left off at ${file}:${line}`;
+    }
+  }
+
+  setStudyMode(topic?: string): void {
+    this.currentMode = 'study-mode';
+    if (this.item) {
+      this.item.command = 'dhyan.today';
+      const label = topic ? `Study: ${topic}` : 'Study Mode Active';
+      this.item.text = `$(book) Hunch · ${label}`;
+      this.item.tooltip = 'Dual-Use Study Mode Active: Video learning and documentation are whitelisted';
     }
   }
 

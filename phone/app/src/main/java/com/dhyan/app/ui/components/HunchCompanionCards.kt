@@ -341,3 +341,65 @@ fun SmartFlowTriggersCard(modifier: Modifier = Modifier) {
         }
     }
 }
+
+/**
+ * Dual-Use Study Pass Card allowing 1-tap activation of a 60-minute research window
+ * whitelisting YouTube and Reddit without triggering doomscroll or phantom unlock breakers.
+ */
+@Composable
+fun StudyPassCard(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    var studyPassActive by remember { mutableStateOf(false) }
+    var remainingMinutes by remember { mutableIntStateOf(60) }
+
+    PastelSquircleCard(modifier = modifier, tone = PastelTone.SAGE) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            StatusPillBadge(
+                if (studyPassActive) "📚 Study Mode Active · ${remainingMinutes}m left" else "📚 Study Mode · Idle",
+                active = studyPassActive
+            )
+
+            Button(
+                onClick = {
+                    studyPassActive = !studyPassActive
+                    if (studyPassActive) {
+                        remainingMinutes = 60
+                        Toast.makeText(context, "Study Pass Active (60m) — YouTube & Research allowed", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "Study Pass Deactivated", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (studyPassActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = if (studyPassActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer
+                ),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = if (studyPassActive) "End Pass" else "Allow YouTube 60m",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Text(
+            "Dual-Use Study Pass",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+
+        Text(
+            if (studyPassActive)
+                "YouTube lectures, coding tutorials, and technical subreddits are whitelisted across your phone and desktop."
+            else
+                "Watching a university lecture or coding tutorial? Tap above to allow YouTube and technical research for 60 minutes.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}

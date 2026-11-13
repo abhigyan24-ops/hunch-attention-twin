@@ -152,6 +152,34 @@ export function InsightsTab() {
           : `🌱 ${cal?.statusLabel ?? 'Learning your natural focus rhythm'}`}
       </div>
 
+      {/* Dual-Use Study Mode / Code-Along Active Badge */}
+      {(summary?.studyModeActive || summary?.isCodingActiveRecently) && (
+        <div style={{
+          margin: '0 0 16px 0',
+          padding: '8px 12px',
+          background: summary?.studyModeActive
+            ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(99, 102, 241, 0.12) 100%)'
+            : 'rgba(16, 185, 129, 0.08)',
+          border: `1px solid ${summary?.studyModeActive ? '#818CF8' : '#34D399'}`,
+          borderRadius: '8px',
+          fontSize: '12px',
+          fontWeight: 600,
+          color: summary?.studyModeActive ? '#4338CA' : '#065F46',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <span>
+            {summary?.studyModeActive
+              ? `📚 Study Mode Active — YouTube & Docs Whitelisted (${summary?.remainingStudyMinutes ?? 60}m remaining)`
+              : '💻 Code-Along Active — Educational YouTube & Technical Subreddits Whitelisted'}
+          </span>
+          <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Protected
+          </span>
+        </div>
+      )}
+
       {/* 2. Distraction Forecast & Shield Card */}
       <div className="dhyan-cf-hero" style={{ marginBottom: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px' }}>
@@ -564,6 +592,19 @@ export function InsightsTab() {
                   >
                     <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '300px' }}>
                       🌐 {t.title || t.url}
+                      {t.paused_badge && (
+                        <span style={{
+                          marginLeft: '6px',
+                          fontSize: '10px',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          background: '#FEF3C7',
+                          color: '#92400E',
+                          fontWeight: 600,
+                        }}>
+                          ⏱️ {t.paused_badge}
+                        </span>
+                      )}
                     </span>
                     <button
                       onClick={() => consumeTab(t.tab_id, t.url)}
