@@ -20,6 +20,9 @@ export interface EditorSnapshot {
   taskKey: string;
   timestamp: number;
   parkedNote?: string;
+  enclosingSymbol?: string;
+  gitStatSummary?: string;
+  lastBuildSummary?: string;
 }
 
 export interface WorkspaceStateLike {
@@ -36,6 +39,7 @@ export class ResumeManager {
   private resumeTracker: ResumeTracker;
   private statusBar: DhyanStatusBar | null;
   private onSnapshotChanged?: () => void;
+  private buildShield?: { getLastBuildSummary: () => string };
 
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -46,6 +50,7 @@ export class ResumeManager {
     resumeTracker: ResumeTracker;
     statusBar: DhyanStatusBar | null;
     onSnapshotChanged?: () => void;
+    buildShield?: { getLastBuildSummary: () => string };
   }) {
     this.vscodeApi = options.vscodeApi;
     this.workspaceState = options.workspaceState;
@@ -53,6 +58,7 @@ export class ResumeManager {
     this.resumeTracker = options.resumeTracker;
     this.statusBar = options.statusBar;
     this.onSnapshotChanged = options.onSnapshotChanged;
+    this.buildShield = options.buildShield;
 
     this.startIdleMonitoring();
   }
@@ -105,7 +111,27 @@ export class ResumeManager {
       const fileName = path.basename(filePath.replace(/\\/g, '/'));
       const position = activeEditor.selection?.active || { line: 0, character: 0 };
 
+      // Extract enclosing symbol (e.g. fn / method signature)
+      let enclosingSymbol = '';
+      try {
+        const text = doc.getText();
+        const lines = text.split(/\r?\n/);
+        const symbolRegex = /(?:function\s+([a-zA-Z0-9_$]+)|class\s+([a-zA-Z0-9_$]+)|def\s+([a-zA-Z0-9_$]+)|const\s+([a-zA-Z0-9_$]+)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[a-zA-Z0-9_$]+)\s*=>|([a-zA-Z0-9_$]+)\s*\([^)]*\)\s*[:{])/;
+        for (let i = position.line; i >= 0 && i >= position.line - 60; i--) {
+          const match = symbolRegex.exec(lines[i] || '');
+          if (match) {
+            const sym = match[1] || match[2] || match[3] || match[4] || match[5];
+            if (sym && !['if', 'for', 'while', 'switch', 'catch'].includes(sym)) {
+              enclosingSymbol = `${sym}()`;
+              break;
+            }
+          }
+        }
+      } catch {}
+
       const existing = this.getSnapshot();
+      const lastBuildSummary = this.buildShield?.getLastBuildSummary() || existing?.lastBuildSummary || '';
+
       const snapshot: EditorSnapshot = {
         filePath,
         fileName,
@@ -113,11 +139,35 @@ export class ResumeManager {
         character: position.character,
         taskKey,
         timestamp: Date.now(),
-        parkedNote: customNote !== undefined ? customNote : existing?.parkedNote
+        parkedNote: customNote !== undefined ? customNote : existing?.parkedNote,
+        enclosingSymbol,
+        gitStatSummary: existing?.gitStatSummary,
+        lastBuildSummary,
       };
 
       this.workspaceState.update(SNAPSHOT_STATE_KEY, snapshot);
       this.onSnapshotChanged?.();
+
+      // Sync snapshot with engine sidecar for cross-device and laptop dashboard
+      try {
+        const workspaceName = this.vscodeApi?.workspace?.workspaceFolders?.[0]?.name ?? '';
+        fetch('http://127.0.0.1:8765/v1/insights/context-snapshot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            snapshot_id: `snap_${Date.now()}`,
+            created_at_ts: Date.now(),
+            workspace_name: workspaceName,
+            file_path: filePath,
+            line_number: position.line + 1,
+            column_number: position.character + 1,
+            user_note: snapshot.parkedNote ?? '',
+            enclosing_symbol: enclosingSymbol,
+            git_stat_summary: snapshot.gitStatSummary ?? '',
+            last_build_summary: lastBuildSummary,
+          }),
+        }).catch(() => {});
+      } catch {}
 
       return snapshot;
     } catch {
@@ -190,6 +240,16 @@ export class ResumeManager {
           3000
         );
       }
+
+      // Notify engine sidecar of resumption
+      fetch('http://127.0.0.1:8765/v1/insights/context-snapshot/resume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          snapshot_id: 'latest',
+          resumed_at_ts: Date.now(),
+        }),
+      }).catch(() => {});
 
       return true;
     } catch {

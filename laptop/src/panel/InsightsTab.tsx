@@ -4,6 +4,9 @@ export function InsightsTab() {
   const [summary, setSummary] = useState<any>(null);
   const [snapshot, setSnapshot] = useState<any>(null);
   const [heldNotifs, setHeldNotifs] = useState<any[]>([]);
+  const [parkedTabs, setParkedTabs] = useState<any[]>([]);
+  const [weeklyWrapped, setWeeklyWrapped] = useState<any>(null);
+  const [compileShield, setCompileShield] = useState<any>(null);
   const [diagnostics, setDiagnostics] = useState<any>(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [shieldActiveNotice, setShieldActiveNotice] = useState<string | null>(null);
@@ -12,10 +15,13 @@ export function InsightsTab() {
   const fetchInsights = async () => {
     setLoading(true);
     try {
-      const [sumRes, snapRes, heldRes, f, i, s, v, fg, ft, mat, pol] = await Promise.all([
+      const [sumRes, snapRes, heldRes, tabsRes, wrapRes, shieldRes, f, i, s, v, fg, ft, mat, pol] = await Promise.all([
         fetch('http://127.0.0.1:8765/v1/insights/human-summary').then(r => r.json()).catch(() => null),
         fetch('http://127.0.0.1:8765/v1/insights/context-snapshot').then(r => r.json()).catch(() => null),
         fetch('http://127.0.0.1:8765/v1/insights/held-notifications?undelivered_only=true').then(r => r.json()).catch(() => null),
+        fetch('http://127.0.0.1:8765/v1/flow/parked-tabs?unconsumed_only=true').then(r => r.json()).catch(() => null),
+        fetch('http://127.0.0.1:8765/v1/insights/weekly-wrapped').then(r => r.json()).catch(() => null),
+        fetch('http://127.0.0.1:8765/v1/flow/compile-shield').then(r => r.json()).catch(() => null),
         fetch('http://127.0.0.1:8765/profile/focus').then(r => r.json()).catch(() => null),
         fetch('http://127.0.0.1:8765/profile/interruptions').then(r => r.json()).catch(() => null),
         fetch('http://127.0.0.1:8765/profile/stickiness').then(r => r.json()).catch(() => null),
@@ -29,6 +35,9 @@ export function InsightsTab() {
       if (sumRes) setSummary(sumRes);
       if (snapRes?.snapshot) setSnapshot(snapRes.snapshot);
       if (Array.isArray(heldRes?.notifications)) setHeldNotifs(heldRes.notifications);
+      if (Array.isArray(tabsRes?.tabs)) setParkedTabs(tabsRes.tabs);
+      if (wrapRes) setWeeklyWrapped(wrapRes);
+      if (shieldRes) setCompileShield(shieldRes);
 
       setDiagnostics({
         focus: f,
@@ -64,6 +73,20 @@ export function InsightsTab() {
       void window.dhyan.petAction('focus25');
     }
     setTimeout(() => setShieldActiveNotice(null), 4000);
+  };
+
+  const consumeTab = async (tabId: string, url: string) => {
+    try {
+      await fetch('http://127.0.0.1:8765/v1/flow/park-tab/consume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tab_id: tabId }),
+      });
+      setParkedTabs(prev => prev.filter(t => t.tab_id !== tabId));
+      window.open(url, '_blank');
+    } catch {
+      window.open(url, '_blank');
+    }
   };
 
   return (
@@ -105,6 +128,7 @@ export function InsightsTab() {
             </p>
             <p style={{ fontSize: '11px', color: 'var(--dhyan-text-muted)', margin: 0 }}>
               Typical streak: {forecast?.typicalStreakMinutes ?? 25}m · Primary trigger: {forecast?.primaryTrigger ?? 'Phone pickups'}
+              {compileShield?.total_saves ? ` · ${compileShield.total_saves} build interruptions shielded` : ''}
             </p>
           </div>
           <button
@@ -166,22 +190,43 @@ export function InsightsTab() {
         </div>
       </div>
 
-      {/* 4. Where I Left Off (Interruption Recovery Card) */}
+      {/* 4. Where I Left Off (10-Second Mental Replay Card) */}
       {snapshot && (
         <div className="dhyan-cf-hero" style={{ marginTop: '16px' }}>
           <h4 style={{ fontSize: '13px', fontWeight: 800, margin: '0 0 6px 0' }}>
-            📌 Where You Left Off (1-Click Resume)
+            📌 10-Second Mental Replay (Where You Left Off)
           </h4>
           <p style={{ fontSize: '12px', color: 'var(--dhyan-text-main)', margin: '2px 0' }}>
             <strong>{snapshot.file_path ? snapshot.file_path.split(/[\\/]/).pop() : 'Active File'}</strong>
-            {snapshot.line_number > 0 ? ` (Line ${snapshot.line_number + 1})` : ''}
+            {snapshot.line_number > 0 ? ` (Line ${snapshot.line_number})` : ''}
             {snapshot.workspace_name ? ` · ${snapshot.workspace_name}` : ''}
           </p>
+
+          {/* Enriched Context Indicators */}
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', margin: '6px 0' }}>
+            {snapshot.enclosing_symbol && (
+              <span className="dhyan-badge-pill" style={{ background: '#E0E7FF', color: '#3730A3', fontWeight: 600 }}>
+                ƒ {snapshot.enclosing_symbol}
+              </span>
+            )}
+            {snapshot.git_stat_summary && (
+              <span className="dhyan-badge-pill" style={{ background: '#F1F5F9', color: '#334155' }}>
+                ± {snapshot.git_stat_summary}
+              </span>
+            )}
+            {snapshot.last_build_summary && (
+              <span className="dhyan-badge-pill" style={{ background: '#ECFDF5', color: '#065F46' }}>
+                ✓ {snapshot.last_build_summary}
+              </span>
+            )}
+          </div>
+
           {snapshot.user_note && (
             <p style={{ fontSize: '12px', fontStyle: 'italic', color: 'var(--dhyan-text-muted)', margin: '4px 0' }}>
               "{snapshot.user_note}"
             </p>
           )}
+
           <div style={{ marginTop: '8px' }}>
             <span className="dhyan-badge-pill" style={{ background: '#EEF2FF', color: '#4338CA' }}>
               Snapshot saved automatically upon break
@@ -190,26 +235,118 @@ export function InsightsTab() {
         </div>
       )}
 
-      {/* 5. Held for You Break Digest */}
-      {heldNotifs.length > 0 && (
-        <div className="dhyan-bento-card" style={{ marginTop: '16px', background: 'rgba(238, 242, 255, 0.5)' }}>
-          <h4 style={{ fontSize: '13px', fontWeight: 800, margin: '0 0 6px 0' }}>
-            📬 Held for Your Next Break ({heldNotifs.length} Alerts)
-          </h4>
-          <p style={{ fontSize: '11px', color: 'var(--dhyan-text-muted)', margin: '0 0 8px 0' }}>
-            Raw notification text is never stored. Protected quietly in memory.
+      {/* 5. Sunday Attention Wrapped (Upgrade 6) */}
+      {weeklyWrapped && (
+        <div style={{
+          marginTop: '16px',
+          padding: '16px 18px',
+          background: 'linear-gradient(135deg, #1E1B4B 0%, #312E81 100%)',
+          borderRadius: '12px',
+          color: '#F8FAFC',
+          boxShadow: '0 8px 24px -4px rgba(49, 46, 129, 0.35)',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h4 style={{ fontSize: '14px', fontWeight: 800, margin: 0, color: '#C7D2FE' }}>
+              ✨ Weekly Attention Wrapped
+            </h4>
+            <span style={{ fontSize: '11px', background: 'rgba(255, 255, 255, 0.15)', padding: '2px 8px', borderRadius: '9999px' }}>
+              Past 7 Days
+            </span>
+          </div>
+          <p style={{ fontSize: '13px', margin: '6px 0 12px 0', fontWeight: 600 }}>
+            {weeklyWrapped.humanSummaryHeadline}
           </p>
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            {heldNotifs.map((n, idx) => (
-              <span key={idx} className="dhyan-badge-pill">
-                {n.app_label} {n.count > 1 ? `(${n.count})` : ''}
-              </span>
-            ))}
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '10px' }}>
+            <div style={{ background: 'rgba(255, 255, 255, 0.1)', padding: '8px 12px', borderRadius: '8px' }}>
+              <div style={{ fontSize: '11px', color: '#A5B4FC' }}>Deep Work</div>
+              <div style={{ fontSize: '16px', fontWeight: 800 }}>{weeklyWrapped.totalDeepWorkHours}h</div>
+            </div>
+            <div style={{ background: 'rgba(255, 255, 255, 0.1)', padding: '8px 12px', borderRadius: '8px' }}>
+              <div style={{ fontSize: '11px', color: '#A5B4FC' }}>Peak Streak</div>
+              <div style={{ fontSize: '16px', fontWeight: 800 }}>{weeklyWrapped.longestStreakMinutes}m</div>
+            </div>
+            <div style={{ background: 'rgba(255, 255, 255, 0.1)', padding: '8px 12px', borderRadius: '8px' }}>
+              <div style={{ fontSize: '11px', color: '#A5B4FC' }}>Shield Saves</div>
+              <div style={{ fontSize: '16px', fontWeight: 800 }}>{weeklyWrapped.compileShieldSaves}</div>
+            </div>
+            <div style={{ background: 'rgba(255, 255, 255, 0.1)', padding: '8px 12px', borderRadius: '8px' }}>
+              <div style={{ fontSize: '11px', color: '#A5B4FC' }}>Tabs Parked</div>
+              <div style={{ fontSize: '16px', fontWeight: 800 }}>{weeklyWrapped.tabsParkedCount}</div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: '12px', fontSize: '11px', color: '#E0E7FF' }}>
+            💡 {weeklyWrapped.sleepFocusInsight}
           </div>
         </div>
       )}
 
-      {/* 6. Collapsible Developer Diagnostics Toggle */}
+      {/* 6. Held for You Break Digest & Parked Tabs */}
+      {(heldNotifs.length > 0 || parkedTabs.length > 0) && (
+        <div className="dhyan-bento-card" style={{ marginTop: '16px', background: 'rgba(238, 242, 255, 0.5)' }}>
+          <h4 style={{ fontSize: '13px', fontWeight: 800, margin: '0 0 6px 0' }}>
+            📬 Held for Your Break ({heldNotifs.length} Alerts · {parkedTabs.length} Tabs)
+          </h4>
+          <p style={{ fontSize: '11px', color: 'var(--dhyan-text-muted)', margin: '0 0 8px 0' }}>
+            Stored locally. Alerts are delivered in a calm batch when your focus block completes.
+          </p>
+
+          {heldNotifs.length > 0 && (
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
+              {heldNotifs.map((n, idx) => (
+                <span key={idx} className="dhyan-badge-pill">
+                  🔔 {n.app_label} {n.count > 1 ? `(${n.count})` : ''}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {parkedTabs.length > 0 && (
+            <div style={{ marginTop: '6px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 700, margin: '6px 0 4px 0' }}>Parked Tabs:</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {parkedTabs.map(t => (
+                  <div
+                    key={t.tab_id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      background: '#fff',
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      border: '1px solid #E2E8F0',
+                    }}
+                  >
+                    <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '300px' }}>
+                      🌐 {t.title || t.url}
+                    </span>
+                    <button
+                      onClick={() => consumeTab(t.tab_id, t.url)}
+                      style={{
+                        background: '#EEF2FF',
+                        color: '#4F46E5',
+                        border: '1px solid #C7D2FE',
+                        borderRadius: '4px',
+                        padding: '2px 8px',
+                        cursor: 'pointer',
+                        fontSize: '10px',
+                        fontWeight: 600,
+                      }}
+                    >
+                      Open & Clear
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 7. Collapsible Developer Diagnostics Toggle */}
       <div style={{ marginTop: '24px', borderTop: '1px solid #E2E8F0', paddingTop: '12px' }}>
         <button
           onClick={() => setShowDiagnostics(!showDiagnostics)}

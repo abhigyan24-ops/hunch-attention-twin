@@ -83,6 +83,39 @@ class Database:
                     self._restore_db(version)
                     raise RuntimeError(f"Database migration from v{version} failed, restored backup: {err}")
 
+        # Ensure latest tables and columns exist safely across versions
+        with self.get_connection() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS parked_tabs (
+                    tab_id TEXT PRIMARY KEY,
+                    parked_at_ts INTEGER NOT NULL,
+                    url TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    from_workspace TEXT,
+                    consumed_at_break INTEGER DEFAULT 0
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS compile_shield_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ts INTEGER NOT NULL,
+                    task_name TEXT NOT NULL,
+                    duration_ms INTEGER DEFAULT 0,
+                    outcome TEXT DEFAULT 'success',
+                    saved_distraction INTEGER DEFAULT 1
+                )
+            """)
+            for col, col_type in [
+                ("enclosing_symbol", "TEXT"),
+                ("git_stat_summary", "TEXT"),
+                ("last_build_summary", "TEXT"),
+            ]:
+                try:
+                    conn.execute(f"ALTER TABLE context_snapshots ADD COLUMN {col} {col_type}")
+                except sqlite3.OperationalError:
+                    pass  # column already exists
+            conn.commit()
+
     def calculate_ntp_offset(
         self,
         t1_client_send: int,
@@ -368,8 +401,10 @@ class Database:
                 """
                 INSERT OR REPLACE INTO context_snapshots (
                     snapshot_id, created_at_ts, workspace_name, file_path,
-                    line_number, column_number, git_branch, user_note, resumed_at_ts
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    line_number, column_number, git_branch, user_note,
+                    enclosing_symbol, git_stat_summary, last_build_summary,
+                    resumed_at_ts
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     snapshot["snapshot_id"],
@@ -380,6 +415,9 @@ class Database:
                     snapshot.get("column_number", 0),
                     snapshot.get("git_branch", ""),
                     snapshot.get("user_note", ""),
+                    snapshot.get("enclosing_symbol", ""),
+                    snapshot.get("git_stat_summary", ""),
+                    snapshot.get("last_build_summary", ""),
                     snapshot.get("resumed_at_ts"),
                 ),
             )
@@ -399,6 +437,70 @@ class Database:
                 (resumed_at_ts, snapshot_id),
             )
             conn.commit()
+
+    def record_parked_tab(self, tab: Dict[str, Any]) -> None:
+        with self.get_connection() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO parked_tabs (
+                    tab_id, parked_at_ts, url, title, from_workspace, consumed_at_break
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    tab["tab_id"],
+                    tab.get("parked_at_ts") or int(time.time() * 1000),
+                    tab.get("url", ""),
+                    tab.get("title", ""),
+                    tab.get("from_workspace", ""),
+                    1 if tab.get("consumed_at_break") else 0,
+                ),
+            )
+            conn.commit()
+
+    def get_parked_tabs(self, unconsumed_only: bool = True) -> List[Dict[str, Any]]:
+        with self.get_connection() as conn:
+            cur = conn.cursor()
+            if unconsumed_only:
+                cur.execute("SELECT * FROM parked_tabs WHERE consumed_at_break = 0 ORDER BY parked_at_ts DESC")
+            else:
+                cur.execute("SELECT * FROM parked_tabs ORDER BY parked_at_ts DESC")
+            return [dict(r) for r in cur.fetchall()]
+
+    def consume_parked_tab(self, tab_id: str) -> None:
+        with self.get_connection() as conn:
+            conn.execute(
+                "UPDATE parked_tabs SET consumed_at_break = 1 WHERE tab_id = ?",
+                (tab_id,),
+            )
+            conn.commit()
+
+    def record_compile_shield_event(self, event: Dict[str, Any]) -> None:
+        with self.get_connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO compile_shield_events (
+                    ts, task_name, duration_ms, outcome, saved_distraction
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    event.get("ts") or int(time.time() * 1000),
+                    event.get("task_name", "build"),
+                    event.get("duration_ms", 0),
+                    event.get("outcome", "success"),
+                    1 if event.get("saved_distraction", True) else 0,
+                ),
+            )
+            conn.commit()
+
+    def get_compile_shield_saves_count(self, since_ts: Optional[int] = None) -> int:
+        with self.get_connection() as conn:
+            cur = conn.cursor()
+            if since_ts:
+                cur.execute("SELECT COUNT(*) AS saves FROM compile_shield_events WHERE ts >= ? AND saved_distraction = 1", (since_ts,))
+            else:
+                cur.execute("SELECT COUNT(*) AS saves FROM compile_shield_events WHERE saved_distraction = 1")
+            row = cur.fetchone()
+            return int(row["saves"]) if row and row["saves"] else 0
 
     def record_held_notification(self, notif: Dict[str, Any]) -> None:
         with self.get_connection() as conn:

@@ -128,6 +128,9 @@ CREATE TABLE IF NOT EXISTS context_snapshots (
     column_number INTEGER DEFAULT 0,
     git_branch TEXT,
     user_note TEXT,
+    enclosing_symbol TEXT,
+    git_stat_summary TEXT,
+    last_build_summary TEXT,
     resumed_at_ts INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_context_snapshots_ts ON context_snapshots(created_at_ts);
@@ -141,3 +144,23 @@ CREATE TABLE IF NOT EXISTS held_notifications (
     delivered_at_break INTEGER DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_held_notifs_ts ON held_notifications(arrived_at_ts);
+
+CREATE TABLE IF NOT EXISTS parked_tabs (
+    tab_id TEXT PRIMARY KEY,
+    parked_at_ts INTEGER NOT NULL,
+    url TEXT NOT NULL,
+    title TEXT NOT NULL,
+    from_workspace TEXT,
+    consumed_at_break INTEGER DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_parked_tabs_ts ON parked_tabs(parked_at_ts);
+
+CREATE TABLE IF NOT EXISTS compile_shield_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts INTEGER NOT NULL,
+    task_name TEXT NOT NULL,
+    duration_ms INTEGER DEFAULT 0,
+    outcome TEXT DEFAULT 'success',
+    saved_distraction INTEGER DEFAULT 1
+);
+CREATE INDEX IF NOT EXISTS idx_compile_shield_ts ON compile_shield_events(ts);

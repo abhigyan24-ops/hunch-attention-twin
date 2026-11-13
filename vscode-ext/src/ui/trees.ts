@@ -77,7 +77,37 @@ export class ResumeTreeDataProvider {
       }
     });
 
-    // 2. Parked note if present
+    // 2. Enclosing symbol (Mental Replay)
+    if (snapshot.enclosingSymbol) {
+      items.push({
+        label: `Symbol: ${snapshot.enclosingSymbol}`,
+        description: 'Context',
+        tooltip: `Enclosing function or symbol: ${snapshot.enclosingSymbol}`,
+        iconPath: this.getThemeIcon('symbol-method')
+      });
+    }
+
+    // 3. Git uncommitted summary
+    if (snapshot.gitStatSummary) {
+      items.push({
+        label: `Git: ${snapshot.gitStatSummary}`,
+        description: 'Changes',
+        tooltip: `Git working tree changes: ${snapshot.gitStatSummary}`,
+        iconPath: this.getThemeIcon('git-commit')
+      });
+    }
+
+    // 4. Last build summary
+    if (snapshot.lastBuildSummary) {
+      items.push({
+        label: `Build: ${snapshot.lastBuildSummary}`,
+        description: 'Last outcome',
+        tooltip: `Last observed task: ${snapshot.lastBuildSummary}`,
+        iconPath: this.getThemeIcon('pass')
+      });
+    }
+
+    // 5. Parked note if present
     if (snapshot.parkedNote) {
       items.push({
         label: `"${snapshot.parkedNote}"`,
@@ -87,7 +117,7 @@ export class ResumeTreeDataProvider {
       });
     }
 
-    // 3. Saved timestamp item
+    // 6. Saved timestamp item
     const savedTime = new Date(snapshot.timestamp).toLocaleTimeString([], {
       hour: '2-digit',
       minute: '2-digit'

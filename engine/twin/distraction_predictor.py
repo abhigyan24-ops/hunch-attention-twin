@@ -32,6 +32,7 @@ class DistractionPredictor:
         self,
         current_streak_minutes: int = 0,
         circadian_state: Optional[Any] = None,
+        in_call: bool = False,
     ) -> Dict[str, Any]:
         real_minutes = self.db.get_total_real_activity_minutes()
         is_calibrated = real_minutes >= 30
@@ -80,7 +81,7 @@ class DistractionPredictor:
             primary_trigger = "Phone pickups" if is_calibrated else "Calibrating"
 
         minutes_until = max(0, typical_streak - current_streak_minutes)
-        pre_distraction_trigger = bool(is_calibrated and minutes_until <= 3 and current_streak_minutes >= 5)
+        pre_distraction_trigger = bool(is_calibrated and minutes_until <= 3 and current_streak_minutes >= 5 and not in_call)
 
         # High-risk window calculation from real_activity_buckets
         hourly_stats = self.db.get_hourly_activity_stats(days=14)
@@ -99,7 +100,9 @@ class DistractionPredictor:
         else:
             next_high_risk = "3:00 PM – 4:00 PM" if is_calibrated else "Calibrating (30m activity required)"
 
-        if is_calibrated:
+        if in_call:
+            human_headline = "Focus countdown paused during active call or meeting."
+        elif is_calibrated:
             human_headline = (
                 f"You usually get distracted around minute {typical_streak} "
                 f"(~{minutes_until} mins from now)."
@@ -116,6 +119,7 @@ class DistractionPredictor:
             "primaryTrigger": primary_trigger,
             "humanHeadline": human_headline,
             "humanActionLabel": "Turn on Quiet Shield for 15 mins",
+            "isPausedByCall": in_call,
         }
 
         # 3. Peak Focus Window
@@ -198,4 +202,86 @@ class DistractionPredictor:
             "distractionForecast": distraction_forecast,
             "peakFocusWindow": peak_focus,
             "todayImpact": today_impact,
+        }
+
+    def compute_weekly_wrapped(self, days: int = 7) -> Dict[str, Any]:
+        real_minutes = self.db.get_total_real_activity_minutes()
+        is_calibrated = real_minutes >= 30
+
+        now_dt = datetime.datetime.now()
+        start_ts = int((now_dt - datetime.timedelta(days=days)).timestamp() * 1000)
+
+        total_deep_work_min = 0
+        longest_streak_min = 0
+        day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        daily_map: Dict[str, Dict[str, int]] = {
+            day: {"deepWorkMinutes": 0, "interruptionsHeld": 0, "shieldSaves": 0}
+            for day in day_names
+        }
+
+        with self.db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT started_at_ts, duration_minutes FROM focus_streaks WHERE started_at_ts >= ?",
+                (start_ts,),
+            )
+            for r in cur.fetchall():
+                d_min = int(r["duration_minutes"])
+                total_deep_work_min += d_min
+                if d_min > longest_streak_min:
+                    longest_streak_min = d_min
+                d_obj = datetime.datetime.fromtimestamp(r["started_at_ts"] / 1000.0)
+                d_name = day_names[d_obj.weekday()]
+                daily_map[d_name]["deepWorkMinutes"] += d_min
+
+            cur.execute(
+                "SELECT bucket_start_ts, coding_active_seconds, notifications_held_count FROM real_activity_buckets WHERE bucket_start_ts >= ?",
+                (start_ts,),
+            )
+            for r in cur.fetchall():
+                coding_min = int((r["coding_active_seconds"] or 0) // 60)
+                held = int(r["notifications_held_count"] or 0)
+                d_obj = datetime.datetime.fromtimestamp(r["bucket_start_ts"] / 1000.0)
+                d_name = day_names[d_obj.weekday()]
+                daily_map[d_name]["interruptionsHeld"] += held
+                if daily_map[d_name]["deepWorkMinutes"] == 0:
+                    daily_map[d_name]["deepWorkMinutes"] += coding_min
+                    total_deep_work_min += coding_min
+
+            shield_saves = self.db.get_compile_shield_saves_count(since_ts=start_ts)
+
+            cur.execute("SELECT COUNT(*) AS tab_cnt FROM parked_tabs WHERE parked_at_ts >= ?", (start_ts,))
+            row = cur.fetchone()
+            tabs_parked_count = int(row["tab_cnt"]) if row and row["tab_cnt"] else 0
+
+        ordered_days = []
+        for i in range(6, -1, -1):
+            target_dt = now_dt - datetime.timedelta(days=i)
+            d_name = day_names[target_dt.weekday()]
+            ordered_days.append({
+                "day": d_name,
+                "date": target_dt.strftime("%b %d"),
+                "deepWorkMinutes": daily_map[d_name]["deepWorkMinutes"],
+                "interruptionsHeld": daily_map[d_name]["interruptionsHeld"],
+            })
+
+        total_hours = round(total_deep_work_min / 60.0, 1)
+
+        if not is_calibrated:
+            human_headline = f"Building your weekly rhythm ({real_minutes} / 30 mins recorded)"
+            sleep_insight = "Continue recording sessions to unlock your sleep-focus correlation."
+        else:
+            human_headline = f"Protected {total_hours} hours of deep flow this week."
+            sleep_insight = "Your longest unbroken focus blocks occurred during morning sessions."
+
+        return {
+            "isCalibrated": is_calibrated,
+            "totalDeepWorkHours": total_hours,
+            "totalDeepWorkMinutes": total_deep_work_min,
+            "longestStreakMinutes": longest_streak_min,
+            "compileShieldSaves": shield_saves,
+            "tabsParkedCount": tabs_parked_count,
+            "humanSummaryHeadline": human_headline,
+            "sleepFocusInsight": sleep_insight,
+            "days": ordered_days,
         }

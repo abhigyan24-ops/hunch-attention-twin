@@ -25,6 +25,7 @@ import { ResumeManager } from './features/resume.ts';
 import { SessionManager } from './features/session.ts';
 import { NudgeManager } from './features/nudge.ts';
 import { DigestManager } from './features/digest.ts';
+import { BuildShieldManager } from './features/buildShield.ts';
 import { ResumeTreeDataProvider, TodayTreeDataProvider, DigestTreeDataProvider } from './ui/trees.ts';
 
 // Re-export core classes for backward-compatibility with tests & external callers
@@ -40,6 +41,7 @@ export { ResumeManager } from './features/resume.ts';
 export { SessionManager } from './features/session.ts';
 export { NudgeManager } from './features/nudge.ts';
 export { DigestManager } from './features/digest.ts';
+export { BuildShieldManager } from './features/buildShield.ts';
 export { ResumeTreeDataProvider, TodayTreeDataProvider, DigestTreeDataProvider } from './ui/trees.ts';
 export { classifyEdit, isTrackedScheme } from './aggregate/classify.ts';
 export { RhythmTracker } from './aggregate/rhythm.ts';
@@ -87,6 +89,7 @@ let outbox: Outbox | null = null;
 let endpointDiscovery: EndpointDiscovery | null = null;
 let engineClient: EngineClient | null = null;
 let statusBar: DhyanStatusBar | null = null;
+let buildShieldManager: BuildShieldManager | null = null;
 let windDownBar: any = null;
 let windDownInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -232,6 +235,7 @@ export function activate(
   breakDetector = new BreakDetector(clock);
 
   // Phase 4: Resume Tracker & Feature Manager
+  buildShieldManager = new BuildShieldManager(vscodeApi);
   resumeTracker = new ResumeTracker(clock);
   resumeManager = new ResumeManager({
     vscodeApi,
@@ -239,6 +243,7 @@ export function activate(
     privacyFilter,
     resumeTracker,
     statusBar,
+    buildShield: buildShieldManager,
     onSnapshotChanged: () => resumeTreeProvider?.refresh()
   });
   resumeTreeProvider = new ResumeTreeDataProvider(vscodeApi, resumeManager);
@@ -679,6 +684,10 @@ export function deactivate(): void {
   if (statusBar) {
     statusBar.dispose();
     statusBar = null;
+  }
+  if (buildShieldManager) {
+    buildShieldManager.dispose();
+    buildShieldManager = null;
   }
   if (resumeManager) {
     resumeManager.dispose();

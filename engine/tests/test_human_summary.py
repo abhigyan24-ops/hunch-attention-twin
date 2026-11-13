@@ -51,6 +51,8 @@ def test_cold_start_calibration_uncalibrated(client):
 def test_activity_buckets_and_streaks_achieve_calibration(client):
     """Recording >30 minutes of real streaks achieves calibrated state and computes median."""
     now_ms = int(time.time() * 1000)
+    import datetime
+    cur_hour = datetime.datetime.now().hour
 
     # Record 3 real focus streaks: 25m, 29m, 32m (total = 86 mins > 30m required)
     client.post("/v1/insights/focus-streak", json={
@@ -58,7 +60,7 @@ def test_activity_buckets_and_streaks_achieve_calibration(client):
         "started_at_ts": now_ms - 7200000,
         "ended_at_ts": now_ms - 5700000,
         "duration_minutes": 25,
-        "hour_of_day": 14,
+        "hour_of_day": cur_hour,
         "broke_by_source": "phone_pickup"
     })
     client.post("/v1/insights/focus-streak", json={
@@ -66,7 +68,7 @@ def test_activity_buckets_and_streaks_achieve_calibration(client):
         "started_at_ts": now_ms - 5400000,
         "ended_at_ts": now_ms - 3660000,
         "duration_minutes": 29,
-        "hour_of_day": 14,
+        "hour_of_day": cur_hour,
         "broke_by_source": "phone_pickup"
     })
     client.post("/v1/insights/focus-streak", json={
@@ -74,7 +76,7 @@ def test_activity_buckets_and_streaks_achieve_calibration(client):
         "started_at_ts": now_ms - 3600000,
         "ended_at_ts": now_ms - 1680000,
         "duration_minutes": 32,
-        "hour_of_day": 15,
+        "hour_of_day": cur_hour,
         "broke_by_source": "app_switch"
     })
 

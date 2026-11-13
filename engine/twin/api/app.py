@@ -1,5 +1,6 @@
 import datetime
 import os
+import secrets
 import time
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
@@ -728,6 +729,9 @@ class ContextSnapshotRequest(BaseModel):
     column_number: int = 0
     git_branch: str = ""
     user_note: str = ""
+    enclosing_symbol: str = ""
+    git_stat_summary: str = ""
+    last_build_summary: str = ""
     resumed_at_ts: Optional[int] = None
 
 
@@ -745,6 +749,57 @@ class HeldNotificationRequest(BaseModel):
     delivered_at_break: bool = False
 
 
+class CallStateRequest(BaseModel):
+    in_call: bool
+    source: str = "phone"
+
+
+class CompileShieldRequest(BaseModel):
+    active: bool
+    task_name: str = "build"
+    duration_ms: int = 0
+    last_outcome: str = "success"
+
+
+class ParkTabRequest(BaseModel):
+    url: str
+    title: str = ""
+    from_workspace: str = ""
+
+
+class ConsumeParkedTabRequest(BaseModel):
+    tab_id: str
+
+
+class ActiveCodingRequest(BaseModel):
+    is_coding: bool
+    active_workspace: str = ""
+
+
+_call_state_lock = threading.Lock()
+_call_state = {
+    "in_call": False,
+    "source": "none",
+    "updated_at": int(time.time() * 1000),
+}
+
+_compile_shield_lock = threading.Lock()
+_compile_shield_state = {
+    "active": False,
+    "task_name": "",
+    "started_at": 0,
+    "last_outcome": None,
+    "duration_ms": 0,
+}
+
+_active_coding_lock = threading.Lock()
+_active_coding_state = {
+    "is_coding": False,
+    "active_workspace": "",
+    "last_active_ts": 0,
+}
+
+
 @app.get("/v1/insights/human-summary")
 def get_human_summary(
     current_streak_minutes: int = Query(default=0, ge=0),
@@ -753,9 +808,12 @@ def get_human_summary(
     """Returns human-ready predictions and recommendations backed by real SQLite telemetry."""
     with _circadian_lock:
         circ_state = _circadian_state
+    with _call_state_lock:
+        in_call = _call_state["in_call"]
     return distraction_predictor.predict_human_summary(
         current_streak_minutes=current_streak_minutes,
         circadian_state=circ_state,
+        in_call=in_call,
     )
 
 
@@ -828,6 +886,105 @@ def get_held_notifications(
 ) -> Dict[str, Any]:
     items = db.get_held_notifications(undelivered_only=undelivered_only)
     return {"notifications": items, "count": len(items)}
+
+
+@app.get("/v1/insights/weekly-wrapped")
+def get_weekly_wrapped(
+    days: int = Query(default=7, ge=1, le=30),
+    _: bool = Depends(verify_token),
+) -> Dict[str, Any]:
+    return distraction_predictor.compute_weekly_wrapped(days=days)
+
+
+@app.post("/v1/flow/call-state")
+def set_call_state(req: CallStateRequest, _: bool = Depends(verify_token)) -> Dict[str, Any]:
+    with _call_state_lock:
+        _call_state["in_call"] = req.in_call
+        _call_state["source"] = req.source
+        _call_state["updated_at"] = int(time.time() * 1000)
+    return {"success": True, "call_state": dict(_call_state)}
+
+
+@app.get("/v1/flow/call-state")
+def get_call_state(_: bool = Depends(verify_token)) -> Dict[str, Any]:
+    with _call_state_lock:
+        return dict(_call_state)
+
+
+@app.post("/v1/flow/compile-shield")
+def set_compile_shield(req: CompileShieldRequest, _: bool = Depends(verify_token)) -> Dict[str, Any]:
+    with _compile_shield_lock:
+        _compile_shield_state["active"] = req.active
+        _compile_shield_state["task_name"] = req.task_name
+        if req.active:
+            _compile_shield_state["started_at"] = int(time.time() * 1000)
+        else:
+            _compile_shield_state["duration_ms"] = req.duration_ms
+            _compile_shield_state["last_outcome"] = req.last_outcome
+            if req.duration_ms > 0:
+                db.record_compile_shield_event({
+                    "task_name": req.task_name,
+                    "duration_ms": req.duration_ms,
+                    "outcome": req.last_outcome,
+                    "saved_distraction": True,
+                })
+    return {"success": True, "compile_shield": dict(_compile_shield_state)}
+
+
+@app.get("/v1/flow/compile-shield")
+def get_compile_shield(_: bool = Depends(verify_token)) -> Dict[str, Any]:
+    with _compile_shield_lock:
+        state = dict(_compile_shield_state)
+    state["total_saves"] = db.get_compile_shield_saves_count()
+    return state
+
+
+@app.post("/v1/flow/park-tab")
+def park_tab(req: ParkTabRequest, _: bool = Depends(verify_token)) -> Dict[str, Any]:
+    tab_id = f"tab_{int(time.time() * 1000)}_{secrets.token_hex(4)}"
+    db.record_parked_tab({
+        "tab_id": tab_id,
+        "parked_at_ts": int(time.time() * 1000),
+        "url": req.url,
+        "title": req.title or req.url,
+        "from_workspace": req.from_workspace,
+        "consumed_at_break": False,
+    })
+    return {"success": True, "tab_id": tab_id}
+
+
+@app.get("/v1/flow/parked-tabs")
+def get_parked_tabs(
+    unconsumed_only: bool = Query(default=True),
+    _: bool = Depends(verify_token),
+) -> Dict[str, Any]:
+    tabs = db.get_parked_tabs(unconsumed_only=unconsumed_only)
+    return {"tabs": tabs, "count": len(tabs)}
+
+
+@app.post("/v1/flow/park-tab/consume")
+def consume_parked_tab(req: ConsumeParkedTabRequest, _: bool = Depends(verify_token)) -> Dict[str, Any]:
+    db.consume_parked_tab(req.tab_id)
+    return {"success": True}
+
+
+@app.post("/v1/flow/active-coding")
+def set_active_coding(req: ActiveCodingRequest, _: bool = Depends(verify_token)) -> Dict[str, Any]:
+    with _active_coding_lock:
+        _active_coding_state["is_coding"] = req.is_coding
+        _active_coding_state["active_workspace"] = req.active_workspace
+        _active_coding_state["last_active_ts"] = int(time.time() * 1000)
+    return {"success": True, "state": dict(_active_coding_state)}
+
+
+@app.get("/v1/flow/active-coding")
+def get_active_coding(_: bool = Depends(verify_token)) -> Dict[str, Any]:
+    with _active_coding_lock:
+        now_ts = int(time.time() * 1000)
+        is_fresh = (now_ts - _active_coding_state["last_active_ts"]) < 15 * 60 * 1000
+        state = dict(_active_coding_state)
+        state["is_coding"] = state["is_coding"] and is_fresh
+        return state
 
 
 @app.get("/profile/fatigue")
