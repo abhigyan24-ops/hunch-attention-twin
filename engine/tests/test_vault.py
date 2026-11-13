@@ -35,3 +35,14 @@ def test_encrypted_vault_lifecycle(tmp_path, monkeypatch):
     assert client.delete("/v1/vault/wipe-all", headers=headers).status_code == 200
     assert not list(tmp_path.iterdir())
     assert client.get("/v1/vault/restore-phone-state", headers=headers).status_code == 404
+
+
+def test_http_forwarded_to_loopback_is_not_trusted(monkeypatch):
+    monkeypatch.setenv("TWIN_TOKEN", "test-only-credentials-" * 3)
+    app = FastAPI()
+    app.include_router(router)
+    client = TestClient(app, base_url="http://vault.example", client=("127.0.0.1", 12345))
+    response = client.get("/v1/vault/restore-phone-state", headers={
+        "X-Twin-Token": "test-only-credentials-" * 3,
+    })
+    assert response.status_code == 403

@@ -18,7 +18,12 @@ def require_vault_token(request: Request, token: str | None = Header(None, alias
     expected = os.getenv("TWIN_TOKEN", "")
     if len(expected) < 32:
         raise HTTPException(503, "Vault credentials are not configured")
-    local = request.client is not None and request.client.host in {"127.0.0.1", "::1"}
+    loopback = {"127.0.0.1", "::1"}
+    local = (
+        request.client is not None
+        and request.client.host in loopback
+        and request.url.hostname in loopback | {"localhost"}
+    )
     if request.url.scheme != "https" and not local:
         raise HTTPException(403, "Vault requires HTTPS")
     if token is None or not hmac.compare_digest(token.encode(), expected.encode()):
