@@ -197,3 +197,9 @@ CREATE TABLE IF NOT EXISTS walk_away_events (
     duration_seconds INTEGER DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_walk_away_ts ON walk_away_events(ts);
+
+CREATE TABLE IF NOT EXISTS ml_model_state (
+    id TEXT PRIMARY KEY,
+    state_json TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+);

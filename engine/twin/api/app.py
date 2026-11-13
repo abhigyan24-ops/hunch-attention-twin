@@ -26,6 +26,7 @@ from ..policy.gatekeeper import GatekeeperPolicy
 from ..policy.nudge_backoff import NudgeBackoffEngine
 from ..simulator.simulate import AttentionSimulator
 from ..simulator.stages import SimulatorStages
+from ..ml_model import MLManager, extract_features
 
 from .vault_routes import router as vault_router
 
@@ -34,6 +35,16 @@ TWIN_TOKEN = os.getenv("TWIN_TOKEN", "dhyan-local-twin-token")
 # Global singleton engine states
 db: Database = get_db()
 distraction_predictor = DistractionPredictor(db=db)
+ml_manager = MLManager(db_path=db.db_path)
+
+
+def get_ml_manager() -> MLManager:
+    global ml_manager
+    if ml_manager is None or ml_manager.db_path != str(db.db_path):
+        ml_manager = MLManager(db_path=db.db_path)
+    return ml_manager
+
+
 focus_learner = FocusLearner()
 interruption_learner = InterruptionLearner()
 stickiness_learner = StickinessLearner()
@@ -148,6 +159,22 @@ class FeedbackRequest(BaseModel):
 class FocusLeaseRequest(BaseModel):
     focus: str = "normal"  # "normal" | "deep"
     leaseMs: int = 90000
+
+
+class MLSyncWeightsRequest(BaseModel):
+    weights: List[float] = Field(..., description="12-element hazard model weights vector")
+    grad_squares: Optional[List[float]] = Field(default=None, description="12-element AdaGrad sum of squared gradients")
+    trained_samples_count: int = Field(default=1, ge=0)
+    thetas: Optional[List[List[float]]] = Field(default=None, description="4x12 LinUCB theta matrix")
+    counts: Optional[List[List[float]]] = Field(default=None, description="4x12 LinUCB count matrix")
+
+
+class MLRecordOutcomeRequest(BaseModel):
+    features: Optional[List[float]] = None
+    context: Optional[Dict[str, Any]] = None
+    actual_distracted: bool = False
+    selected_arm: Optional[str] = None
+    reward: Optional[float] = None
 
 
 # Focus Lease State
@@ -862,11 +889,42 @@ def get_human_summary(
         circ_state = _circadian_state
     with _call_state_lock:
         in_call = _call_state["in_call"]
-    return distraction_predictor.predict_human_summary(
+    summary = distraction_predictor.predict_human_summary(
         current_streak_minutes=current_streak_minutes,
         circadian_state=circ_state,
         in_call=in_call,
     )
+
+    # ML on-device enhancement
+    sleep_mins = 480.0
+    if circ_state:
+        if isinstance(circ_state, dict):
+            sleep_mins = float(circ_state.get("lastNightSleepMinutes", circ_state.get("sleep_minutes", 480.0)))
+        else:
+            sleep_mins = float(getattr(circ_state, "lastNightSleepMinutes", 480.0))
+
+    mgr = get_ml_manager()
+    eval_ctx = {
+        "hour_of_day": datetime.datetime.now().hour,
+        "minute_of_hour": datetime.datetime.now().minute,
+        "session_elapsed_mins": current_streak_minutes,
+        "last_night_sleep_mins": sleep_mins,
+    }
+    ml_status = mgr.get_status(eval_ctx)
+
+    if summary.get("distractionForecast"):
+        df = summary["distractionForecast"]
+        df["mlForecast"] = {
+            "predictedMinutesUntilDistraction": ml_status["predicted_minutes_until_distraction"],
+            "primaryDriver": ml_status["primary_driver"],
+            "recommendedArm": ml_status["recommended_arm"],
+            "recommendedActionLabel": ml_status["recommended_action_label"],
+            "isCalibrated": ml_status["is_calibrated"],
+        }
+        if ml_status.get("is_calibrated"):
+            df["humanActionLabel"] = ml_status["recommended_action_label"]
+
+    return summary
 
 
 @app.post("/v1/insights/activity-bucket")
@@ -1167,6 +1225,79 @@ def get_shared_desk_items(
 def consume_shared_desk_item(req: ConsumeSharedItemRequest, _: bool = Depends(verify_token)) -> Dict[str, Any]:
     db.consume_shared_desk_item(req.id)
     return {"success": True}
+
+
+# --- ML Model & Contextual Bandit Endpoints ---
+
+
+@app.post("/v1/ml/sync-weights")
+def sync_ml_weights(
+    req: MLSyncWeightsRequest,
+    _: bool = Depends(verify_token),
+) -> Dict[str, Any]:
+    """Federated synchronization endpoint: merges phone on-device weights with engine weights."""
+    if len(req.weights) != 12:
+        raise HTTPException(status_code=400, detail="weights vector must contain exactly 12 elements")
+
+    mgr = get_ml_manager()
+    mgr.hazard_model.merge_federated_weights(
+        remote_weights=req.weights,
+        remote_grad_squares=req.grad_squares,
+        remote_sample_count=req.trained_samples_count,
+    )
+
+    if req.thetas and req.counts:
+        mgr.bandit.merge_federated_bandit(
+            remote_thetas=req.thetas,
+            remote_counts=req.counts,
+        )
+
+    mgr.save()
+    return {
+        "status": "synchronized",
+        "merged_weights": mgr.hazard_model.weights,
+        "trained_samples_count": mgr.hazard_model.trained_samples_count,
+        "rolling_brier_loss": round(mgr.hazard_model.rolling_brier_loss, 4),
+        "bandit": mgr.bandit.to_dict(),
+    }
+
+
+@app.post("/v1/ml/record-outcome")
+def record_ml_outcome(
+    req: MLRecordOutcomeRequest,
+    _: bool = Depends(verify_token),
+) -> Dict[str, Any]:
+    """Records real user focus/distraction outcome to update on-device hazard model and bandit."""
+    features = req.features
+    if not features and req.context:
+        features = extract_features(req.context)
+    if not features:
+        features = extract_features({
+            "hour_of_day": datetime.datetime.now().hour,
+            "minute_of_hour": datetime.datetime.now().minute,
+        })
+
+    mgr = get_ml_manager()
+    mgr.hazard_model.train_online_step(features, actual_distracted=req.actual_distracted)
+
+    if req.selected_arm and req.reward is not None:
+        mgr.bandit.record_reward(req.selected_arm, features, req.reward)
+
+    mgr.save()
+    return {
+        "status": "recorded",
+        "trained_samples_count": mgr.hazard_model.trained_samples_count,
+        "rolling_brier_loss": round(mgr.hazard_model.rolling_brier_loss, 4),
+    }
+
+
+@app.get("/v1/ml/status")
+def get_ml_status(
+    _: bool = Depends(verify_token),
+) -> Dict[str, Any]:
+    """Returns real-time on-device ML status, predictions, and recommended LinUCB action."""
+    mgr = get_ml_manager()
+    return mgr.get_status()
 
 
 @app.get("/profile/fatigue")
