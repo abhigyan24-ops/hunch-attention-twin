@@ -12,7 +12,7 @@ The desktop sidecar inherits an explicitly configured TWIN_TOKEN. Its existing l
 
 ## Android system backup
 
-The Android backup rules whitelist only files/hunch_vault_backup.enc. The file is encrypted before it reaches storage. System backup and device transfer depend on Android, device policy, and backup availability. A restored blob still requires its original recovery passphrase. The settings recovery controls currently apply bedtime from a selected portable file.
+The Android backup rules whitelist only files/hunch_vault_backup.enc. The file is encrypted before it reaches storage. System backup and device transfer depend on Android, device policy, and backup availability. A restored blob still requires its original recovery passphrase. If Android restores the encrypted blob, Settings shows **Restore from Android Backup**. Enter the original passphrase to recover the saved bedtime. The same Settings screen accepts a portable file.
 
 ## Portable recovery
 

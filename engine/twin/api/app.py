@@ -1,3 +1,4 @@
+import datetime
 import os
 import time
 from contextlib import asynccontextmanager
@@ -11,6 +12,7 @@ from pydantic import BaseModel, Field
 from ..causal.abduction import AbductionEngine
 from ..causal.cate import CausalForestDML
 from ..causal.conformal import SplitConformal
+from ..distraction_predictor import DistractionPredictor
 from ..ingest.db import Database, get_db
 from ..learners.fatigue import FatigueLearner
 from ..learners.focus import FocusLearner
@@ -30,6 +32,7 @@ TWIN_TOKEN = os.getenv("TWIN_TOKEN", "dhyan-local-twin-token")
 
 # Global singleton engine states
 db: Database = get_db()
+distraction_predictor = DistractionPredictor(db=db)
 focus_learner = FocusLearner()
 interruption_learner = InterruptionLearner()
 stickiness_learner = StickinessLearner()
@@ -197,6 +200,23 @@ def ingest_batch(
     # 2. Ingest events and summaries
     ev_count = db.insert_events(req.events)
     inp_count = db.insert_input_summaries(req.input_summaries)
+
+    # Automatically aggregate input summaries into authentic real_activity_buckets
+    for s in req.input_summaries:
+        w_start = s.get("window_start", 0)
+        if w_start > 0:
+            bucket_start = (w_start // 300000) * 300000
+            dt = datetime.datetime.fromtimestamp(bucket_start / 1000)
+            db.record_activity_bucket({
+                "bucket_start_ts": bucket_start,
+                "hour_of_day": dt.hour,
+                "day_of_week": dt.weekday(),
+                "coding_active_seconds": int(max(0, 10 - float(s.get("idle_s", 0.0)))),
+                "app_switch_count": 1 if s.get("category") == "switch" else 0,
+                "phone_unlock_count": 0,
+                "notifications_held_count": 0,
+                "was_distracted": 1 if s.get("category") in ("social", "distraction") else 0,
+            })
 
     for notif in req.notifications:
         db.insert_notification(notif)
@@ -674,6 +694,140 @@ def privacy_status(_: bool = Depends(verify_token)) -> Dict[str, Any]:
         "todayWiped": wiped,
         "privacyModel": "on-device-only",
     }
+
+
+# ---- Closed-Loop Human Insights & Real Telemetry Endpoints ----
+
+
+class ActivityBucketRequest(BaseModel):
+    bucket_start_ts: int
+    hour_of_day: Optional[int] = None
+    day_of_week: Optional[int] = None
+    coding_active_seconds: int = 0
+    app_switch_count: int = 0
+    phone_unlock_count: int = 0
+    notifications_held_count: int = 0
+    was_distracted: bool = False
+
+
+class FocusStreakRequest(BaseModel):
+    streak_id: str
+    started_at_ts: int
+    ended_at_ts: int
+    duration_minutes: int
+    hour_of_day: Optional[int] = None
+    broke_by_source: str = "natural_break"
+
+
+class ContextSnapshotRequest(BaseModel):
+    snapshot_id: str
+    created_at_ts: Optional[int] = None
+    workspace_name: str = ""
+    file_path: str = ""
+    line_number: int = 0
+    column_number: int = 0
+    git_branch: str = ""
+    user_note: str = ""
+    resumed_at_ts: Optional[int] = None
+
+
+class ContextResumeRequest(BaseModel):
+    snapshot_id: str
+    resumed_at_ts: Optional[int] = None
+
+
+class HeldNotificationRequest(BaseModel):
+    id: str
+    arrived_at_ts: Optional[int] = None
+    app_label: str
+    category: str = "general"
+    count: int = 1
+    delivered_at_break: bool = False
+
+
+@app.get("/v1/insights/human-summary")
+def get_human_summary(
+    current_streak_minutes: int = Query(default=0, ge=0),
+    _: bool = Depends(verify_token),
+) -> Dict[str, Any]:
+    """Returns human-ready predictions and recommendations backed by real SQLite telemetry."""
+    with _circadian_lock:
+        circ_state = _circadian_state
+    return distraction_predictor.predict_human_summary(
+        current_streak_minutes=current_streak_minutes,
+        circadian_state=circ_state,
+    )
+
+
+@app.post("/v1/insights/activity-bucket")
+def record_activity_bucket(
+    req: ActivityBucketRequest,
+    _: bool = Depends(verify_token),
+) -> Dict[str, Any]:
+    bucket = req.model_dump()
+    if bucket.get("hour_of_day") is None:
+        bucket["hour_of_day"] = datetime.datetime.fromtimestamp(bucket["bucket_start_ts"] / 1000).hour
+    if bucket.get("day_of_week") is None:
+        bucket["day_of_week"] = datetime.datetime.fromtimestamp(bucket["bucket_start_ts"] / 1000).weekday()
+    db.record_activity_bucket(bucket)
+    return {"success": True}
+
+
+@app.post("/v1/insights/focus-streak")
+def record_focus_streak(
+    req: FocusStreakRequest,
+    _: bool = Depends(verify_token),
+) -> Dict[str, Any]:
+    streak = req.model_dump()
+    if streak.get("hour_of_day") is None:
+        streak["hour_of_day"] = datetime.datetime.fromtimestamp(streak["started_at_ts"] / 1000).hour
+    db.record_focus_streak(streak)
+    return {"success": True}
+
+
+@app.post("/v1/insights/context-snapshot")
+def record_context_snapshot(
+    req: ContextSnapshotRequest,
+    _: bool = Depends(verify_token),
+) -> Dict[str, Any]:
+    db.record_context_snapshot(req.model_dump())
+    return {"success": True}
+
+
+@app.get("/v1/insights/context-snapshot")
+def get_latest_context_snapshot(
+    _: bool = Depends(verify_token),
+) -> Dict[str, Any]:
+    snap = db.get_latest_context_snapshot()
+    return {"snapshot": snap}
+
+
+@app.post("/v1/insights/context-snapshot/resume")
+def resume_context_snapshot(
+    req: ContextResumeRequest,
+    _: bool = Depends(verify_token),
+) -> Dict[str, Any]:
+    ts = req.resumed_at_ts or int(time.time() * 1000)
+    db.resume_context_snapshot(req.snapshot_id, ts)
+    return {"success": True}
+
+
+@app.post("/v1/insights/held-notification")
+def record_held_notification(
+    req: HeldNotificationRequest,
+    _: bool = Depends(verify_token),
+) -> Dict[str, Any]:
+    db.record_held_notification(req.model_dump())
+    return {"success": True}
+
+
+@app.get("/v1/insights/held-notifications")
+def get_held_notifications(
+    undelivered_only: bool = Query(default=True),
+    _: bool = Depends(verify_token),
+) -> Dict[str, Any]:
+    items = db.get_held_notifications(undelivered_only=undelivered_only)
+    return {"notifications": items, "count": len(items)}
 
 
 @app.get("/profile/fatigue")

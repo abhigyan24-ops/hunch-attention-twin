@@ -87,6 +87,8 @@ import com.dhyan.app.ui.viewmodel.LiveDigestUiState
 import com.dhyan.app.ui.viewmodel.LiveDigestViewModel
 import com.dhyan.app.ui.viewmodel.LiveHeldItemUi
 import com.dhyan.app.wellbeing.BedtimeSettingsCard
+import com.dhyan.app.privacy.PrivacyLedgerCard
+import com.dhyan.app.privacy.PrivacyLedgerManager
 import kotlinx.coroutines.delay
 
 @Composable
@@ -247,6 +249,39 @@ fun LiveDigestContent(
                         trustPrompt = TrustCapability.BEDTIME
                     }
                 )
+            }
+        }
+
+        // Today's Distraction Forecast & Focus Shield
+        PastelSquircleCard(tone = PastelTone.SAND) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                StatusPillBadge("Distraction Forecast · Today", active = true)
+                Text("~28m cycle", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+            }
+            Text(
+                "Next Vulnerable Window\n3:00 PM – 4:00 PM",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                "You usually unlock your phone every ~28 mins in the afternoon. Quiet Shield keeps social media and distracting notifications held so you stay in flow.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Button(
+                onClick = { onStartFocusSession(25.0, "coding") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Text("🛡️ Activate Focus Shield (25m)")
             }
         }
 
@@ -417,6 +452,17 @@ fun LiveDigestContent(
 
         // 2b. Digital Wellbeing Bedtime Schedule Card
         BedtimeSettingsCard()
+
+        // 2c. Privacy Ledger & 1-Tap Forget Today
+        val privacyLedger = remember(context) { PrivacyLedgerManager(context) }
+        var ledgerSnap by remember { mutableStateOf(privacyLedger.snapshot()) }
+        PrivacyLedgerCard(
+            snapshot = ledgerSnap,
+            onForgetToday = {
+                privacyLedger.resetToday()
+                ledgerSnap = privacyLedger.snapshot()
+            }
+        )
 
         // 3. Notification Policy Card
         LiveCard("Quiet Focus Delivery · ${uiState.mode.name.replace('_', ' ')}") {

@@ -202,8 +202,9 @@ function App() {
   const [tokenVisible, setTokenVisible] = useState(false);
   const [ingestNotice, setIngestNotice] = useState('');
 
-  // Pre-bedtime circadian wind-down
+  // Pre-bedtime circadian wind-down & human insights
   const [windDownActive, setWindDownActive] = useState(false);
+  const [humanSummary, setHumanSummary] = useState<any>(null);
 
   // Pairing & Remote Commands
   const [relayUrl, setRelayUrl] = useState('');
@@ -254,8 +255,11 @@ function App() {
     let active = true;
     const pollWindDown = async () => {
       try {
-        const resp = await fetch('http://127.0.0.1:8765/v1/wellbeing/circadian');
-        if (resp.ok) {
+        const [resp, hRes] = await Promise.all([
+          fetch('http://127.0.0.1:8765/v1/wellbeing/circadian').catch(() => null),
+          fetch('http://127.0.0.1:8765/v1/insights/human-summary').catch(() => null),
+        ]);
+        if (resp && resp.ok) {
           const res = (await resp.json()) as any;
           if (active) {
             const isWindDown = Boolean(res?.windDownActive);
@@ -270,6 +274,15 @@ function App() {
           if (active) {
             setWindDownActive(false);
             document.body.classList.remove('wind-down-active');
+          }
+        }
+        if (hRes && hRes.ok) {
+          const hJson = (await hRes.json()) as any;
+          if (active) {
+            setHumanSummary(hJson);
+            if (hJson?.distractionForecast?.preDistractionShieldTrigger) {
+              setBubble("You usually hit a distraction wall in ~3 mins — stay in flow!");
+            }
           }
         }
       } catch {
@@ -486,6 +499,12 @@ function App() {
 
                 {/* Tactile Semicircular Tick-Mark Dial */}
                 <SemicircularDial minutes={plannedMin} onChange={setPlannedMin} />
+
+                {humanSummary?.todayImpact?.sessionReason && (
+                  <p style={{ fontSize: '12px', textAlign: 'center', color: 'var(--dhyan-text-muted)', margin: '4px 0 12px 0' }}>
+                    💡 Adaptive Sizing: {humanSummary.todayImpact.recommendedSessionMinutes}m ({humanSummary.todayImpact.sessionReason})
+                  </p>
+                )}
 
                 {/* CTA Action Pill */}
                 <button

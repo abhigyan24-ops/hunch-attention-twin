@@ -100,6 +100,8 @@ object EncryptedVaultManager {
             decryptPayload(readBounded(it), passphrase)
         }
 
+    fun hasBackup(context: Context): Boolean = file(context).baseFile.isFile
+
     fun deleteBackup(context: Context) = file(context).delete()
 
     private fun readBounded(stream: InputStream): ByteArray {

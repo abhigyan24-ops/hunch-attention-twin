@@ -94,3 +94,50 @@ CREATE TABLE IF NOT EXISTS device_sync (
     round_trip_ms INTEGER DEFAULT 0,
     last_sync_ts INTEGER NOT NULL
 );
+
+-- Authentic Closed-Loop Telemetry Tables
+
+CREATE TABLE IF NOT EXISTS real_activity_buckets (
+    bucket_start_ts INTEGER PRIMARY KEY,
+    hour_of_day INTEGER NOT NULL,
+    day_of_week INTEGER NOT NULL,
+    coding_active_seconds INTEGER DEFAULT 0,
+    app_switch_count INTEGER DEFAULT 0,
+    phone_unlock_count INTEGER DEFAULT 0,
+    notifications_held_count INTEGER DEFAULT 0,
+    was_distracted INTEGER DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_activity_buckets_hour ON real_activity_buckets(hour_of_day);
+
+CREATE TABLE IF NOT EXISTS focus_streaks (
+    streak_id TEXT PRIMARY KEY,
+    started_at_ts INTEGER NOT NULL,
+    ended_at_ts INTEGER NOT NULL,
+    duration_minutes INTEGER NOT NULL,
+    hour_of_day INTEGER NOT NULL,
+    broke_by_source TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_focus_streaks_hour ON focus_streaks(hour_of_day);
+
+CREATE TABLE IF NOT EXISTS context_snapshots (
+    snapshot_id TEXT PRIMARY KEY,
+    created_at_ts INTEGER NOT NULL,
+    workspace_name TEXT,
+    file_path TEXT,
+    line_number INTEGER DEFAULT 0,
+    column_number INTEGER DEFAULT 0,
+    git_branch TEXT,
+    user_note TEXT,
+    resumed_at_ts INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_context_snapshots_ts ON context_snapshots(created_at_ts);
+
+CREATE TABLE IF NOT EXISTS held_notifications (
+    id TEXT PRIMARY KEY,
+    arrived_at_ts INTEGER NOT NULL,
+    app_label TEXT NOT NULL,
+    category TEXT,
+    count INTEGER DEFAULT 1,
+    delivered_at_break INTEGER DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_held_notifs_ts ON held_notifications(arrived_at_ts);

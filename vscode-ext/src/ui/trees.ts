@@ -136,15 +136,15 @@ export class TodayTreeDataProvider {
     return element;
   }
 
-  getChildren(_element?: TreeItemLike): Thenable<TreeItemLike[]> | Promise<TreeItemLike[]> {
+  async getChildren(_element?: TreeItemLike): Promise<TreeItemLike[]> {
     const items: TreeItemLike[] = [];
 
     // 1. Current Session Status
     const active = this.sessionManager.getCurrentSession();
+    const activeElapsed = active ? Math.round((Date.now() - active.startTime) / 60_000) : 0;
     if (active) {
-      const elapsedMin = Math.round((Date.now() - active.startTime) / 60_000);
       items.push({
-        label: `Focus Session Active: ${elapsedMin}m`,
+        label: `Focus Session Active: ${activeElapsed}m`,
         description: 'In flow',
         tooltip: `Active session started ${new Date(active.startTime).toLocaleTimeString()}`,
         iconPath: this.getThemeIcon('eye'),
@@ -166,7 +166,57 @@ export class TodayTreeDataProvider {
       });
     }
 
-    // 2. Total focus time today
+    // 2. Fetch authentic Distraction Forecast & Peak Focus from engine
+    try {
+      const res = await fetch(`http://127.0.0.1:8765/v1/insights/human-summary?current_streak_minutes=${activeElapsed}`);
+      if (res.ok) {
+        const summary = (await res.json()) as any;
+        const forecast = summary?.distractionForecast;
+        const peak = summary?.peakFocusWindow;
+        const cal = summary?.calibrationStatus;
+
+        // Pre-distraction warning if approaching distraction point
+        if (forecast?.preDistractionShieldTrigger) {
+          items.push({
+            label: `⚠️ Distraction wall in ~${forecast.minutesUntilLikelyDistraction}m`,
+            description: 'Stay in flow!',
+            tooltip: `You usually switch apps around minute ${forecast.typicalStreakMinutes}. Stay focused to extend your streak!`,
+            iconPath: this.getThemeIcon('shield')
+          });
+        }
+
+        // Distraction forecast item
+        if (forecast?.nextHighRiskWindow && cal?.isCalibrated) {
+          items.push({
+            label: `Next vulnerable window: ${forecast.nextHighRiskWindow}`,
+            description: `Typical streak: ${forecast.typicalStreakMinutes}m`,
+            tooltip: `${forecast.humanHeadline} · Primary trigger: ${forecast.primaryTrigger}`,
+            iconPath: this.getThemeIcon('pulse')
+          });
+        } else if (cal && !cal.isCalibrated) {
+          items.push({
+            label: 'Learning your focus rhythm',
+            description: `${cal.realMinutesTracked}/30m`,
+            tooltip: cal.statusLabel,
+            iconPath: this.getThemeIcon('sync')
+          });
+        }
+
+        // Peak focus window
+        if (peak?.windowLabel && peak.windowLabel !== 'Calibrating') {
+          items.push({
+            label: `Peak Focus: ${peak.windowLabel}`,
+            description: 'Deepest flow',
+            tooltip: peak.humanHeadline,
+            iconPath: this.getThemeIcon('zap')
+          });
+        }
+      }
+    } catch {
+      // Offline fallback
+    }
+
+    // 3. Total focus time today
     const history = this.sessionManager.getSessionHistory();
     const totalMs = history.reduce((acc, s) => acc + s.durationMs, 0);
     const totalMin = Math.round(totalMs / 60_000);

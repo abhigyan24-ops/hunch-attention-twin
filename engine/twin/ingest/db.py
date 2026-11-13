@@ -10,7 +10,7 @@ SCHEMA_PATH = Path(__file__).parent / "schema.sql"
 
 
 def _default_db_path() -> Path:
-    env_path = os.getenv("DHYAN_DB_PATH")
+    env_path = os.getenv("HUNCH_DB_PATH") or os.getenv("DHYAN_DB_PATH")
     if env_path:
         return Path(env_path)
     if getattr(sys, "frozen", False):
@@ -318,6 +318,164 @@ class Database:
             "notif_outcomes": outcomes,
         }
 
+
+
+    def record_activity_bucket(self, bucket: Dict[str, Any]) -> None:
+        with self.get_connection() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO real_activity_buckets (
+                    bucket_start_ts, hour_of_day, day_of_week, coding_active_seconds,
+                    app_switch_count, phone_unlock_count, notifications_held_count, was_distracted
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    bucket["bucket_start_ts"],
+                    bucket.get("hour_of_day", 0),
+                    bucket.get("day_of_week", 0),
+                    bucket.get("coding_active_seconds", 0),
+                    bucket.get("app_switch_count", 0),
+                    bucket.get("phone_unlock_count", 0),
+                    bucket.get("notifications_held_count", 0),
+                    1 if bucket.get("was_distracted") else 0,
+                ),
+            )
+            conn.commit()
+
+    def record_focus_streak(self, streak: Dict[str, Any]) -> None:
+        with self.get_connection() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO focus_streaks (
+                    streak_id, started_at_ts, ended_at_ts, duration_minutes,
+                    hour_of_day, broke_by_source
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    streak["streak_id"],
+                    streak["started_at_ts"],
+                    streak["ended_at_ts"],
+                    streak["duration_minutes"],
+                    streak.get("hour_of_day", 0),
+                    streak.get("broke_by_source", "natural_break"),
+                ),
+            )
+            conn.commit()
+
+    def record_context_snapshot(self, snapshot: Dict[str, Any]) -> None:
+        with self.get_connection() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO context_snapshots (
+                    snapshot_id, created_at_ts, workspace_name, file_path,
+                    line_number, column_number, git_branch, user_note, resumed_at_ts
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    snapshot["snapshot_id"],
+                    snapshot.get("created_at_ts") or int(time.time() * 1000),
+                    snapshot.get("workspace_name", ""),
+                    snapshot.get("file_path", ""),
+                    snapshot.get("line_number", 0),
+                    snapshot.get("column_number", 0),
+                    snapshot.get("git_branch", ""),
+                    snapshot.get("user_note", ""),
+                    snapshot.get("resumed_at_ts"),
+                ),
+            )
+            conn.commit()
+
+    def get_latest_context_snapshot(self) -> Optional[Dict[str, Any]]:
+        with self.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM context_snapshots ORDER BY created_at_ts DESC LIMIT 1")
+            row = cur.fetchone()
+            return dict(row) if row else None
+
+    def resume_context_snapshot(self, snapshot_id: str, resumed_at_ts: int) -> None:
+        with self.get_connection() as conn:
+            conn.execute(
+                "UPDATE context_snapshots SET resumed_at_ts = ? WHERE snapshot_id = ?",
+                (resumed_at_ts, snapshot_id),
+            )
+            conn.commit()
+
+    def record_held_notification(self, notif: Dict[str, Any]) -> None:
+        with self.get_connection() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO held_notifications (
+                    id, arrived_at_ts, app_label, category, count, delivered_at_break
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    notif["id"],
+                    notif.get("arrived_at_ts") or int(time.time() * 1000),
+                    notif.get("app_label", "Unknown"),
+                    notif.get("category", "general"),
+                    notif.get("count", 1),
+                    1 if notif.get("delivered_at_break") else 0,
+                ),
+            )
+            conn.commit()
+
+    def get_held_notifications(self, undelivered_only: bool = True) -> List[Dict[str, Any]]:
+        with self.get_connection() as conn:
+            cur = conn.cursor()
+            if undelivered_only:
+                cur.execute("SELECT * FROM held_notifications WHERE delivered_at_break = 0 ORDER BY arrived_at_ts DESC")
+            else:
+                cur.execute("SELECT * FROM held_notifications ORDER BY arrived_at_ts DESC")
+            return [dict(r) for r in cur.fetchall()]
+
+    def get_total_real_activity_minutes(self) -> int:
+        with self.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) AS bucket_count FROM real_activity_buckets")
+            row = cur.fetchone()
+            bucket_mins = int(row["bucket_count"]) * 5 if row else 0
+            cur.execute("SELECT SUM(duration_minutes) AS streak_mins FROM focus_streaks")
+            row = cur.fetchone()
+            streak_mins = int(row["streak_mins"]) if row and row["streak_mins"] else 0
+            cur.execute("SELECT SUM(duration_s) AS block_s FROM focus_blocks")
+            row = cur.fetchone()
+            block_mins = int(row["block_s"] / 60) if row and row["block_s"] else 0
+            cur.execute("SELECT COUNT(*) AS input_count FROM input_summary")
+            row = cur.fetchone()
+            input_mins = int(row["input_count"] / 6) if row and row["input_count"] else 0
+            return max(bucket_mins, streak_mins, block_mins, input_mins)
+
+    def get_focus_streaks(self, hour_of_day: Optional[int] = None) -> List[Dict[str, Any]]:
+        with self.get_connection() as conn:
+            cur = conn.cursor()
+            if hour_of_day is not None:
+                cur.execute("SELECT * FROM focus_streaks WHERE hour_of_day = ? ORDER BY started_at_ts DESC", (hour_of_day,))
+            else:
+                cur.execute("SELECT * FROM focus_streaks ORDER BY started_at_ts DESC")
+            return [dict(r) for r in cur.fetchall()]
+
+    def get_hourly_activity_stats(self, days: int = 14) -> List[Dict[str, Any]]:
+        cutoff_ts = int(time.time() * 1000) - (days * 86400 * 1000)
+        with self.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT
+                    hour_of_day,
+                    COUNT(*) AS bucket_count,
+                    SUM(coding_active_seconds) AS total_coding_s,
+                    SUM(app_switch_count) AS total_app_switches,
+                    SUM(phone_unlock_count) AS total_phone_unlocks,
+                    SUM(notifications_held_count) AS total_held,
+                    SUM(was_distracted) AS total_distracted
+                FROM real_activity_buckets
+                WHERE bucket_start_ts >= ?
+                GROUP BY hour_of_day
+                ORDER BY hour_of_day ASC
+                """,
+                (cutoff_ts,),
+            )
+            return [dict(r) for r in cur.fetchall()]
 
 
 _db_instance: Optional[Database] = None

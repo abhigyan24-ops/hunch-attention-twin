@@ -268,13 +268,19 @@ fun CrossDeviceSyncSection(viewModel: SettingsViewModel) {
         val pairingActive = status is SyncUiStatus.Joining || status is SyncUiStatus.WaitingOffer ||
             status is SyncUiStatus.SasVerification || status is SyncUiStatus.Paired ||
             status is SyncUiStatus.Connecting || status is SyncUiStatus.Connected || status is SyncUiStatus.Unsynced
+        var showPairingSheet by remember { mutableStateOf(false) }
         if (!paired && !pairingActive) {
-            OutlinedTextField(url, { url = it }, label = { Text("Relay WebSocket address") },
-                modifier = Modifier.fillMaxWidth(), singleLine = true)
-            OutlinedTextField(code, { if (it.length <= 6) code = it.uppercase(Locale.ROOT) },
-                label = { Text("Six-character pairing code") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-            Button(modifier = Modifier.fillMaxWidth(), enabled = code.length == 6 && url.isNotBlank(),
-                onClick = { viewModel.startPairing(code.trim(), url.trim()); code = "" }) { Text("Pair laptop") }
+            TextButton(onClick = { showPairingSheet = !showPairingSheet }) {
+                Text(if (showPairingSheet) "Hide connection settings -" else "Pair / Connection settings +")
+            }
+            if (showPairingSheet) {
+                OutlinedTextField(url, { url = it }, label = { Text("Relay WebSocket address") },
+                    modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(code, { if (it.length <= 6) code = it.uppercase(Locale.ROOT) },
+                    label = { Text("Six-character pairing code") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                Button(modifier = Modifier.fillMaxWidth(), enabled = code.length == 6 && url.isNotBlank(),
+                    onClick = { viewModel.startPairing(code.trim(), url.trim()); code = "" }) { Text("Pair laptop") }
+            }
         }
         if (paired) TextButton(onClick = { unpair = true }) { Text("Unpair laptop") }
         session?.let { active ->

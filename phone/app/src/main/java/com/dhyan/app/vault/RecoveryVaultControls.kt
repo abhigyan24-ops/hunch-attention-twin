@@ -18,6 +18,8 @@ fun RecoveryVaultControls() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var target by remember { mutableStateOf<Uri?>(null) }
+    var restoringBackup by remember { mutableStateOf(false) }
+    var hasBackup by remember { mutableStateOf(EncryptedVaultManager.hasBackup(context)) }
     var exporting by remember { mutableStateOf(false) }
     var password by remember { mutableStateOf("") }
     var result by remember { mutableStateOf<String?>(null) }
@@ -38,10 +40,17 @@ fun RecoveryVaultControls() {
     TextButton(enabled = !busy, onClick = { open.launch(arrayOf("application/octet-stream", "application/*")) }) {
         Text("Restore from Recovery File")
     }
+    if (hasBackup) {
+        TextButton(enabled = !busy, onClick = {
+            exporting = false
+            restoringBackup = true
+        }) { Text("Restore from Android Backup") }
+    }
     result?.let { Text(it) }
-    target?.let { uri ->
+    val uri = target
+    if (uri != null || restoringBackup) {
         AlertDialog(
-            onDismissRequest = { target = null; password = "" },
+            onDismissRequest = { target = null; restoringBackup = false; password = "" },
             title = { Text(if (exporting) "Choose a recovery passphrase" else "Enter the recovery passphrase") },
             text = {
                 OutlinedTextField(
@@ -50,11 +59,13 @@ fun RecoveryVaultControls() {
                     label = { Text("Recovery passphrase") }, singleLine = true,
                 )
             },
-            dismissButton = { TextButton(onClick = { target = null; password = "" }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { target = null; restoringBackup = false; password = "" }) { Text("Cancel") } },
             confirmButton = {
                 TextButton(enabled = password.isNotBlank() && (!exporting || password.length >= 16), onClick = {
                     val passphrase = password
                     val export = exporting
+                    val internalBackup = restoringBackup
+                    restoringBackup = false
                     target = null
                     password = ""
                     busy = true
@@ -74,10 +85,14 @@ fun RecoveryVaultControls() {
                                         })
                                         put("exportedAtMillis", System.currentTimeMillis())
                                     }.toString().toByteArray(Charsets.UTF_8)
-                                    EncryptedVaultManager.exportEncryptedVaultToUri(context, uri, bytes, passphrase)
+                                    EncryptedVaultManager.exportEncryptedVaultToUri(context, requireNotNull(uri), bytes, passphrase)
                                     EncryptedVaultManager.writeBackup(context, bytes, passphrase)
                                 } else {
-                                    val data = EncryptedVaultManager.importEncryptedVaultFromUri(context, uri, passphrase)
+                                    val data = if (internalBackup) {
+                                        EncryptedVaultManager.readBackup(context, passphrase)
+                                    } else {
+                                        EncryptedVaultManager.importEncryptedVaultFromUri(context, requireNotNull(uri), passphrase)
+                                    }
                                     val schedule = JSONObject(data.toString(Charsets.UTF_8)).getJSONObject("bedtimeSchedule")
                                     val bedHour = schedule.getInt("bedHour")
                                     val bedMin = schedule.getInt("bedMin")
@@ -87,6 +102,7 @@ fun RecoveryVaultControls() {
                                     manager.setManualBedtime(bedHour, bedMin, wakeHour, wakeMin)
                                 }
                             }
+                            if (export) hasBackup = true
                             result = if (export) "Encrypted recovery file saved." else "Bedtime restored as a manual schedule."
                         } catch (cancelled: kotlinx.coroutines.CancellationException) {
                             throw cancelled
