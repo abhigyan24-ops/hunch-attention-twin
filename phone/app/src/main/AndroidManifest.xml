@@ -32,7 +32,7 @@
     <application
         android:label="@string/app_name"
         android:name=".DhyanApplication"
-        android:allowBackup="false"
+        android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:usesCleartextTraffic="false"

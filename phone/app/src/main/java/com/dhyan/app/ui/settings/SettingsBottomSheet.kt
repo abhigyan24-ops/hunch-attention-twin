@@ -1,5 +1,6 @@
 package com.dhyan.app.ui.settings
 
+import com.dhyan.app.vault.RecoveryVaultControls
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -79,6 +80,7 @@ fun SettingsBottomSheet(viewModel: SettingsViewModel, onDismiss: () -> Unit) {
         containerColor = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)) {
+            RecoveryVaultControls()
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Your space.", style = MaterialTheme.typography.headlineMedium)
                 TextButton(onClick = onDismiss) { Text("Done") }

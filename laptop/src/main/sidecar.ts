@@ -103,7 +103,7 @@ export class SidecarManager {
  engineEnv(frozen: boolean, baseEnv: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
   const dbEnv = this.dbPath ? {DHYAN_DB_PATH: this.dbPath} : {};
   return frozen
-   ? {...baseEnv, ...dbEnv, TWIN_TOKEN: 'dhyan-local-twin-token'}
+   ? {...baseEnv, ...dbEnv, TWIN_TOKEN: baseEnv.TWIN_TOKEN ?? 'dhyan-local-twin-token'}
    : {...baseEnv, ...dbEnv, PYTHONPATH: this.projectRoot, PYTHONUNBUFFERED: '1'};
  }
 

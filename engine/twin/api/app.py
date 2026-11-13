@@ -24,6 +24,8 @@ from ..policy.nudge_backoff import NudgeBackoffEngine
 from ..simulator.simulate import AttentionSimulator
 from ..simulator.stages import SimulatorStages
 
+from .vault_routes import router as vault_router
+
 TWIN_TOKEN = os.getenv("TWIN_TOKEN", "dhyan-local-twin-token")
 
 # Global singleton engine states
@@ -83,6 +85,8 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+app.include_router(vault_router)
 
 # Enable Permissive Localhost CORS
 app.add_middleware(
