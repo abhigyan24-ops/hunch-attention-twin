@@ -1,6 +1,6 @@
 # engine/requirements.lock.txt
 # Pinned dependencies for reproducible CI and PyInstaller packaging
-fastapi==0.115.6
+fastapi==0.162.2
 uvicorn==0.34.0
 pydantic==2.10.4
 # EconML 0.15.1 requires NumPy <2 and scikit-learn <1.6.
