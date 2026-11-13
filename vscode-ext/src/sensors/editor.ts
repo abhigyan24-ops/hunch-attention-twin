@@ -8,6 +8,7 @@ export interface EditorAdapterOptions {
   vscode: any;
   onEdit?: (kind: string, ins: number, del: number) => void;
   onActivity?: () => void;
+  onSave?: (doc: any) => void;
 }
 
 export class EditorSensor {
@@ -15,6 +16,7 @@ export class EditorSensor {
   private privacyFilter: PrivacyFilter;
   private onEditCallback?: (kind: string, ins: number, del: number) => void;
   private onActivityCallback?: () => void;
+  private onSaveCallback?: (doc: any) => void;
   private disposables: { dispose(): void }[] = [];
 
   constructor(options: EditorAdapterOptions) {
@@ -22,6 +24,7 @@ export class EditorSensor {
     this.privacyFilter = options.privacyFilter;
     this.onEditCallback = options.onEdit;
     this.onActivityCallback = options.onActivity;
+    this.onSaveCallback = options.onSave;
     this.setup(options.vscode);
   }
 
@@ -71,6 +74,7 @@ export class EditorSensor {
           if (this.privacyFilter.isExcluded(doc)) return;
           this.aggregator.onSave();
           this.onActivityCallback?.();
+          this.onSaveCallback?.(doc);
         })
       );
     }

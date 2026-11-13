@@ -164,3 +164,36 @@ CREATE TABLE IF NOT EXISTS compile_shield_events (
     saved_distraction INTEGER DEFAULT 1
 );
 CREATE INDEX IF NOT EXISTS idx_compile_shield_ts ON compile_shield_events(ts);
+
+CREATE TABLE IF NOT EXISTS file_attention_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    file_path TEXT NOT NULL,
+    workspace_name TEXT,
+    logged_at_ts INTEGER NOT NULL,
+    is_fatigued_edit INTEGER DEFAULT 0,
+    interruption_count INTEGER DEFAULT 0,
+    thrash_events_count INTEGER DEFAULT 0,
+    context_note TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_file_attention_path ON file_attention_logs(file_path);
+
+CREATE TABLE IF NOT EXISTS shared_desk_items (
+    id TEXT PRIMARY KEY,
+    created_at_ts INTEGER NOT NULL,
+    item_type TEXT NOT NULL,
+    content TEXT NOT NULL,
+    url TEXT,
+    title TEXT,
+    note TEXT,
+    consumed INTEGER DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_shared_desk_ts ON shared_desk_items(created_at_ts);
+
+CREATE TABLE IF NOT EXISTS walk_away_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts INTEGER NOT NULL,
+    state TEXT NOT NULL,
+    reason TEXT,
+    duration_seconds INTEGER DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_walk_away_ts ON walk_away_events(ts);

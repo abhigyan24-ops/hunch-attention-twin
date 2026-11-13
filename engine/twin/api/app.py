@@ -776,11 +776,63 @@ class ActiveCodingRequest(BaseModel):
     active_workspace: str = ""
 
 
+class WalkAwayRequest(BaseModel):
+    state: str = "AWAY"
+    reason: Optional[str] = "4-gate sensor fusion"
+    confidence: Optional[float] = 1.0
+
+
+class ThrashShieldRequest(BaseModel):
+    active: bool = True
+    trigger: Optional[str] = "repeated_test_failures"
+    reason: Optional[str] = None
+    expires_in_seconds: Optional[int] = 600
+
+
+class FileAttentionLogRequest(BaseModel):
+    file_path: str
+    workspace_name: Optional[str] = ""
+    is_fatigued_edit: bool = False
+    interruption_count: int = 0
+    thrash_events_count: int = 0
+    context_note: Optional[str] = ""
+
+
+class ShareToDeskRequest(BaseModel):
+    item_type: Optional[str] = "note"
+    content: str
+    url: Optional[str] = None
+    title: Optional[str] = None
+    note: Optional[str] = None
+
+
+class ConsumeSharedItemRequest(BaseModel):
+    id: str
+
+
 _call_state_lock = threading.Lock()
 _call_state = {
     "in_call": False,
     "source": "none",
     "updated_at": int(time.time() * 1000),
+}
+
+_walk_away_lock = threading.Lock()
+_walk_away_state = {
+    "active": False,
+    "paused_by_walkaway": False,
+    "show_return_replay": False,
+    "last_state": "UNDETERMINED",
+    "updated_at": int(time.time() * 1000),
+}
+
+_thrash_shield_lock = threading.Lock()
+_thrash_shield_state = {
+    "active": False,
+    "trigger": "",
+    "reason": "",
+    "activated_at": 0,
+    "expires_at": 0,
 }
 
 _compile_shield_lock = threading.Lock()
@@ -985,6 +1037,136 @@ def get_active_coding(_: bool = Depends(verify_token)) -> Dict[str, Any]:
         state = dict(_active_coding_state)
         state["is_coding"] = state["is_coding"] and is_fresh
         return state
+
+
+@app.post("/v1/flow/walk-away")
+def set_walk_away(req: WalkAwayRequest, _: bool = Depends(verify_token)) -> Dict[str, Any]:
+    st = req.state.upper()
+    is_away = st in ("AWAY", "WALK_AWAY_CONFIRMED")
+    is_returned = st in ("RETURNED", "RETURNED_TO_DESK")
+
+    with _walk_away_lock:
+        if is_away:
+            _walk_away_state["active"] = True
+            _walk_away_state["paused_by_walkaway"] = True
+            _walk_away_state["show_return_replay"] = False
+            _walk_away_state["last_state"] = "WALK_AWAY_CONFIRMED"
+            _walk_away_state["updated_at"] = int(time.time() * 1000)
+            db.record_walk_away_event({
+                "ts": int(time.time() * 1000),
+                "state": "AWAY",
+                "reason": req.reason,
+            })
+        elif is_returned:
+            _walk_away_state["active"] = False
+            _walk_away_state["paused_by_walkaway"] = False
+            _walk_away_state["show_return_replay"] = True
+            _walk_away_state["last_state"] = "RETURNED_TO_DESK"
+            _walk_away_state["updated_at"] = int(time.time() * 1000)
+            db.record_walk_away_event({
+                "ts": int(time.time() * 1000),
+                "state": "RETURNED",
+                "reason": req.reason,
+            })
+        return {"success": True, "walk_away": dict(_walk_away_state)}
+
+
+@app.get("/v1/flow/walk-away")
+def get_walk_away(
+    consume_replay: bool = Query(default=False),
+    _: bool = Depends(verify_token),
+) -> Dict[str, Any]:
+    with _walk_away_lock:
+        data = dict(_walk_away_state)
+        if consume_replay:
+            _walk_away_state["show_return_replay"] = False
+        return data
+
+
+@app.post("/v1/flow/thrash-shield")
+def set_thrash_shield(req: ThrashShieldRequest, _: bool = Depends(verify_token)) -> Dict[str, Any]:
+    now_ms = int(time.time() * 1000)
+    expires_ms = now_ms + (req.expires_in_seconds or 600) * 1000
+
+    with _thrash_shield_lock:
+        _thrash_shield_state["active"] = req.active
+        _thrash_shield_state["trigger"] = req.trigger or "cognitive_thrash"
+        _thrash_shield_state["reason"] = req.reason or req.trigger or "Repeated friction detected"
+        _thrash_shield_state["activated_at"] = now_ms if req.active else 0
+        _thrash_shield_state["expires_at"] = expires_ms if req.active else 0
+        return {"success": True, "thrash_shield": dict(_thrash_shield_state)}
+
+
+@app.get("/v1/flow/thrash-shield")
+def get_thrash_shield(_: bool = Depends(verify_token)) -> Dict[str, Any]:
+    now_ms = int(time.time() * 1000)
+    with _thrash_shield_lock:
+        if _thrash_shield_state["active"] and _thrash_shield_state["expires_at"] <= now_ms:
+            _thrash_shield_state["active"] = False
+        remaining_sec = max(0, int((_thrash_shield_state["expires_at"] - now_ms) / 1000))
+        return {
+            "active": _thrash_shield_state["active"],
+            "trigger": _thrash_shield_state["trigger"],
+            "reason": _thrash_shield_state["reason"],
+            "remainingSeconds": remaining_sec if _thrash_shield_state["active"] else 0,
+        }
+
+
+@app.post("/v1/insights/file-attention-log")
+def record_file_attention_log(req: FileAttentionLogRequest, _: bool = Depends(verify_token)) -> Dict[str, Any]:
+    db.record_file_attention_log(req.model_dump())
+    return {"success": True}
+
+
+@app.get("/v1/insights/pre-commit-audit")
+def get_pre_commit_audit(
+    workspace_name: Optional[str] = Query(default=None),
+    hours: int = Query(default=24, ge=1, le=168),
+    _: bool = Depends(verify_token),
+) -> Dict[str, Any]:
+    return db.get_pre_commit_audit(workspace_name=workspace_name, hours=hours)
+
+
+@app.post("/v1/flow/share-to-desk")
+def share_to_desk(req: ShareToDeskRequest, _: bool = Depends(verify_token)) -> Dict[str, Any]:
+    item_id = f"desk_{int(time.time() * 1000)}_{secrets.token_hex(4)}"
+
+    # Auto-detect URL if present in content
+    url = req.url
+    item_type = req.item_type or "note"
+    if not url:
+        import re
+        match = re.search(r"https?://[^\s]+", req.content)
+        if match:
+            url = match.group(0)
+            item_type = "url"
+
+    db.record_shared_desk_item({
+        "id": item_id,
+        "created_at_ts": int(time.time() * 1000),
+        "item_type": item_type,
+        "content": req.content,
+        "url": url or "",
+        "title": req.title or (url if url else req.content[:40]),
+        "note": req.note or "",
+        "consumed": False,
+    })
+    return {"success": True, "id": item_id}
+
+
+@app.get("/v1/flow/shared-desk-items")
+def get_shared_desk_items(
+    unconsumed_only: bool = Query(default=True),
+    _: bool = Depends(verify_token),
+) -> Dict[str, Any]:
+    items = db.get_shared_desk_items(unconsumed_only=unconsumed_only)
+    return {"items": items, "count": len(items)}
+
+
+@app.post("/v1/flow/shared-desk-items/consume")
+def consume_shared_desk_item(req: ConsumeSharedItemRequest, _: bool = Depends(verify_token)) -> Dict[str, Any]:
+    db.consume_shared_desk_item(req.id)
+    return {"success": True}
 
 
 @app.get("/profile/fatigue")

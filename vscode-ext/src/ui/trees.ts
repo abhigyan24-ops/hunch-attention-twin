@@ -242,6 +242,52 @@ export class TodayTreeDataProvider {
           });
         }
       }
+
+      // Check Thrash Shield
+      const thrashRes = await fetch('http://127.0.0.1:8765/v1/flow/thrash-shield').catch(() => null);
+      if (thrashRes && thrashRes.ok) {
+        const thrashData = (await thrashRes.json()) as any;
+        if (thrashData?.active) {
+          items.push({
+            label: '⚡ Rage-Scroll Shield Active',
+            description: `${thrashData.remainingSeconds}s left`,
+            tooltip: `High-friction debugging detected: ${thrashData.reason}. Distractions held.`,
+            iconPath: this.getThemeIcon('shield')
+          });
+        }
+      }
+
+      // Check Pre-Commit Sanity Audit
+      const auditRes = await fetch('http://127.0.0.1:8765/v1/insights/pre-commit-audit').catch(() => null);
+      if (auditRes && auditRes.ok) {
+        const auditData = (await auditRes.json()) as any;
+        if (auditData?.hasHighRisk) {
+          items.push({
+            label: `⚠️ Sanity Check: ${auditData.flaggedFiles.length} file(s) flagged`,
+            description: 'Fatigue warning',
+            tooltip: auditData.summary,
+            iconPath: this.getThemeIcon('warning'),
+            command: {
+              command: 'hunch.preCommitSanityCheck',
+              title: 'Run Pre-Commit Sanity Check'
+            }
+          });
+        }
+      }
+
+      // Check Shared Desk Items
+      const deskRes = await fetch('http://127.0.0.1:8765/v1/flow/shared-desk-items?unconsumed_only=true').catch(() => null);
+      if (deskRes && deskRes.ok) {
+        const deskData = (await deskRes.json()) as any;
+        if (deskData?.items?.length > 0) {
+          items.push({
+            label: `📲 Desk Inbox: ${deskData.items.length} item(s) from phone`,
+            description: 'Ready to review',
+            tooltip: `First item: ${deskData.items[0].title || deskData.items[0].content}`,
+            iconPath: this.getThemeIcon('inbox')
+          });
+        }
+      }
     } catch {
       // Offline fallback
     }

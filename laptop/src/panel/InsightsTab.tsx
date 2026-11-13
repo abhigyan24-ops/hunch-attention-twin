@@ -1,27 +1,33 @@
 import React, { useEffect, useState } from 'react';
+import { flowAudioEngine, type FlowAudioState } from './audio/flowAudioEngine';
 
 export function InsightsTab() {
   const [summary, setSummary] = useState<any>(null);
   const [snapshot, setSnapshot] = useState<any>(null);
   const [heldNotifs, setHeldNotifs] = useState<any[]>([]);
   const [parkedTabs, setParkedTabs] = useState<any[]>([]);
+  const [sharedDeskItems, setSharedDeskItems] = useState<any[]>([]);
   const [weeklyWrapped, setWeeklyWrapped] = useState<any>(null);
   const [compileShield, setCompileShield] = useState<any>(null);
   const [diagnostics, setDiagnostics] = useState<any>(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [shieldActiveNotice, setShieldActiveNotice] = useState<string | null>(null);
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+  const [audioState, setAudioState] = useState<FlowAudioState>(flowAudioEngine.getState());
   const [loading, setLoading] = useState(false);
 
   const fetchInsights = async () => {
     setLoading(true);
     try {
-      const [sumRes, snapRes, heldRes, tabsRes, wrapRes, shieldRes, f, i, s, v, fg, ft, mat, pol] = await Promise.all([
+      const [sumRes, snapRes, heldRes, tabsRes, deskRes, wrapRes, shieldRes, circRes, f, i, s, v, fg, ft, mat, pol] = await Promise.all([
         fetch('http://127.0.0.1:8765/v1/insights/human-summary').then(r => r.json()).catch(() => null),
         fetch('http://127.0.0.1:8765/v1/insights/context-snapshot').then(r => r.json()).catch(() => null),
         fetch('http://127.0.0.1:8765/v1/insights/held-notifications?undelivered_only=true').then(r => r.json()).catch(() => null),
         fetch('http://127.0.0.1:8765/v1/flow/parked-tabs?unconsumed_only=true').then(r => r.json()).catch(() => null),
+        fetch('http://127.0.0.1:8765/v1/flow/shared-desk-items?unconsumed_only=true').then(r => r.json()).catch(() => null),
         fetch('http://127.0.0.1:8765/v1/insights/weekly-wrapped').then(r => r.json()).catch(() => null),
         fetch('http://127.0.0.1:8765/v1/flow/compile-shield').then(r => r.json()).catch(() => null),
+        fetch('http://127.0.0.1:8765/v1/wellbeing/circadian').then(r => r.json()).catch(() => null),
         fetch('http://127.0.0.1:8765/profile/focus').then(r => r.json()).catch(() => null),
         fetch('http://127.0.0.1:8765/profile/interruptions').then(r => r.json()).catch(() => null),
         fetch('http://127.0.0.1:8765/profile/stickiness').then(r => r.json()).catch(() => null),
@@ -36,8 +42,13 @@ export function InsightsTab() {
       if (snapRes?.snapshot) setSnapshot(snapRes.snapshot);
       if (Array.isArray(heldRes?.notifications)) setHeldNotifs(heldRes.notifications);
       if (Array.isArray(tabsRes?.tabs)) setParkedTabs(tabsRes.tabs);
+      if (Array.isArray(deskRes?.items)) setSharedDeskItems(deskRes.items);
       if (wrapRes) setWeeklyWrapped(wrapRes);
       if (shieldRes) setCompileShield(shieldRes);
+
+      if (circRes && circRes.wind_down_active !== undefined) {
+        flowAudioEngine.setWindDownActive(Boolean(circRes.wind_down_active));
+      }
 
       setDiagnostics({
         focus: f,
@@ -59,7 +70,11 @@ export function InsightsTab() {
   useEffect(() => {
     void fetchInsights();
     const interval = setInterval(fetchInsights, 15_000);
-    return () => clearInterval(interval);
+    const unsubAudio = flowAudioEngine.subscribe(setAudioState);
+    return () => {
+      clearInterval(interval);
+      unsubAudio();
+    };
   }, []);
 
   const cal = summary?.calibrationStatus;
@@ -86,6 +101,27 @@ export function InsightsTab() {
       window.open(url, '_blank');
     } catch {
       window.open(url, '_blank');
+    }
+  };
+
+  const consumeDeskItem = async (id: string) => {
+    try {
+      await fetch('http://127.0.0.1:8765/v1/flow/shared-desk-items/consume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      setSharedDeskItems(prev => prev.filter(item => item.id !== id));
+    } catch {
+      setSharedDeskItems(prev => prev.filter(item => item.id !== id));
+    }
+  };
+
+  const copyDeskItemNote = (text: string) => {
+    if (navigator.clipboard) {
+      void navigator.clipboard.writeText(text);
+      setCopyFeedback('Note copied to clipboard');
+      setTimeout(() => setCopyFeedback(null), 2500);
     }
   };
 
@@ -190,6 +226,114 @@ export function InsightsTab() {
         </div>
       </div>
 
+      {/* Procedural Flow Audio Synthesizer */}
+      <div className="dhyan-bento-card" style={{ marginTop: '16px', background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.02) 0%, rgba(99, 102, 241, 0.04) 100%)', border: '1px solid #E2E8F0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+          <div>
+            <h4 style={{ fontSize: '13px', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>🎧 Procedural Flow Audio</span>
+              {audioState.mode !== 'off' && (
+                <span className="dhyan-badge-pill" style={{
+                  background: audioState.isDucked ? '#FEF3C7' : audioState.isFadingForBedtime ? '#E0E7FF' : '#ECFDF5',
+                  color: audioState.isDucked ? '#92400E' : audioState.isFadingForBedtime ? '#3730A3' : '#065F46',
+                  fontSize: '10px'
+                }}>
+                  {audioState.isDucked
+                    ? `🦆 -18 dB (${audioState.duckReason === 'call' ? 'Call Active' : 'Build Complete'})`
+                    : audioState.isFadingForBedtime
+                    ? '🌙 Bedtime Fade'
+                    : '● Playing'}
+                </span>
+              )}
+            </h4>
+            <p style={{ fontSize: '11px', color: 'var(--dhyan-text-muted)', margin: '4px 0 0 0' }}>
+              100% offline Web Audio synthesizer — zero stream lag or external assets.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button
+              onClick={() => flowAudioEngine.setMode('off')}
+              style={{
+                padding: '4px 10px',
+                borderRadius: '6px',
+                border: '1px solid #CBD5E1',
+                background: audioState.mode === 'off' ? '#0F172A' : '#FFFFFF',
+                color: audioState.mode === 'off' ? '#FFFFFF' : '#334155',
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Off
+            </button>
+            <button
+              onClick={() => flowAudioEngine.setMode('brown')}
+              style={{
+                padding: '4px 10px',
+                borderRadius: '6px',
+                border: '1px solid #CBD5E1',
+                background: audioState.mode === 'brown' ? '#0F172A' : '#FFFFFF',
+                color: audioState.mode === 'brown' ? '#FFFFFF' : '#334155',
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Brown Noise
+            </button>
+            <button
+              onClick={() => flowAudioEngine.setMode('binaural')}
+              style={{
+                padding: '4px 10px',
+                borderRadius: '6px',
+                border: '1px solid #CBD5E1',
+                background: audioState.mode === 'binaural' ? '#0F172A' : '#FFFFFF',
+                color: audioState.mode === 'binaural' ? '#FFFFFF' : '#334155',
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Binaural Focus
+            </button>
+          </div>
+        </div>
+
+        {audioState.mode !== 'off' && (
+          <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button
+              onClick={() => flowAudioEngine.setMuted(!audioState.isMuted)}
+              style={{
+                background: 'none',
+                border: '1px solid #CBD5E1',
+                borderRadius: '6px',
+                padding: '4px 8px',
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              {audioState.isMuted ? '🔇 Muted' : '🔊 Playing'}
+            </button>
+
+            <span style={{ fontSize: '11px', color: 'var(--dhyan-text-muted)', minWidth: '35px' }}>
+              {Math.round(audioState.volume * 100)}%
+            </span>
+
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={audioState.volume}
+              onChange={e => flowAudioEngine.setVolume(parseFloat(e.target.value))}
+              style={{ flex: 1, accentColor: '#4F46E5', cursor: 'pointer' }}
+            />
+          </div>
+        )}
+      </div>
+
       {/* 4. Where I Left Off (10-Second Mental Replay Card) */}
       {snapshot && (
         <div className="dhyan-cf-hero" style={{ marginTop: '16px' }}>
@@ -282,14 +426,14 @@ export function InsightsTab() {
         </div>
       )}
 
-      {/* 6. Held for You Break Digest & Parked Tabs */}
-      {(heldNotifs.length > 0 || parkedTabs.length > 0) && (
+      {/* 6. Held for You Break Digest, Parked Tabs & Desk Inbox */}
+      {(heldNotifs.length > 0 || parkedTabs.length > 0 || sharedDeskItems.length > 0) && (
         <div className="dhyan-bento-card" style={{ marginTop: '16px', background: 'rgba(238, 242, 255, 0.5)' }}>
           <h4 style={{ fontSize: '13px', fontWeight: 800, margin: '0 0 6px 0' }}>
-            📬 Held for Your Break ({heldNotifs.length} Alerts · {parkedTabs.length} Tabs)
+            📬 Held for Your Break ({heldNotifs.length} Alerts · {parkedTabs.length} Tabs · {sharedDeskItems.length} Desk Items)
           </h4>
           <p style={{ fontSize: '11px', color: 'var(--dhyan-text-muted)', margin: '0 0 8px 0' }}>
-            Stored locally. Alerts are delivered in a calm batch when your focus block completes.
+            Stored locally. Alerts, tabs, and phone links are delivered in a calm batch when your focus block completes.
           </p>
 
           {heldNotifs.length > 0 && (
@@ -299,6 +443,104 @@ export function InsightsTab() {
                   🔔 {n.app_label} {n.count > 1 ? `(${n.count})` : ''}
                 </span>
               ))}
+            </div>
+          )}
+
+          {/* Shared Desk Items from Phone */}
+          {sharedDeskItems.length > 0 && (
+            <div style={{ marginTop: '8px', marginBottom: '8px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 700, margin: '6px 0 4px 0', color: '#1E293B' }}>
+                📲 Shared from Phone:
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {sharedDeskItems.map(item => (
+                  <div
+                    key={item.id}
+                    style={{
+                      background: '#fff',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      fontSize: '11px',
+                      border: '1px solid #CBD5E1',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 700, color: '#334155' }}>
+                        {item.item_type === 'url' ? '🌐 Link' : item.item_type === 'code' ? '💻 Snippet' : '📝 Note'}
+                        {item.title ? ` · ${item.title}` : ''}
+                      </span>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        {item.extracted_url && (
+                          <button
+                            onClick={() => {
+                              window.open(item.extracted_url, '_blank');
+                              void consumeDeskItem(item.id);
+                            }}
+                            style={{
+                              background: '#ECFDF5',
+                              color: '#065F46',
+                              border: '1px solid #A7F3D0',
+                              borderRadius: '4px',
+                              padding: '2px 8px',
+                              cursor: 'pointer',
+                              fontSize: '10px',
+                              fontWeight: 600,
+                            }}
+                          >
+                            Open Link
+                          </button>
+                        )}
+                        <button
+                          onClick={() => copyDeskItemNote(item.raw_text)}
+                          style={{
+                            background: '#F1F5F9',
+                            color: '#334155',
+                            border: '1px solid #CBD5E1',
+                            borderRadius: '4px',
+                            padding: '2px 8px',
+                            cursor: 'pointer',
+                            fontSize: '10px',
+                            fontWeight: 600,
+                          }}
+                        >
+                          Copy
+                        </button>
+                        <button
+                          onClick={() => consumeDeskItem(item.id)}
+                          style={{
+                            background: '#EEF2FF',
+                            color: '#4F46E5',
+                            border: '1px solid #C7D2FE',
+                            borderRadius: '4px',
+                            padding: '2px 8px',
+                            cursor: 'pointer',
+                            fontSize: '10px',
+                            fontWeight: 600,
+                          }}
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{
+                      color: '#475569',
+                      wordBreak: 'break-word',
+                      whiteSpace: 'pre-wrap',
+                      background: '#F8FAFC',
+                      padding: '6px 8px',
+                      borderRadius: '4px',
+                      fontFamily: item.item_type === 'code' ? 'monospace' : 'inherit',
+                      maxHeight: '80px',
+                      overflowY: 'auto'
+                    }}>
+                      {item.raw_text}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -341,6 +583,11 @@ export function InsightsTab() {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+          {copyFeedback && (
+            <div style={{ marginTop: '6px', fontSize: '11px', color: '#059669', fontWeight: 600 }}>
+              ✓ {copyFeedback}
             </div>
           )}
         </div>

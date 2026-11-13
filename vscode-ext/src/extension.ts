@@ -26,6 +26,7 @@ import { SessionManager } from './features/session.ts';
 import { NudgeManager } from './features/nudge.ts';
 import { DigestManager } from './features/digest.ts';
 import { BuildShieldManager } from './features/buildShield.ts';
+import { ThrashDetector } from './features/thrashDetector.ts';
 import { ResumeTreeDataProvider, TodayTreeDataProvider, DigestTreeDataProvider } from './ui/trees.ts';
 
 // Re-export core classes for backward-compatibility with tests & external callers
@@ -42,6 +43,7 @@ export { SessionManager } from './features/session.ts';
 export { NudgeManager } from './features/nudge.ts';
 export { DigestManager } from './features/digest.ts';
 export { BuildShieldManager } from './features/buildShield.ts';
+export { ThrashDetector } from './features/thrashDetector.ts';
 export { ResumeTreeDataProvider, TodayTreeDataProvider, DigestTreeDataProvider } from './ui/trees.ts';
 export { classifyEdit, isTrackedScheme } from './aggregate/classify.ts';
 export { RhythmTracker } from './aggregate/rhythm.ts';
@@ -90,6 +92,7 @@ let endpointDiscovery: EndpointDiscovery | null = null;
 let engineClient: EngineClient | null = null;
 let statusBar: DhyanStatusBar | null = null;
 let buildShieldManager: BuildShieldManager | null = null;
+let thrashDetector: ThrashDetector | null = null;
 let windDownBar: any = null;
 let windDownInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -236,6 +239,7 @@ export function activate(
 
   // Phase 4: Resume Tracker & Feature Manager
   buildShieldManager = new BuildShieldManager(vscodeApi);
+  thrashDetector = new ThrashDetector(vscodeApi);
   resumeTracker = new ResumeTracker(clock);
   resumeManager = new ResumeManager({
     vscodeApi,
@@ -350,6 +354,36 @@ export function activate(
       },
       onActivity: () => {
         resumeManager?.recordActivity();
+      },
+      onSave: async (doc: any) => {
+        try {
+          const filePath = doc.uri?.fsPath || doc.uri?.path || '';
+          if (!filePath) return;
+
+          const workspaceFolder = vscodeApi.workspace?.workspaceFolders?.[0];
+          const relPath = workspaceFolder ? filePath.replace(workspaceFolder.uri?.fsPath || '', '').replace(/^[\\/]/, '') : filePath;
+
+          let isFatigued = false;
+          try {
+            const cRes = await fetch('http://127.0.0.1:8765/v1/wellbeing/circadian');
+            if (cRes.ok) {
+              const cData = (await cRes.json()) as any;
+              isFatigued = Boolean(cData.windDownActive || cData.mode === 'low_sleep_recovery');
+            }
+          } catch {}
+
+          fetch('http://127.0.0.1:8765/v1/insights/file-attention-log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              file_path: relPath,
+              workspace_name: workspaceFolder?.name ?? '',
+              is_fatigued_edit: isFatigued,
+              interruption_count: 0,
+              thrash_events_count: 0,
+            }),
+          }).catch(() => {});
+        } catch {}
       }
     });
     windowSensor = new WindowSensor(vscodeApi, aggregator, clock, (focused) => {
@@ -569,6 +603,39 @@ export function activate(
     }
   });
 
+  const handlePreCommitCheck = async () => {
+    try {
+      const workspaceName = vscodeApi?.workspace?.workspaceFolders?.[0]?.name ?? '';
+      const res = await fetch(`http://127.0.0.1:8765/v1/insights/pre-commit-audit?workspace_name=${workspaceName}`);
+      if (res.ok) {
+        const audit = (await res.json()) as any;
+        if (audit?.hasHighRisk && audit.flaggedFiles?.length > 0) {
+          const first = audit.flaggedFiles[0];
+          if (vscodeApi?.window?.showWarningMessage) {
+            vscodeApi.window.showWarningMessage(
+              `Hunch Pre-Commit Sanity: ${first.warningMessage}`,
+              'Review Files',
+              'Proceed'
+            );
+          }
+        } else {
+          if (vscodeApi?.window?.showInformationMessage) {
+            vscodeApi.window.showInformationMessage(
+              'Hunch: Pre-commit sanity check passed — All recent edits made under calm, focused conditions.'
+            );
+          }
+        }
+      }
+    } catch {
+      if (vscodeApi?.window?.showInformationMessage) {
+        vscodeApi.window.showInformationMessage('Hunch: Pre-commit sanity check passed.');
+      }
+    }
+  };
+
+  registerCmd('dhyan.preCommitSanityCheck', handlePreCommitCheck);
+  registerCmd('hunch.preCommitSanityCheck', handlePreCommitCheck);
+
   const standardCommands = [
     'dhyan.connect',
     'dhyan.openInsights',
@@ -688,6 +755,10 @@ export function deactivate(): void {
   if (buildShieldManager) {
     buildShieldManager.dispose();
     buildShieldManager = null;
+  }
+  if (thrashDetector) {
+    thrashDetector.dispose();
+    thrashDetector = null;
   }
   if (resumeManager) {
     resumeManager.dispose();

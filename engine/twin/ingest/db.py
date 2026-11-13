@@ -105,6 +105,39 @@ class Database:
                     saved_distraction INTEGER DEFAULT 1
                 )
             """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS file_attention_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    file_path TEXT NOT NULL,
+                    workspace_name TEXT,
+                    logged_at_ts INTEGER NOT NULL,
+                    is_fatigued_edit INTEGER DEFAULT 0,
+                    interruption_count INTEGER DEFAULT 0,
+                    thrash_events_count INTEGER DEFAULT 0,
+                    context_note TEXT
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS shared_desk_items (
+                    id TEXT PRIMARY KEY,
+                    created_at_ts INTEGER NOT NULL,
+                    item_type TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    url TEXT,
+                    title TEXT,
+                    note TEXT,
+                    consumed INTEGER DEFAULT 0
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS walk_away_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ts INTEGER NOT NULL,
+                    state TEXT NOT NULL,
+                    reason TEXT,
+                    duration_seconds INTEGER DEFAULT 0
+                )
+            """)
             for col, col_type in [
                 ("enclosing_symbol", "TEXT"),
                 ("git_stat_summary", "TEXT"),
@@ -578,6 +611,140 @@ class Database:
                 (cutoff_ts,),
             )
             return [dict(r) for r in cur.fetchall()]
+
+    def record_file_attention_log(self, log: Dict[str, Any]) -> None:
+        with self.get_connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO file_attention_logs (
+                    file_path, workspace_name, logged_at_ts, is_fatigued_edit,
+                    interruption_count, thrash_events_count, context_note
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    log["file_path"],
+                    log.get("workspace_name", ""),
+                    log.get("logged_at_ts") or int(time.time() * 1000),
+                    1 if log.get("is_fatigued_edit") else 0,
+                    log.get("interruption_count", 0),
+                    log.get("thrash_events_count", 0),
+                    log.get("context_note", ""),
+                ),
+            )
+            conn.commit()
+
+    def get_pre_commit_audit(self, workspace_name: Optional[str] = None, hours: int = 24) -> Dict[str, Any]:
+        cutoff_ts = int(time.time() * 1000) - (hours * 3600 * 1000)
+        with self.get_connection() as conn:
+            cur = conn.cursor()
+            query = """
+                SELECT
+                    file_path,
+                    MAX(is_fatigued_edit) AS was_fatigued,
+                    SUM(interruption_count) AS total_interruptions,
+                    SUM(thrash_events_count) AS total_thrash,
+                    MAX(logged_at_ts) AS last_edit_ts,
+                    COUNT(*) AS edit_sessions
+                FROM file_attention_logs
+                WHERE logged_at_ts >= ?
+            """
+            params: List[Any] = [cutoff_ts]
+            if workspace_name:
+                query += " AND workspace_name = ?"
+                params.append(workspace_name)
+            query += " GROUP BY file_path ORDER BY was_fatigued DESC, total_interruptions DESC"
+
+            cur.execute(query, params)
+            rows = cur.fetchall()
+
+            flagged_files = []
+            for r in rows:
+                is_fatigued = bool(r["was_fatigued"])
+                interruptions = int(r["total_interruptions"] or 0)
+                thrash = int(r["total_thrash"] or 0)
+                if is_fatigued or interruptions >= 3 or thrash >= 1:
+                    fname = Path(r["file_path"]).name
+                    reasons = []
+                    if is_fatigued:
+                        reasons.append("edited past bedtime / low sleep")
+                    if interruptions > 0:
+                        reasons.append(f"{interruptions} interruptions")
+                    if thrash > 0:
+                        reasons.append(f"{thrash} thrash bursts")
+                    reason_str = " · ".join(reasons)
+                    flagged_files.append({
+                        "filePath": r["file_path"],
+                        "fileName": fname,
+                        "isFatigued": is_fatigued,
+                        "interruptions": interruptions,
+                        "thrashCount": thrash,
+                        "lastEditTs": r["last_edit_ts"],
+                        "warningMessage": f"Sanity Check: {fname} was {reason_str} — review lines before committing.",
+                    })
+
+            has_high_risk = len(flagged_files) > 0
+            if has_high_risk:
+                summary = f"{len(flagged_files)} file(s) edited under high cognitive fatigue or fragmentation."
+            else:
+                summary = "All recent edits made under calm, focused conditions."
+
+            return {
+                "flaggedFiles": flagged_files,
+                "hasHighRisk": has_high_risk,
+                "summary": summary,
+            }
+
+    def record_shared_desk_item(self, item: Dict[str, Any]) -> None:
+        with self.get_connection() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO shared_desk_items (
+                    id, created_at_ts, item_type, content, url, title, note, consumed
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    item["id"],
+                    item.get("created_at_ts") or int(time.time() * 1000),
+                    item.get("item_type", "note"),
+                    item.get("content", ""),
+                    item.get("url", ""),
+                    item.get("title", ""),
+                    item.get("note", ""),
+                    1 if item.get("consumed") else 0,
+                ),
+            )
+            conn.commit()
+
+    def get_shared_desk_items(self, unconsumed_only: bool = True) -> List[Dict[str, Any]]:
+        with self.get_connection() as conn:
+            cur = conn.cursor()
+            if unconsumed_only:
+                cur.execute("SELECT * FROM shared_desk_items WHERE consumed = 0 ORDER BY created_at_ts DESC")
+            else:
+                cur.execute("SELECT * FROM shared_desk_items ORDER BY created_at_ts DESC")
+            return [dict(r) for r in cur.fetchall()]
+
+    def consume_shared_desk_item(self, item_id: str) -> None:
+        with self.get_connection() as conn:
+            conn.execute("UPDATE shared_desk_items SET consumed = 1 WHERE id = ?", (item_id,))
+            conn.commit()
+
+    def record_walk_away_event(self, event: Dict[str, Any]) -> None:
+        with self.get_connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO walk_away_events (
+                    ts, state, reason, duration_seconds
+                ) VALUES (?, ?, ?, ?)
+                """,
+                (
+                    event.get("ts") or int(time.time() * 1000),
+                    event.get("state", "AWAY"),
+                    event.get("reason", ""),
+                    event.get("duration_seconds", 0),
+                ),
+            )
+            conn.commit()
 
 
 _db_instance: Optional[Database] = None
