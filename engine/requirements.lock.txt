@@ -12,7 +12,7 @@ lifelines==0.30.0
 hmmlearn==0.3.3
 econml==0.15.1
 dowhy==0.11.1
-statsmodels==0.14.4
+statsmodels==0.15.0
 pytest==8.3.4
 httpx==0.28.1
 pyinstaller==6.11.1
