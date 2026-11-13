@@ -86,6 +86,9 @@ import com.dhyan.app.ui.viewmodel.LiveDecisionItemUi
 import com.dhyan.app.ui.viewmodel.LiveDigestUiState
 import com.dhyan.app.ui.viewmodel.LiveDigestViewModel
 import com.dhyan.app.ui.viewmodel.LiveHeldItemUi
+import com.dhyan.app.ui.components.InteractiveBreakDigestCard
+import com.dhyan.app.ui.components.PocketParkCard
+import com.dhyan.app.ui.components.SmartFlowTriggersCard
 import com.dhyan.app.wellbeing.BedtimeSettingsCard
 import com.dhyan.app.privacy.PrivacyLedgerCard
 import com.dhyan.app.privacy.PrivacyLedgerManager
@@ -463,6 +466,15 @@ fun LiveDigestContent(
                 ledgerSnap = privacyLedger.snapshot()
             }
         )
+
+        // 2d. Interactive Actionable Break Digest
+        InteractiveBreakDigestCard()
+
+        // 2e. Pocket Park Quick-Capture
+        PocketParkCard()
+
+        // 2f. Smart Flow Triggers (Earbuds-In, Muscle-Memory, Doomscroll Breaker)
+        SmartFlowTriggersCard()
 
         // 3. Notification Policy Card
         LiveCard("Quiet Focus Delivery · ${uiState.mode.name.replace('_', ' ')}") {
