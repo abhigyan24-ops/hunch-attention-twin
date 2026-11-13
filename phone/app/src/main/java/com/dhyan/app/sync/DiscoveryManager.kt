@@ -13,7 +13,8 @@ class DiscoveryManager {
         val host: String,
         val port: Int,
         val token: String,
-        val service: String
+        val service: String,
+        val candidateHosts: List<String> = emptyList()
     )
 
     companion object {
@@ -31,7 +32,15 @@ class DiscoveryManager {
                     val port = obj.optInt("port", 0).takeIf { it in 1..65535 } ?: return null
                     val token = obj.optString("token", "").takeIf { it.isNotBlank() } ?: return null
                     val service = obj.optString("service", "_hunch._tcp").takeIf { it.isNotBlank() } ?: "_hunch._tcp"
-                    PairingConfig(host = host, port = port, token = token, service = service)
+                    val candidates = mutableListOf<String>()
+                    val candArr = obj.optJSONArray("candidateHosts")
+                    if (candArr != null) {
+                        for (i in 0 until candArr.length()) {
+                            val c = candArr.optString(i)
+                            if (c.isNotBlank()) candidates.add(c)
+                        }
+                    }
+                    PairingConfig(host = host, port = port, token = token, service = service, candidateHosts = candidates)
                 } catch (t: Throwable) {
                     val hostMatch = Regex(""""host"\s*:\s*"([^"]+)"""").find(trimmed)
                     val portMatch = Regex(""""port"\s*:\s*(\d+)""").find(trimmed)
@@ -43,7 +52,14 @@ class DiscoveryManager {
                     val token = tokenMatch?.groupValues?.get(1)?.takeIf { it.isNotBlank() } ?: return null
                     val service = serviceMatch?.groupValues?.get(1)?.takeIf { it.isNotBlank() } ?: "_hunch._tcp"
 
-                    PairingConfig(host = host, port = port, token = token, service = service)
+                    val candidatesMatch = Regex(""""candidateHosts"\s*:\s*\[([^\]]*)\]""").find(trimmed)
+                    val candidates = candidatesMatch?.groupValues?.get(1)
+                        ?.split(",")
+                        ?.map { it.trim().replace("\"", "") }
+                        ?.filter { it.isNotBlank() }
+                        ?: emptyList()
+
+                    PairingConfig(host = host, port = port, token = token, service = service, candidateHosts = candidates)
                 }
             } catch (e: Exception) {
                 null

@@ -114,3 +114,101 @@ export function classifyUrl(urlStr) {
 
   return 'unknown';
 }
+
+export const TECHNICAL_SUBREDDITS = [
+  'r/programming',
+  'r/rust',
+  'r/typescript',
+  'r/python',
+  'r/devops',
+  'r/machinelearning',
+  'r/neovim',
+  'r/golang',
+  'r/webdev',
+  'r/cpp',
+  'r/learnprogramming',
+  'r/coding',
+  'r/datascience',
+  'r/linux'
+];
+
+export const WORK_LEARNING_KEYWORDS = [
+  'tutorial',
+  'lecture',
+  'course',
+  'documentation',
+  'crash course',
+  'system design',
+  'debugging',
+  'stack trace',
+  'how to',
+  'api',
+  'conference',
+  'refactoring',
+  'deep dive',
+  'benchmark',
+  'walkthrough'
+];
+
+/**
+ * Determines whether a URL or page represents productive technical/work activity.
+ * Prevents false-positive drift warnings on technical tutorials or engineering subreddits.
+ *
+ * @param {string} urlStr Full URL of the page.
+ * @param {string} pageTitle Document title of the page.
+ * @param {string[]} whitelistedUrls User-approved session whitelist URLs.
+ * @returns {boolean} True if the page should be classified as Work, false if potential drift.
+ */
+export function isWorkRelatedPage(urlStr, pageTitle = '', whitelistedUrls = []) {
+  if (!urlStr || typeof urlStr !== 'string') return false;
+
+  // 1. Session-level user whitelist check
+  if (Array.isArray(whitelistedUrls)) {
+    for (const allowed of whitelistedUrls) {
+      if (allowed && (urlStr.startsWith(allowed) || allowed.startsWith(urlStr))) {
+        return true;
+      }
+    }
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(urlStr);
+  } catch (_) {
+    return false;
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+  const pathname = parsed.pathname.toLowerCase();
+  const titleLower = (pageTitle || '').toLowerCase();
+
+  // 2. Technical subreddit check
+  if (hostname.includes('reddit.com')) {
+    for (const sub of TECHNICAL_SUBREDDITS) {
+      if (pathname.includes('/' + sub.toLowerCase())) {
+        return true;
+      }
+    }
+  }
+
+  // 3. Technical & educational video/article check
+  if (hostname.includes('youtube.com') || hostname.includes('reddit.com')) {
+    for (const kw of WORK_LEARNING_KEYWORDS) {
+      if (titleLower.includes(kw.toLowerCase())) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Enhanced classifier that takes page context into account for work-aware categorization.
+ */
+export function classifyUrlWithContext(urlStr, pageTitle = '', whitelistedUrls = []) {
+  if (isWorkRelatedPage(urlStr, pageTitle, whitelistedUrls)) {
+    return 'learning';
+  }
+  return classifyUrl(urlStr);
+}

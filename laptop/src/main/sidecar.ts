@@ -181,8 +181,13 @@ export class SidecarManager {
 
  async isHealthy(): Promise<boolean> {
   try {
-   const res = await fetch(`${this.baseUrl}/health`, {signal: AbortSignal.timeout(1500)});
-   return res.ok;
+   const res = await fetch(`${this.baseUrl}/v1/health`, {signal: AbortSignal.timeout(1500)});
+   if (res.ok) {
+    const data = (await res.json()) as any;
+    return data?.status === 'ok';
+   }
+   const fallback = await fetch(`${this.baseUrl}/health`, {signal: AbortSignal.timeout(1500)});
+   return fallback.ok;
   } catch {
    return false;
   }

@@ -45,3 +45,18 @@ export class FakeClock implements Clock {
     this._now = epochMs;
   }
 }
+
+/**
+ * Computes logical work day key with 4:00 AM circadian rollover.
+ * E.g., 01:30 AM on Nov 13 maps to '2026-11-12'.
+ */
+export function getLogicalDayKey(epochMs: number = Date.now(), rolloverHour: number = 4): string {
+  const d = new Date(epochMs);
+  if (d.getHours() < rolloverHour) {
+    d.setDate(d.getDate() - 1);
+  }
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}

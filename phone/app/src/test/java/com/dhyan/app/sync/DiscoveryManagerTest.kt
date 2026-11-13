@@ -46,4 +46,15 @@ class DiscoveryManagerTest {
         assertNotNull(config)
         assertEquals("_hunch._tcp", config!!.service)
     }
+
+    @Test
+    fun `payload with candidateHosts parses multi-adapter network candidates`() {
+        val raw = """{"host":"192.168.1.15","candidateHosts":["192.168.1.15","10.0.0.5","127.0.0.1"],"port":8765,"token":"tok123"}"""
+        val config = DiscoveryManager.parsePairingPayload(raw)
+        assertNotNull(config)
+        assertEquals("192.168.1.15", config!!.host)
+        assertEquals(3, config.candidateHosts.size)
+        assertEquals("192.168.1.15", config.candidateHosts[0])
+        assertEquals("127.0.0.1", config.candidateHosts[2])
+    }
 }

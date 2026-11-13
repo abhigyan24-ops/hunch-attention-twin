@@ -1,4 +1,5 @@
 import datetime
+import hmac
 import os
 import secrets
 import time
@@ -6,7 +7,7 @@ from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
 import threading
 
-from fastapi import Depends, FastAPI, HTTPException, Header, Query, status
+from fastapi import Depends, FastAPI, HTTPException, Header, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -27,6 +28,8 @@ from ..policy.nudge_backoff import NudgeBackoffEngine
 from ..simulator.simulate import AttentionSimulator
 from ..simulator.stages import SimulatorStages
 from ..ml_model import MLManager, extract_features
+from ..lan_resolver import get_reachable_lan_ips
+from ..logical_day import get_logical_day_key, get_logical_day_start_ts
 
 from .vault_routes import router as vault_router
 
@@ -103,10 +106,12 @@ app = FastAPI(
 
 app.include_router(vault_router)
 
-# Enable Permissive Localhost CORS
+# Configure Strict Localhost & Desktop/Extension Origins
+ALLOWED_ORIGIN_REGEX = r"^(http://(localhost|127\.0\.0\.1)(:\d+)?|app://.*|chrome-extension://.*|vscode-webview://.*)$"
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=ALLOWED_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -114,16 +119,28 @@ app.add_middleware(
 
 
 def verify_token(
+    request: Request,
+    x_hunch_token: Optional[str] = Header(None, alias="X-Hunch-Token"),
     x_twin_token: Optional[str] = Header(None, alias="X-Twin-Token"),
+    authorization: Optional[str] = Header(None, alias="Authorization"),
     token: Optional[str] = Query(None),
 ) -> bool:
     if not TWIN_TOKEN:
         return True
-    req_token = x_twin_token or token
-    if req_token and req_token == TWIN_TOKEN:
+    req_token = x_hunch_token or x_twin_token or token
+    if not req_token and authorization and authorization.startswith("Bearer "):
+        req_token = authorization[7:].strip()
+
+    if req_token and hmac.compare_digest(req_token.encode(), TWIN_TOKEN.encode()):
         return True
-    # In local development mode, allow localhost connections
-    return True
+
+    # In local development mode, allow loopback clients for backward compatibility when default dev token is used
+    loopback = {"127.0.0.1", "::1", "localhost", "testclient"}
+    client_host = request.client.host if request.client else ""
+    if TWIN_TOKEN == "dhyan-local-twin-token" and (not client_host or client_host in loopback):
+        return True
+
+    raise HTTPException(status_code=401, detail="Unauthorized: invalid or missing token")
 
 
 # --- Request & Response Models ---
@@ -177,6 +194,15 @@ class MLRecordOutcomeRequest(BaseModel):
     reward: Optional[float] = None
 
 
+class SyncHandshakeRequest(BaseModel):
+    device_id: str
+    device_type: str = "phone"
+    app_version: Optional[str] = "1.0.0"
+    trained_samples_count: int = 0
+    weights: Optional[List[float]] = None
+    client_ts: Optional[int] = None
+
+
 # Focus Lease State
 active_focus_lease: Dict[str, Any] = {
     "focus": "normal",
@@ -202,11 +228,23 @@ def get_current_lease() -> Dict[str, Any]:
 # --- Endpoints ---
 
 
+@app.get("/v1/health")
+def v1_health() -> Dict[str, Any]:
+    return {
+        "status": "ok",
+        "service": "hunch-engine",
+        "version": "1.0.0",
+        "port": 8765,
+        "events_count": db.get_event_count(),
+    }
+
+
 @app.get("/health")
 def health() -> Dict[str, Any]:
     return {
         "status": "ok",
         "service": "dhyan-twin-sidecar",
+        "version": "1.0.0",
         "port": 8765,
         "events_count": db.get_event_count(),
     }
@@ -958,15 +996,21 @@ def record_context_snapshot(
     req: ContextSnapshotRequest,
     _: bool = Depends(verify_token),
 ) -> Dict[str, Any]:
+    # Guard against overwriting an existing valid file snapshot with an empty editor blur
+    if not req.file_path:
+        existing = db.get_latest_context_snapshot(workspace_name=req.workspace_name)
+        if existing and existing.get("file_path"):
+            return {"success": True, "skipped": True}
     db.record_context_snapshot(req.model_dump())
     return {"success": True}
 
 
 @app.get("/v1/insights/context-snapshot")
 def get_latest_context_snapshot(
+    workspace_name: Optional[str] = Query(default=None),
     _: bool = Depends(verify_token),
 ) -> Dict[str, Any]:
-    snap = db.get_latest_context_snapshot()
+    snap = db.get_latest_context_snapshot(workspace_name=workspace_name)
     return {"snapshot": snap}
 
 
@@ -1298,6 +1342,96 @@ def get_ml_status(
     """Returns real-time on-device ML status, predictions, and recommended LinUCB action."""
     mgr = get_ml_manager()
     return mgr.get_status()
+
+
+# --- Cross-Device Pairing, Re-Hydration & Telemetry Pruning ---
+
+
+@app.get("/v1/sync/pairing-info")
+def get_pairing_info(
+    _: bool = Depends(verify_token),
+) -> Dict[str, Any]:
+    """Returns primary LAN IP and secondary candidate host interfaces for robust QR pairing."""
+    primary_ip, candidate_hosts = get_reachable_lan_ips()
+    return {
+        "status": "ok",
+        "primaryHost": primary_ip,
+        "candidateHosts": candidate_hosts,
+        "port": 8765,
+        "token": TWIN_TOKEN,
+        "service": "_hunch._tcp",
+        "qrPayload": {
+            "host": primary_ip,
+            "candidateHosts": candidate_hosts,
+            "port": 8765,
+            "token": TWIN_TOKEN,
+            "service": "_hunch._tcp",
+        },
+    }
+
+
+@app.post("/v1/sync/handshake")
+def sync_handshake(
+    req: SyncHandshakeRequest,
+    _: bool = Depends(verify_token),
+) -> Dict[str, Any]:
+    """Provides automatic re-hydration on phone pairing/reinstall and bidirectional weight synchronization."""
+    mgr = get_ml_manager()
+    server_now = int(time.time() * 1000)
+
+    # If incoming client has trained samples, merge federated weights
+    if req.weights and req.trained_samples_count > 0 and len(req.weights) == 12:
+        mgr.hazard_model.merge_federated_weights(
+            remote_weights=req.weights,
+            remote_sample_count=req.trained_samples_count,
+        )
+        mgr.save()
+
+    with _circadian_lock:
+        circ = _circadian_state
+
+    # Check vault envelope availability
+    vault_env = None
+    try:
+        from .vault_routes import EncryptedVault
+        stored = EncryptedVault().restore()
+        if stored:
+            import base64
+            vault_env = base64.b64encode(stored).decode("ascii")
+    except Exception:
+        pass
+
+    return {
+        "status": "connected",
+        "server_ts": server_now,
+        "restored_profile": bool(circ is not None or mgr.hazard_model.trained_samples_count > 0),
+        "circadian": circ.model_dump() if circ else None,
+        "ml_model": {
+            "weights": mgr.hazard_model.weights,
+            "grad_squares": mgr.hazard_model.grad_squares,
+            "trained_samples_count": mgr.hazard_model.trained_samples_count,
+            "rolling_brier_loss": round(mgr.hazard_model.rolling_brier_loss, 4),
+            "thetas": mgr.bandit.thetas,
+            "counts": mgr.bandit.counts,
+            "is_calibrated": mgr.hazard_model.trained_samples_count >= 6,
+        },
+        "vault_available": vault_env is not None,
+        "vault_envelope": vault_env,
+    }
+
+
+@app.post("/v1/telemetry/prune")
+def prune_telemetry(
+    retention_days: int = Query(default=90, ge=1, le=3650),
+    _: bool = Depends(verify_token),
+) -> Dict[str, Any]:
+    """Trims raw 5-minute activity telemetry older than retention_days while preserving summary streaks."""
+    pruned = db.prune_stale_telemetry(retention_days=retention_days)
+    return {
+        "status": "pruned",
+        "retention_days": retention_days,
+        "pruned_rows": pruned,
+    }
 
 
 @app.get("/profile/fatigue")

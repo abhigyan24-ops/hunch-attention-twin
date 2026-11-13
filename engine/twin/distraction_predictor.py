@@ -11,6 +11,7 @@ import statistics
 from typing import Any, Dict, List, Optional
 
 from .ingest.db import Database
+from .logical_day import get_logical_day_start_ts
 
 
 def _format_hour_12h(hour: int) -> str:
@@ -147,8 +148,8 @@ class DistractionPredictor:
         }
 
         # 4. Today Impact & Circadian Adaptive Session Sizing
-        # Compute real deep work today
-        today_start_ts = int(datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).timestamp() * 1000)
+        # Compute real deep work today using 4:00 AM logical circadian day boundary
+        today_start_ts = get_logical_day_start_ts()
         with self.db.get_connection() as conn:
             cur = conn.cursor()
             cur.execute(

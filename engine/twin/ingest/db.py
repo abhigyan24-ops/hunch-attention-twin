@@ -23,6 +23,89 @@ DEFAULT_DB_PATH = _default_db_path()
 CURRENT_SCHEMA_VERSION = 1
 
 
+def ensure_schema_migrations(conn: sqlite3.Connection) -> None:
+    """Idempotently inspects PRAGMA table_info for all tables and adds any missing columns."""
+    schema_expectations = {
+        "real_activity_buckets": {
+            "was_distracted": "INTEGER DEFAULT 0",
+            "notifications_held_count": "INTEGER DEFAULT 0",
+            "phone_unlock_count": "INTEGER DEFAULT 0",
+            "app_switch_count": "INTEGER DEFAULT 0",
+            "coding_active_seconds": "INTEGER DEFAULT 0",
+            "hour_of_day": "INTEGER DEFAULT 12",
+            "day_of_week": "INTEGER DEFAULT 0",
+        },
+        "focus_streaks": {
+            "broke_by_source": "TEXT DEFAULT 'phone_pickup'",
+            "hour_of_day": "INTEGER DEFAULT 12",
+            "duration_minutes": "INTEGER DEFAULT 0",
+        },
+        "context_snapshots": {
+            "enclosing_symbol": "TEXT",
+            "git_stat_summary": "TEXT",
+            "last_build_summary": "TEXT",
+            "resumed_at_ts": "INTEGER",
+            "user_note": "TEXT",
+            "git_branch": "TEXT",
+            "column_number": "INTEGER DEFAULT 0",
+            "workspace_name": "TEXT",
+        },
+        "notifications": {
+            "urgency_score": "REAL DEFAULT 0.0",
+            "is_vip": "INTEGER DEFAULT 0",
+            "hold_until": "INTEGER",
+            "sender_hash": "TEXT",
+        },
+        "focus_blocks": {
+            "fatigue_score": "REAL DEFAULT 0.0",
+            "primary_category": "TEXT",
+            "focus_depth": "REAL DEFAULT 0.5",
+            "interruptions_count": "INTEGER DEFAULT 0",
+        },
+        "file_attention_logs": {
+            "is_fatigued_edit": "INTEGER DEFAULT 0",
+            "interruption_count": "INTEGER DEFAULT 0",
+            "thrash_events_count": "INTEGER DEFAULT 0",
+            "context_note": "TEXT",
+            "workspace_name": "TEXT",
+        },
+        "shared_desk_items": {
+            "url": "TEXT",
+            "title": "TEXT",
+            "note": "TEXT",
+            "consumed": "INTEGER DEFAULT 0",
+        },
+        "walk_away_events": {
+            "reason": "TEXT",
+            "duration_seconds": "INTEGER DEFAULT 0",
+        },
+        "held_notifications": {
+            "count": "INTEGER DEFAULT 1",
+            "delivered_at_break": "INTEGER DEFAULT 0",
+            "category": "TEXT",
+        },
+        "parked_tabs": {
+            "from_workspace": "TEXT",
+            "consumed_at_break": "INTEGER DEFAULT 0",
+        },
+    }
+
+    cur = conn.cursor()
+    for table, cols in schema_expectations.items():
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,))
+        if not cur.fetchone():
+            continue
+        cur.execute(f"PRAGMA table_info({table})")
+        existing_cols = {row[1] for row in cur.fetchall()}
+        for col_name, col_def in cols.items():
+            if col_name not in existing_cols:
+                try:
+                    cur.execute(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_def}")
+                except sqlite3.OperationalError:
+                    pass
+    conn.commit()
+
+
 class Database:
     def __init__(self, db_path: Optional[Path] = None):
         self.db_path = Path(db_path) if db_path else _default_db_path()
@@ -138,16 +221,8 @@ class Database:
                     duration_seconds INTEGER DEFAULT 0
                 )
             """)
-            for col, col_type in [
-                ("enclosing_symbol", "TEXT"),
-                ("git_stat_summary", "TEXT"),
-                ("last_build_summary", "TEXT"),
-            ]:
-                try:
-                    conn.execute(f"ALTER TABLE context_snapshots ADD COLUMN {col} {col_type}")
-                except sqlite3.OperationalError:
-                    pass  # column already exists
             conn.commit()
+            ensure_schema_migrations(conn)
 
     def calculate_ntp_offset(
         self,
@@ -456,9 +531,17 @@ class Database:
             )
             conn.commit()
 
-    def get_latest_context_snapshot(self) -> Optional[Dict[str, Any]]:
+    def get_latest_context_snapshot(self, workspace_name: Optional[str] = None) -> Optional[Dict[str, Any]]:
         with self.get_connection() as conn:
             cur = conn.cursor()
+            if workspace_name:
+                cur.execute(
+                    "SELECT * FROM context_snapshots WHERE workspace_name = ? ORDER BY created_at_ts DESC LIMIT 1",
+                    (workspace_name,),
+                )
+                row = cur.fetchone()
+                if row:
+                    return dict(row)
             cur.execute("SELECT * FROM context_snapshots ORDER BY created_at_ts DESC LIMIT 1")
             row = cur.fetchone()
             return dict(row) if row else None
@@ -745,6 +828,29 @@ class Database:
                 ),
             )
             conn.commit()
+
+    def prune_stale_telemetry(self, retention_days: int = 90) -> Dict[str, int]:
+        """Prunes raw telemetry older than retention_days while preserving summary streaks and ML weights."""
+        cutoff_ts = int((time.time() - retention_days * 86400) * 1000)
+        pruned: Dict[str, int] = {}
+        with self.get_connection() as conn:
+            for table, col in [
+                ("real_activity_buckets", "bucket_start_ts"),
+                ("file_attention_logs", "logged_at_ts"),
+                ("events", "ts"),
+                ("input_summary", "window_end"),
+                ("notifications", "post_time"),
+                ("compile_shield_events", "ts"),
+                ("walk_away_events", "ts"),
+            ]:
+                try:
+                    cur = conn.cursor()
+                    cur.execute(f"DELETE FROM {table} WHERE {col} < ?", (cutoff_ts,))
+                    pruned[table] = cur.rowcount
+                except Exception:
+                    pruned[table] = 0
+            conn.commit()
+        return pruned
 
 
 _db_instance: Optional[Database] = None

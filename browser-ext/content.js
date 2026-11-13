@@ -94,8 +94,39 @@
 
   // ── Rabbit-Hole Interceptor & 1-Click Tab Parking (Upgrade 5) ───────────────
 
+  const sessionWorkAllowlist = new Set();
+
+  function isCurrentPageWork() {
+    const url = window.location.href;
+    if (sessionWorkAllowlist.has(url)) return true;
+    const path = (window.location.pathname || '').toLowerCase();
+    const title = (document.title || '').toLowerCase();
+
+    // Check technical subreddits
+    const techSubreddits = [
+      'r/programming', 'r/rust', 'r/typescript', 'r/python',
+      'r/devops', 'r/machinelearning', 'r/neovim', 'r/golang',
+      'r/webdev', 'r/cpp', 'r/learnprogramming', 'r/coding', 'r/datascience', 'r/linux'
+    ];
+    if (currentHostname.includes('reddit.com')) {
+      if (techSubreddits.some(sub => path.includes('/' + sub))) return true;
+    }
+
+    // Check work/learning keywords in page title
+    const workKeywords = [
+      'tutorial', 'lecture', 'course', 'documentation', 'crash course',
+      'system design', 'debugging', 'stack trace', 'how to', 'api',
+      'conference', 'refactoring', 'deep dive', 'benchmark', 'walkthrough'
+    ];
+    if (currentHostname.includes('youtube.com') || currentHostname.includes('reddit.com')) {
+      if (workKeywords.some(kw => title.includes(kw))) return true;
+    }
+
+    return false;
+  }
+
   async function checkRabbitHoleDrift() {
-    if (!isRabbitHole || bannerShown || Date.now() < snoozeUntil) {
+    if (!isRabbitHole || bannerShown || Date.now() < snoozeUntil || isCurrentPageWork()) {
       return;
     }
 
@@ -216,6 +247,23 @@
       bannerShown = false;
     };
 
+    const allowBtn = document.createElement('button');
+    allowBtn.textContent = 'Allow for Work';
+    allowBtn.style.cssText = `
+      background: transparent;
+      color: #a1a1aa;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 6px 12px;
+      border-radius: 9999px;
+      font-size: 11px;
+      cursor: pointer;
+    `;
+    allowBtn.onclick = () => {
+      sessionWorkAllowlist.add(window.location.href);
+      banner.remove();
+      bannerShown = false;
+    };
+
     const closeBtn = document.createElement('button');
     closeBtn.textContent = '✕';
     closeBtn.style.cssText = `
@@ -235,6 +283,7 @@
     banner.appendChild(message);
     banner.appendChild(parkBtn);
     banner.appendChild(backBtn);
+    banner.appendChild(allowBtn);
     banner.appendChild(closeBtn);
     document.body.appendChild(banner);
   }
