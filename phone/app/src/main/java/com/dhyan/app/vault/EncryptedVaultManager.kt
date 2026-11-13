@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.Uri
 import android.util.AtomicFile
 import java.io.InputStream
+import org.json.JSONArray
+import org.json.JSONObject
 import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.BadPaddingException
@@ -21,7 +23,46 @@ data class VaultPayload(
     val realMinutesTracked: Int,
     val hourlyDistractionWeights: Map<Int, Float>,
     val exportedAtMillis: Long,
-)
+) {
+    fun toJsonBytes(): ByteArray = JSONObject().apply {
+        put("bedtimeSchedule", JSONObject().apply {
+            put("bedHour", bedtimeSchedule.bedHour)
+            put("bedMin", bedtimeSchedule.bedMin)
+            put("wakeHour", bedtimeSchedule.wakeHour)
+            put("wakeMin", bedtimeSchedule.wakeMin)
+            put("isAutoDetected", bedtimeSchedule.isAutoDetected)
+        })
+        put("vipPackages", JSONArray(vipPackages))
+        put("learnedTypicalStreakMinutes", learnedTypicalStreakMinutes)
+        put("realMinutesTracked", realMinutesTracked)
+        put("hourlyDistractionWeights", JSONObject(hourlyDistractionWeights.mapKeys { it.key.toString() }))
+        put("exportedAtMillis", exportedAtMillis)
+    }.toString().toByteArray(Charsets.UTF_8)
+
+    companion object {
+        fun fromJsonBytes(bytes: ByteArray): VaultPayload {
+            val json = JSONObject(bytes.toString(Charsets.UTF_8))
+            val bed = json.getJSONObject("bedtimeSchedule")
+            val schedule = VaultBedtime(
+                bed.getInt("bedHour"), bed.getInt("bedMin"),
+                bed.getInt("wakeHour"), bed.getInt("wakeMin"), bed.getBoolean("isAutoDetected"),
+            )
+            require(schedule.bedHour in 0..23 && schedule.wakeHour in 0..23)
+            require(schedule.bedMin in 0..59 && schedule.wakeMin in 0..59)
+            val packages = json.optJSONArray("vipPackages") ?: JSONArray()
+            val weights = json.optJSONObject("hourlyDistractionWeights") ?: JSONObject()
+            return VaultPayload(
+                schedule, List(packages.length()) { packages.getString(it) },
+                json.optInt("learnedTypicalStreakMinutes"), json.optInt("realMinutesTracked"),
+                weights.keys().asSequence().associate { it.toInt() to weights.getDouble(it).toFloat() },
+                json.getLong("exportedAtMillis"),
+            ).also { payload ->
+                require(payload.learnedTypicalStreakMinutes >= 0 && payload.realMinutesTracked >= 0)
+                require(payload.hourlyDistractionWeights.all { (hour, weight) -> hour in 0..23 && weight.isFinite() })
+            }
+        }
+    }
+}
 
 object EncryptedVaultManager {
     private val magic = "HNCHV1".toByteArray(Charsets.US_ASCII)
@@ -99,6 +140,18 @@ object EncryptedVaultManager {
         requireNotNull(context.contentResolver.openInputStream(uri)).use {
             decryptPayload(readBounded(it), passphrase)
         }
+
+    fun saveEncryptedInternalBackup(context: Context, payload: VaultPayload, passphrase: String) =
+        writeBackup(context, payload.toJsonBytes(), passphrase)
+
+    fun loadEncryptedInternalBackup(context: Context, passphrase: String): VaultPayload =
+        VaultPayload.fromJsonBytes(readBackup(context, passphrase))
+
+    fun exportToUri(context: Context, uri: Uri, payload: VaultPayload, passphrase: String) =
+        exportEncryptedVaultToUri(context, uri, payload.toJsonBytes(), passphrase)
+
+    fun importFromUri(context: Context, uri: Uri, passphrase: String): VaultPayload =
+        VaultPayload.fromJsonBytes(importEncryptedVaultFromUri(context, uri, passphrase))
 
     fun hasBackup(context: Context): Boolean = file(context).baseFile.isFile
 

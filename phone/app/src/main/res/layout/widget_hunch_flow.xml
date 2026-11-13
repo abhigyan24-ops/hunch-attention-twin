@@ -1,0 +1,15 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="12dp" android:background="#101B19">
+    <TextView android:id="@+id/hunch_widget_flow" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="16sp" />
+    <TextView android:id="@+id/hunch_widget_shield" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:textColor="#9DE9CF" />
+    <TextView android:id="@+id/hunch_widget_peak" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:textColor="#DCEBE5" android:maxLines="1"
+        android:ellipsize="end" />
+    <Button android:id="@+id/hunch_widget_toggle" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:text="Toggle Shield" android:textAllCaps="false" />
+    <Button android:id="@+id/hunch_widget_park" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:text="Pocket Park" android:textAllCaps="false" />
+</LinearLayout>

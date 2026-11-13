@@ -98,6 +98,34 @@
             </intent-filter>
         </receiver>
 
+        <activity
+            android:name=".share.ShareToDeskActivity"
+            android:exported="true"
+            android:label="Send to Hunch Desk"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+        <service
+            android:name=".qs.HunchQuickSettingsTileService"
+            android:label="Hunch Shield"
+            android:icon="@android:drawable/ic_lock_lock"
+            android:exported="true"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <receiver android:name=".widget.HunchFlowWidgetProvider" android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/hunch_flow_widget_info" />
+        </receiver>
     </application>
 
 </manifest>

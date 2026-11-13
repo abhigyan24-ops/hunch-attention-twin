@@ -11,7 +11,6 @@ import com.dhyan.app.wellbeing.BedtimeManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
 
 @Composable
 fun RecoveryVaultControls() {
@@ -75,31 +74,23 @@ fun RecoveryVaultControls() {
                                 val manager = BedtimeManager(context)
                                 if (export) {
                                     val bedtime = manager.getBedtimeSchedule()
-                                    val bytes = JSONObject().apply {
-                                        put("bedtimeSchedule", JSONObject().apply {
-                                            put("bedHour", bedtime.bedtimeHour)
-                                            put("bedMin", bedtime.bedtimeMinute)
-                                            put("wakeHour", bedtime.wakeHour)
-                                            put("wakeMin", bedtime.wakeMinute)
-                                            put("isAutoDetected", bedtime.isAutoDetected)
-                                        })
-                                        put("exportedAtMillis", System.currentTimeMillis())
-                                    }.toString().toByteArray(Charsets.UTF_8)
-                                    EncryptedVaultManager.exportEncryptedVaultToUri(context, requireNotNull(uri), bytes, passphrase)
-                                    EncryptedVaultManager.writeBackup(context, bytes, passphrase)
+                                    val payload = VaultPayload(
+                                        VaultBedtime(
+                                            bedtime.bedtimeHour, bedtime.bedtimeMinute,
+                                            bedtime.wakeHour, bedtime.wakeMinute, bedtime.isAutoDetected,
+                                        ),
+                                        emptyList(), 0, 0, emptyMap(), System.currentTimeMillis(),
+                                    )
+                                    EncryptedVaultManager.exportToUri(context, requireNotNull(uri), payload, passphrase)
+                                    EncryptedVaultManager.saveEncryptedInternalBackup(context, payload, passphrase)
                                 } else {
-                                    val data = if (internalBackup) {
-                                        EncryptedVaultManager.readBackup(context, passphrase)
+                                    val payload = if (internalBackup) {
+                                        EncryptedVaultManager.loadEncryptedInternalBackup(context, passphrase)
                                     } else {
-                                        EncryptedVaultManager.importEncryptedVaultFromUri(context, requireNotNull(uri), passphrase)
+                                        EncryptedVaultManager.importFromUri(context, requireNotNull(uri), passphrase)
                                     }
-                                    val schedule = JSONObject(data.toString(Charsets.UTF_8)).getJSONObject("bedtimeSchedule")
-                                    val bedHour = schedule.getInt("bedHour")
-                                    val bedMin = schedule.getInt("bedMin")
-                                    val wakeHour = schedule.getInt("wakeHour")
-                                    val wakeMin = schedule.getInt("wakeMin")
-                                    require(bedHour in 0..23 && wakeHour in 0..23 && bedMin in 0..59 && wakeMin in 0..59)
-                                    manager.setManualBedtime(bedHour, bedMin, wakeHour, wakeMin)
+                                    val bed = payload.bedtimeSchedule
+                                    manager.setManualBedtime(bed.bedHour, bed.bedMin, bed.wakeHour, bed.wakeMin)
                                 }
                             }
                             if (export) hasBackup = true
