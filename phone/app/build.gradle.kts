@@ -55,6 +55,11 @@ android {
   }
   getByName("main") { assets.srcDir(layout.buildDirectory.dir("generated/wire-assets")) }
  }
+ lint {
+  checkReleaseBuilds = true
+  abortOnError = true
+  disable.add("FullBackupContent")
+ }
 }
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 
