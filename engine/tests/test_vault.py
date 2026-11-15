@@ -4,7 +4,7 @@ from hashlib import pbkdf2_hmac
 from secrets import token_bytes
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 
 from engine.twin.api.vault_routes import router
@@ -41,7 +41,13 @@ def test_http_forwarded_to_loopback_is_not_trusted(monkeypatch):
     monkeypatch.setenv("TWIN_TOKEN", "test-only-credentials-" * 3)
     app = FastAPI()
     app.include_router(router)
-    client = TestClient(app, base_url="http://vault.example", client=("127.0.0.1", 12345))
+
+    @app.middleware("http")
+    async def set_loopback_client(request: Request, call_next):
+        request.scope["client"] = ("127.0.0.1", 12345)
+        return await call_next(request)
+
+    client = TestClient(app, base_url="http://vault.example")
     response = client.get("/v1/vault/restore-phone-state", headers={
         "X-Twin-Token": "test-only-credentials-" * 3,
     })
