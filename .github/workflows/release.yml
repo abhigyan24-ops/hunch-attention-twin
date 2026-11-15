@@ -350,10 +350,11 @@ jobs:
           V1_REPORT=$("$APKSIGNER" verify --min-sdk-version 23 --max-sdk-version 23 --verbose --print-certs "$APK")
           REPORT="$REPORT"$'\n'"$V1_REPORT"
           printf '%s\n' "$REPORT"
-          for scheme in v1 v2 v3 v4; do
-            grep -Eq "^Verified using $scheme scheme .*: true$" <<< "$REPORT"
-          done
-          DIGEST=$(sed -nE 's/^(Signer #[0-9]+ |V[234] Signer: )certificate SHA-256 digest: ([[:xdigit:]]{64})$/\2/p' <<< "$REPORT" | tr '[:upper:]' '[:lower:]' | sort -u)
+          grep -Eq "^Verified using v1 scheme .*: true$" <<< "$REPORT"
+          grep -Eq "^Verified using v2 scheme .*: true$" <<< "$REPORT"
+          grep -Eq "^Verified using v3(\.0)? scheme .*: true$" <<< "$REPORT"
+          grep -Eq "^Verified using v4 scheme .*: true$" <<< "$REPORT"
+          DIGEST=$(sed -nE 's/^(Signer #[0-9]+ |V[0-9]+(\.[0-9]+)? Signer: )certificate SHA-256 digest: ([[:xdigit:]]{64})$/\3/p' <<< "$REPORT" | tr '[:upper:]' '[:lower:]' | sort -u)
           EXPECTED="3ec8e983132712b44585e4986378a42beba71bfd48d4d20f3452d3b860d653d4"
           if [[ ! "$DIGEST" =~ ^[[:xdigit:]]{64}$ ]]; then
             echo "::error::Expected one verified Android signer"
