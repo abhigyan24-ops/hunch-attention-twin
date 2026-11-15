@@ -1,16 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Accessibility service configuration for DhyanA11yCollector.
-  Only scroll and window-state events are captured.
-  canRetrieveWindowContent is FALSE — Dhyan never reads screen text.
-  Privacy: only event types and source package name are used; no content.
+  Hunch Accessibility Service — Play Protect compliance hardened.
+  SCOPE: foreground app package detection ONLY (typeWindowStateChanged).
+  canRetrieveWindowContent=false: Hunch CANNOT read screen text, passwords or UI trees.
+  isAccessibilityTool=false: Hunch is NOT a disability assistive tool.
 -->
 <accessibility-service
     xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeViewScrolled|typeWindowStateChanged"
+    android:accessibilityEventTypes="typeWindowStateChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagDefault"
     android:canRetrieveWindowContent="false"
-    android:description="@string/a11y_service_description"
-    android:notificationTimeout="100"
+    android:isAccessibilityTool="false"
+    android:description="@string/accessibility_service_prominent_disclosure"
+    android:notificationTimeout="300"
     android:settingsActivity="com.dhyan.app.ui.SettingsActivity" />

@@ -15,4 +15,6 @@
     <string name="digest_channel_name">Hunch digest</string>
     <string name="digest_channel_desc">Batched notifications held by Hunch</string>
     <string name="qs_tile_label">Hunch</string>
+    <string name="accessibility_service_prominent_disclosure">Hunch uses this optional service solely on-device to detect which foreground app is active during user-initiated focus sessions. Hunch never reads screen text, keystrokes, or personal content, and never transmits data off your local network.</string>
+    <string name="accessibility_service_settings_description">Hunch Accessibility — monitors app switches only. No screen content is read.</string>
 </resources>

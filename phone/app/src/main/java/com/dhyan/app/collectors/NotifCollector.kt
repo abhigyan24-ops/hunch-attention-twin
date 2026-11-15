@@ -77,6 +77,9 @@ class NotifCollector : NotificationListenerService() {
         val ts = ClockOffset.adjustedNow()
         val pkg = sbn.packageName ?: return
 
+        // MUwS compliance: OS/security/payment packages always bypass — never held or canceled
+        if (com.dhyan.app.safety.NotificationTriageEngine.isSystemExemptPackage(pkg)) return
+
         val notification = sbn.notification ?: return
         val androidCat = notification.category
         val isMessaging = hasMessagingStyle(notification)
