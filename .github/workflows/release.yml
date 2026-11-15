@@ -150,7 +150,7 @@ jobs:
             Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
           }
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: engine-win
           path: engine/dist/dhyan-engine
@@ -184,7 +184,7 @@ jobs:
             npm run package -- --out dhyan.vsix --skip-license
           fi
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-vsix
           path: vscode-ext/dhyan.vsix
@@ -197,7 +197,7 @@ jobs:
           mkdir -p out-browser
           (cd browser-ext && zip -r "../out-browser/hunch-browser-ext-${{ needs.meta.outputs.version }}.zip" manifest.json content.js domain-classifier.js service-worker.js)
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-browser-ext
           path: out-browser/hunch-browser-ext-*.zip
@@ -253,7 +253,7 @@ jobs:
           if (-not (Test-Path $engine)) { throw "engine not bundled: $engine" }
           Write-Host 'installer files and bundled engine OK'
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-desktop
           path: |
@@ -379,7 +379,7 @@ jobs:
         shell: bash
         run: rm -f "$RUNNER_TEMP/dhyan.jks"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-android
           path: |
