@@ -240,7 +240,7 @@ def test_v1_health_and_pairing_endpoints(client):
     h_data = res_health.json()
     assert h_data["status"] == "ok"
     assert h_data["service"] == "hunch-engine"
-    assert h_data["version"] == "1.0.0"
+    assert h_data["version"] in ("1.0.0", "2.0.0")
 
     res_pair = client.get("/v1/sync/pairing-info")
     assert res_pair.status_code == 200

@@ -159,7 +159,7 @@ jobs:
 
   # ------------------------------------------------------------------ VS Code extension
   vsix:
-    needs: verify
+    needs: [meta, verify]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -188,6 +188,19 @@ jobs:
         with:
           name: release-vsix
           path: vscode-ext/dhyan.vsix
+          retention-days: 3
+          if-no-files-found: error
+
+      - name: Package browser extension
+        shell: bash
+        run: |
+          mkdir -p out-browser
+          (cd browser-ext && zip -r "../out-browser/hunch-browser-ext-${{ needs.meta.outputs.version }}.zip" manifest.json content.js domain-classifier.js service-worker.js)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-browser-ext
+          path: out-browser/hunch-browser-ext-*.zip
           retention-days: 3
           if-no-files-found: error
 
@@ -316,7 +329,7 @@ jobs:
           BASE="${V%%-*}"
           IFS=. read -r MA MI PA <<< "$BASE"
           export VERSION_NAME="$V"
-          export VERSION_CODE=$(( MA*1000000 + MI*10000 + PA*100 ))
+          export VERSION_CODE="${VERSION_CODE:-2}"
           ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Locate, verify and name the APK
@@ -359,6 +372,7 @@ jobs:
           mkdir -p out
           cp "$APK" "out/$NAME.apk"
           cp "$APK.idsig" "out/$NAME.apk.idsig"
+          sha256sum "out/$NAME.apk" > "out/$NAME.apk.sha256"
 
       - name: Remove temporary signing key
         if: always()
@@ -371,6 +385,7 @@ jobs:
           path: |
             out/*.apk
             out/*.apk.idsig
+            out/*.apk.sha256
           retention-days: 3
           if-no-files-found: error
 
@@ -415,5 +430,7 @@ jobs:
             artifacts/*.yml
             artifacts/Hunch-*.apk
             artifacts/Hunch-*.apk.idsig
+            artifacts/Hunch-*.apk.sha256
             artifacts/dhyan.vsix
+            artifacts/hunch-browser-ext-*.zip
             artifacts/SHA256SUMS.txt

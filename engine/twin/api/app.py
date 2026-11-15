@@ -1,11 +1,15 @@
 import datetime
 import hmac
+import json
 import os
 import secrets
+import sys
+import threading
 import time
+import urllib.error
+import urllib.request
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
-import threading
 
 from fastapi import Depends, FastAPI, HTTPException, Header, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -98,9 +102,11 @@ async def lifespan(app: FastAPI):
     yield
 
 
+ENGINE_VERSION = "2.0.0"
+
 app = FastAPI(
-    title="Dhyan Attention Digital Twin Sidecar API",
-    version="1.0.0",
+    title="Hunch Attention Digital Twin Sidecar API",
+    version=ENGINE_VERSION,
     lifespan=lifespan,
 )
 
@@ -233,7 +239,7 @@ def v1_health() -> Dict[str, Any]:
     return {
         "status": "ok",
         "service": "hunch-engine",
-        "version": "1.0.0",
+        "version": ENGINE_VERSION,
         "port": 8765,
         "events_count": db.get_event_count(),
     }
@@ -244,10 +250,118 @@ def health() -> Dict[str, Any]:
     return {
         "status": "ok",
         "service": "dhyan-twin-sidecar",
-        "version": "1.0.0",
+        "version": ENGINE_VERSION,
         "port": 8765,
         "events_count": db.get_event_count(),
     }
+
+
+def parse_semver(v: str) -> tuple[int, int, int, bool]:
+    """Parses a version string into (major, minor, patch, is_prerelease)."""
+    clean = (v or "").strip().lstrip("vV")
+    is_prerelease = "-" in clean
+    base = clean.split("-")[0] if is_prerelease else clean
+    parts = base.split(".")
+    major = int(parts[0]) if len(parts) > 0 and parts[0].isdigit() else 0
+    minor = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+    patch = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+    return (major, minor, patch, is_prerelease)
+
+
+def compare_semver(current: str, remote: str) -> bool:
+    """Returns True if remote represents a newer version than current.
+    Rules:
+    1. Higher major, minor, or patch strictly wins (2.0.0 > 1.0.0, 2.1.0 > 2.0.0).
+    2. If (major, minor, patch) are equal, stable release > prerelease (2.0.0 > 2.0.0-beta).
+    """
+    if not remote or not remote.strip():
+        return False
+    curr = parse_semver(current)
+    rem = parse_semver(remote)
+
+    if rem[0] != curr[0]:
+        return rem[0] > curr[0]
+    if rem[1] != curr[1]:
+        return rem[1] > curr[1]
+    if rem[2] != curr[2]:
+        return rem[2] > curr[2]
+
+    return curr[3] and not rem[3]
+
+
+_last_update_check_ts: float = 0.0
+_cached_update_info: Optional[Dict[str, Any]] = None
+_update_lock = threading.RLock()
+
+
+@app.get("/v1/system/update-check")
+def system_update_check(force: bool = False) -> Dict[str, Any]:
+    """Checks for newer releases on GitHub with 24-hour caching and safe offline fallback."""
+    global _last_update_check_ts, _cached_update_info
+    now = time.time()
+
+    with _update_lock:
+        if not force and _cached_update_info is not None and (now - _last_update_check_ts < 86400):
+            return _cached_update_info
+
+        url = "https://api.github.com/repos/abhigyan24-ops/hunch-attention-twin/releases/latest"
+        req = urllib.request.Request(
+            url,
+            headers={
+                "Accept": "application/vnd.github+json",
+                "User-Agent": f"Hunch-Attention-Twin/{ENGINE_VERSION}",
+            },
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=3.5) as resp:
+                if resp.status == 200:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    tag_name = data.get("tag_name", "").strip()
+                    html_url = data.get("html_url", "").strip()
+                    body = data.get("body", "").strip()
+                    notes = (body[:240].strip() + "...") if len(body) > 240 else body
+
+                    # Pick matching platform installer
+                    download_url = html_url
+                    assets = data.get("assets", [])
+                    if isinstance(assets, list):
+                        plat = sys.platform
+                        target_ext = ".exe" if plat.startswith("win") else (".dmg" if plat == "darwin" else ".AppImage")
+                        for a in assets:
+                            name = a.get("name", "")
+                            if name.endswith(target_ext) and a.get("browser_download_url"):
+                                download_url = a["browser_download_url"]
+                                break
+
+                    update_available = compare_semver(ENGINE_VERSION, tag_name)
+                    res = {
+                        "currentVersion": ENGINE_VERSION,
+                        "latestVersion": tag_name,
+                        "updateAvailable": update_available,
+                        "downloadUrl": download_url,
+                        "releaseHtmlUrl": html_url,
+                        "releaseNotes": notes,
+                        "lastCheckedAt": int(now),
+                    }
+                    _cached_update_info = res
+                    _last_update_check_ts = now
+                    return res
+        except Exception:
+            pass
+
+        if _cached_update_info is not None:
+            return _cached_update_info
+
+        return {
+            "currentVersion": ENGINE_VERSION,
+            "latestVersion": ENGINE_VERSION,
+            "updateAvailable": False,
+            "downloadUrl": "",
+            "releaseHtmlUrl": "",
+            "releaseNotes": "",
+            "lastCheckedAt": int(now),
+        }
 
 
 @app.post("/ingest/batch")

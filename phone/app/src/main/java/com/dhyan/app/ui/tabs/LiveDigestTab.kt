@@ -90,6 +90,7 @@ import com.dhyan.app.ui.components.InteractiveBreakDigestCard
 import com.dhyan.app.ui.components.PocketParkCard
 import com.dhyan.app.ui.components.StudyPassCard
 import com.dhyan.app.ui.components.SmartFlowTriggersCard
+import com.dhyan.app.ui.components.HunchUpdateCard
 import com.dhyan.app.wellbeing.BedtimeSettingsCard
 import com.dhyan.app.privacy.PrivacyLedgerCard
 import com.dhyan.app.privacy.PrivacyLedgerManager
@@ -479,6 +480,9 @@ fun LiveDigestContent(
 
         // 2g. Smart Flow Triggers (Earbuds-In, Muscle-Memory, Doomscroll Breaker)
         SmartFlowTriggersCard()
+
+        // 2h. GitHub OTA Update Checker Card
+        HunchUpdateCard()
 
         // 3. Notification Policy Card
         LiveCard("Quiet Focus Delivery · ${uiState.mode.name.replace('_', ' ')}") {

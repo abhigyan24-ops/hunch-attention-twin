@@ -9,6 +9,7 @@ export function InsightsTab() {
   const [sharedDeskItems, setSharedDeskItems] = useState<any[]>([]);
   const [weeklyWrapped, setWeeklyWrapped] = useState<any>(null);
   const [compileShield, setCompileShield] = useState<any>(null);
+  const [updateInfo, setUpdateInfo] = useState<any>(null);
   const [diagnostics, setDiagnostics] = useState<any>(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [shieldActiveNotice, setShieldActiveNotice] = useState<string | null>(null);
@@ -19,7 +20,7 @@ export function InsightsTab() {
   const fetchInsights = async () => {
     setLoading(true);
     try {
-      const [sumRes, snapRes, heldRes, tabsRes, deskRes, wrapRes, shieldRes, circRes, f, i, s, v, fg, ft, mat, pol] = await Promise.all([
+      const [sumRes, snapRes, heldRes, tabsRes, deskRes, wrapRes, shieldRes, circRes, updRes, f, i, s, v, fg, ft, mat, pol] = await Promise.all([
         fetch('http://127.0.0.1:8765/v1/insights/human-summary').then(r => r.json()).catch(() => null),
         fetch('http://127.0.0.1:8765/v1/insights/context-snapshot').then(r => r.json()).catch(() => null),
         fetch('http://127.0.0.1:8765/v1/insights/held-notifications?undelivered_only=true').then(r => r.json()).catch(() => null),
@@ -28,6 +29,7 @@ export function InsightsTab() {
         fetch('http://127.0.0.1:8765/v1/insights/weekly-wrapped').then(r => r.json()).catch(() => null),
         fetch('http://127.0.0.1:8765/v1/flow/compile-shield').then(r => r.json()).catch(() => null),
         fetch('http://127.0.0.1:8765/v1/wellbeing/circadian').then(r => r.json()).catch(() => null),
+        fetch('http://127.0.0.1:8765/v1/system/update-check').then(r => r.json()).catch(() => null),
         fetch('http://127.0.0.1:8765/profile/focus').then(r => r.json()).catch(() => null),
         fetch('http://127.0.0.1:8765/profile/interruptions').then(r => r.json()).catch(() => null),
         fetch('http://127.0.0.1:8765/profile/stickiness').then(r => r.json()).catch(() => null),
@@ -45,6 +47,7 @@ export function InsightsTab() {
       if (Array.isArray(deskRes?.items)) setSharedDeskItems(deskRes.items);
       if (wrapRes) setWeeklyWrapped(wrapRes);
       if (shieldRes) setCompileShield(shieldRes);
+      if (updRes) setUpdateInfo(updRes);
 
       if (circRes && circRes.wind_down_active !== undefined) {
         flowAudioEngine.setWindDownActive(Boolean(circRes.wind_down_active));
@@ -133,6 +136,41 @@ export function InsightsTab() {
       </div>
 
       {loading && !summary && <p style={{ fontSize: '12px', marginTop: '12px' }}>Loading focus forecast...</p>}
+
+      {/* GitHub Releases OTA Update Available Banner */}
+      {updateInfo?.updateAvailable && (
+        <div style={{
+          margin: '12px 0 16px 0',
+          padding: '10px 14px',
+          background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%)',
+          border: '1px solid #818CF8',
+          borderRadius: '10px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: '12px',
+          fontWeight: 600,
+          color: '#4338CA',
+        }}>
+          <span>🚀 <strong>Hunch v{updateInfo.latestVersion} Available</strong> — Newer release available</span>
+          <a
+            href={updateInfo.downloadUrl || updateInfo.releaseHtmlUrl || 'https://github.com/abhigyan24-ops/hunch-attention-twin/releases'}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              background: '#4F46E5',
+              color: '#FFFFFF',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              textDecoration: 'none',
+              fontSize: '11px',
+              fontWeight: 600,
+            }}
+          >
+            Download v{updateInfo.latestVersion}
+          </a>
+        </div>
+      )}
 
       {/* 1. Authentic Calibration Status Banner */}
       <div style={{
@@ -681,6 +719,11 @@ export function InsightsTab() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* 8. Version & Update Status Footer */}
+      <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '11px', color: 'var(--dhyan-text-muted, #94A3B8)' }}>
+        Hunch v2.0.0 • {updateInfo?.updateAvailable ? `Update v${updateInfo.latestVersion} available` : 'Up to date'}
       </div>
     </div>
   );

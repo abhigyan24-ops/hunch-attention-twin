@@ -10,8 +10,8 @@ android {
   applicationId = "com.dhyan.app"
   minSdk = 26
   targetSdk = 37
-  versionCode = (System.getenv("VERSION_CODE") ?: "1").toInt()
-  versionName = System.getenv("VERSION_NAME") ?: "0.1.0"
+  versionCode = (System.getenv("VERSION_CODE") ?: "2").toInt()
+  versionName = System.getenv("VERSION_NAME") ?: "2.0.0"
   testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   // Export Room schemas for migration verification
   ksp {

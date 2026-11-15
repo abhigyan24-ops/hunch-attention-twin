@@ -12,6 +12,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dhyan.app.digest.BreakDigestVault
 import com.dhyan.app.pocketpark.PocketParkManager
+import com.dhyan.app.update.UpdateCheckerManager
 
 /**
  * Interactive Break Digest Card rendering notifications held in volatile RAM
@@ -401,5 +402,65 @@ fun StudyPassCard(modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+
+/**
+ * Clean, non-intrusive Update Available card surfacing GitHub OTA releases.
+ * If up to date, displays a calm "Hunch v2.0.0 • Up to date" status badge.
+ * If an update is available, displays "Hunch v<X.Y.Z> is available — Tap to download latest APK".
+ */
+@Composable
+fun HunchUpdateCard(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    var updateInfo by remember { mutableStateOf(UpdateCheckerManager.getCachedUpdateInfo(context)) }
+
+    LaunchedEffect(Unit) {
+        val fresh = UpdateCheckerManager.checkForUpdate(context, force = false)
+        updateInfo = fresh
+    }
+
+    PastelSquircleCard(
+        modifier = modifier,
+        tone = if (updateInfo?.updateAvailable == true) PastelTone.SAND else PastelTone.WHITE
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (updateInfo?.updateAvailable == true)
+                    "🚀 Hunch ${updateInfo?.latestVersionTag} Available"
+                else
+                    "✨ Hunch v${UpdateCheckerManager.CURRENT_APP_VERSION} · Up to date",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+
+            if (updateInfo?.updateAvailable == true) {
+                Button(
+                    onClick = {
+                        val intent = UpdateCheckerManager.createDownloadUpdateIntent(updateInfo!!.apkDownloadUrl)
+                        context.startActivity(intent)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                ) {
+                    Text("Download APK", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        if (updateInfo?.updateAvailable == true && !updateInfo?.releaseNotes.isNullOrBlank()) {
+            Text(
+                text = updateInfo?.releaseNotes ?: "",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }

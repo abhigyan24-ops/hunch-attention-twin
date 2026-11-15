@@ -3,7 +3,7 @@
   "displayName": "Hunch VS Code Sensor & Attention Companion",
   "type": "module",
   "description": "Privacy-preserving telemetry sensor, resume assist, and quiet actuator for Hunch, your attention digital twin",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "publisher": "dhyan",
   "repository": {
     "type": "git",
