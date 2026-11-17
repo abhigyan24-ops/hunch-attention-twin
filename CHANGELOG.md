@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 `v2.0.0` is the production milestone release of **Hunch** (formerly Dhyan). It unifies cross-device attention modeling, on-device machine learning, zero-knowledge encrypted backup vaults, dual-use study mode, and seamless in-place APK upgrade capabilities.
 
 ### 🛡️ Trust Architecture & Distribution
+- **Automated VirusTotal v3 & Play Protect Appeal Pipeline:** Automated appeal packet generation (`docs/PLAY_PROTECT_APPEAL_SUBMISSION_READY.md`, `docs/play_protect_appeal_payload.json`), VirusTotal REST API v3 APK indexing & multi-part uploads (<32MB / >=32MB), keyless Playwright browser uploader, and Google Play Protect Appeals form auto-filler with automated screenshot verification and G1–G6 compliance verification.
 - **Hunch Identity & Package Rebrand:** Cleanly migrated repository to `hunch-attention-twin` with updated branding across Android, Electron, VS Code, and Chrome extensions.
 - **Permanent Release Key & V1–V4 APK Signing:** Signed with dedicated `ANDROID_KEYSTORE_B64` certificate (`SHA-256: 3ec8e983...53d4`), verified across V1, V2, V3, and V4 signing schemes via `apksigner`.
 - **4-Tier Progressive Trust Onboarding:** Replaced all-at-once permission walls with contextual justification sheets:

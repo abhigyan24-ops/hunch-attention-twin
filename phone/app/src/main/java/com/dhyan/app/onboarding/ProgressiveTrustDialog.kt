@@ -1,5 +1,7 @@
 package com.dhyan.app.onboarding
 
+import com.dhyan.app.compliance.ProminentDisclosureGate
+import com.dhyan.app.compliance.ProminentDisclosureGate.PermissionTier
 import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -32,6 +34,12 @@ fun ProgressiveTrustDialog(
     onSettingsReturned: () -> Unit,
 ) {
     val context = LocalContext.current
+    val tier = when (capability) {
+        TrustCapability.BEDTIME -> PermissionTier.USAGE_STATS
+        TrustCapability.QUIET_FOCUS -> PermissionTier.NOTIFICATION_LISTENER
+        TrustCapability.ADVANCED_CONTEXT -> PermissionTier.ACCESSIBILITY_HUD
+        TrustCapability.FLOATING_HUD -> PermissionTier.OVERLAY_HUD
+    }
     val canShowHelp = capability.canShowRestrictedSettingsHelp(context)
     var showHelp by rememberSaveable(capability) { mutableStateOf(false) }
     var returnedFromAppInfo by rememberSaveable(capability) { mutableStateOf(false) }
@@ -97,8 +105,11 @@ fun ProgressiveTrustDialog(
         },
         confirmButton = {
             Button(onClick = {
-                launchSettings({ featureSettings.launch(it) }, capability.settingsIntent(context))
-            }) { Text(if (showHelp) "2. Open feature settings" else "Open feature settings") }
+                ProminentDisclosureGate.recordUserConsent(context, tier)
+                if (ProminentDisclosureGate.canLaunchSystemSettingsIntent(context, tier)) {
+                    launchSettings({ featureSettings.launch(it) }, capability.settingsIntent(context))
+                }
+            }) { Text(if (showHelp) "2. Accept and open settings" else "Accept and open settings") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Not now") } },
     )

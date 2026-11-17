@@ -71,7 +71,7 @@ object ProminentDisclosureGate {
     /**
      * Returns the exact disclosure copy for [tier].
      * All copy is plain English with zero dark patterns.
-     * No string may ever contain "disable Play Protect" or "turn off Play Protect".
+     * Users should keep Play Protect enabled.
      */
     fun getDisclosureStatement(tier: PermissionTier): ProminentDisclosureCopy = when (tier) {
         PermissionTier.USAGE_STATS -> ProminentDisclosureCopy(

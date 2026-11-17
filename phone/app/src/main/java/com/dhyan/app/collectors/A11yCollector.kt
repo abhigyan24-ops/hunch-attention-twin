@@ -150,8 +150,7 @@ class A11yCollector : AccessibilityService() {
         isServiceConnected = true
 
         serviceInfo = serviceInfo.apply {
-            eventTypes = AccessibilityEvent.TYPE_VIEW_SCROLLED or
-                         AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+            eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
             flags = 0
             notificationTimeout = 50L

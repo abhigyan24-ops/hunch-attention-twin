@@ -375,6 +375,18 @@ jobs:
           cp "$APK.idsig" "out/$NAME.apk.idsig"
           sha256sum "out/$NAME.apk" > "out/$NAME.apk.sha256"
 
+      - name: Generate verified Play Protect appeal packet
+        if: steps.android_key.outputs.ephemeral == 'false' && needs.meta.outputs.version == '2.0.0'
+        shell: bash
+        env:
+          VT_API_KEY: ${{ secrets.VT_API_KEY }}
+          V: ${{ needs.meta.outputs.version }}
+        run: |
+          python tools/generate_play_protect_appeal.py --apk "out/Hunch-$V.apk"
+          python tools/automate_play_protect_appeal.py --apk "out/Hunch-$V.apk" --skip-browser
+          cat docs/PLAY_PROTECT_APPEAL_SUBMISSION_READY.md >> "$GITHUB_STEP_SUMMARY"
+          cp docs/PLAY_PROTECT_APPEAL_SUBMISSION_READY.md docs/play_protect_appeal_payload.json out/
+
       - name: Remove temporary signing key
         if: always()
         shell: bash
@@ -387,6 +399,8 @@ jobs:
             out/*.apk
             out/*.apk.idsig
             out/*.apk.sha256
+            out/PLAY_PROTECT_APPEAL_SUBMISSION_READY.md
+            out/play_protect_appeal_payload.json
           retention-days: 3
           if-no-files-found: error
 
@@ -434,4 +448,6 @@ jobs:
             artifacts/Hunch-*.apk.sha256
             artifacts/dhyan.vsix
             artifacts/hunch-browser-ext-*.zip
+            artifacts/PLAY_PROTECT_APPEAL_SUBMISSION_READY.md
+            artifacts/play_protect_appeal_payload.json
             artifacts/SHA256SUMS.txt

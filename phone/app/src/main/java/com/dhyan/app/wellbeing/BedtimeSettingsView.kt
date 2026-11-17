@@ -49,6 +49,14 @@ fun BedtimeSettingsCard(
     onScheduleChanged: ((BedtimeSchedule) -> Unit)? = null
 ) {
     val context = LocalContext.current
+    var permissionDisclosure by remember { mutableStateOf(false) }
+    if (permissionDisclosure) {
+        com.dhyan.app.onboarding.ProgressiveTrustDialog(
+            capability = com.dhyan.app.onboarding.TrustCapability.BEDTIME,
+            onDismiss = { permissionDisclosure = false },
+            onSettingsReturned = { permissionDisclosure = false },
+        )
+    }
     val lifecycleOwner = LocalLifecycleOwner.current
     val bedtimeManager = remember(context) { BedtimeManager(context) }
 
@@ -181,10 +189,7 @@ fun BedtimeSettingsCard(
         if (!hasUsageAccess) {
             Button(
                 onClick = {
-                    val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    }
-                    context.startActivity(intent)
+                    permissionDisclosure = true
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {

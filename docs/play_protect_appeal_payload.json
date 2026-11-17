@@ -1,0 +1,14 @@
+{
+  "apkPath": "C:\\Users\\abhig\\OneDrive\\Desktop\\IIITN\\phone\\app\\build\\outputs\\apk\\release\\app-release.apk",
+  "apkSizeBytes": 10261129,
+  "apkSha256": "313d0f10ccfe9ef8233579b070a72aa77edbac7753decd99725846c4ae946c76",
+  "virusTotalUrl": "https://www.virustotal.com/gui/file/313d0f10ccfe9ef8233579b070a72aa77edbac7753decd99725846c4ae946c76/detection",
+  "appealFormUrl": "https://support.google.com/googleplay/android-developer/contact/protectappeals",
+  "packageName": "com.dhyan.app",
+  "versionCode": 2,
+  "versionName": "2.0.0",
+  "signingCertSha256": "3ec8e983132712b44585e4986378a42beba71bfd48d4d20f3452d3b860d653d4",
+  "developerName": "Abhigyan (Hunch Open Source Project)",
+  "subject": "Request for Play Protect review of Hunch v2.0.0",
+  "technicalStatement": "Package Name: com.dhyan.app\nVersion: 2.0.0 (versionCode 2)\nAPK SHA-256: 313d0f10ccfe9ef8233579b070a72aa77edbac7753decd99725846c4ae946c76\nSigning Certificate SHA-256: 3ec8e983132712b44585e4986378a42beba71bfd48d4d20f3452d3b860d653d4\nVirusTotal Analysis URL: https://www.virustotal.com/gui/file/313d0f10ccfe9ef8233579b070a72aa77edbac7753decd99725846c4ae946c76/detection\n\nPlease review Hunch, an open-source focus companion, for a possible incorrect classification.\nG1: Review manifest permissions against the restricted permission list.\nG2: Accessibility configuration declares window-state events and no window-content access. Review runtime behavior in A11yCollector as well.\nG3: System and security notifications should bypass filtering. The source is available for review.\nG4: Optional sensitive permissions require a user disclosure and an explicit Android Settings grant.\nG5: Hunch supports leaving Play Protect enabled.\nG6: The repository includes compliance and update-check unit tests. The packet verifies the APK identity and signatures separately.\nA VirusTotal link identifies the exact file by hash and does not indicate that an analysis exists."
+}

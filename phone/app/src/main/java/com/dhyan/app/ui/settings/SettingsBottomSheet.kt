@@ -40,6 +40,14 @@ fun SettingsBottomSheet(stateHolder: DhyanStateHolder? = null, onDismiss: () -> 
 fun SettingsBottomSheet(viewModel: SettingsViewModel, onDismiss: () -> Unit) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    var permissionDisclosure by remember { mutableStateOf(false) }
+    if (permissionDisclosure) {
+        com.dhyan.app.onboarding.ProgressiveTrustDialog(
+            capability = com.dhyan.app.onboarding.TrustCapability.ADVANCED_CONTEXT,
+            onDismiss = { permissionDisclosure = false },
+            onSettingsReturned = { permissionDisclosure = false },
+        )
+    }
     var contact by remember { mutableStateOf("") }
     var advanced by remember { mutableStateOf(false) }
     var trusted by remember { mutableStateOf(false) }
@@ -147,10 +155,7 @@ fun SettingsBottomSheet(viewModel: SettingsViewModel, onDismiss: () -> Unit) {
                         Text("⚠️ Accessibility service is disabled. Real-time app blocking requires accessibility permissions.",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                         OutlinedButton(onClick = {
-                            val intent = android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
-                                flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                            }
-                            context.startActivity(intent)
+                            permissionDisclosure = true
                         }, modifier = Modifier.fillMaxWidth()) {
                             Text("Open Accessibility Settings")
                         }

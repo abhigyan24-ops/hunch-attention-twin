@@ -1,4 +1,4 @@
-﻿# Hunch: Attention Digital Twin
+# Hunch: Attention Digital Twin
 
 <div align="center">
 
@@ -33,7 +33,7 @@ All release binaries are cryptographically signed, reproducible, and available o
 | **VS Code Extension** | [`dhyan.vsix`](https://github.com/abhigyan24-ops/hunch-attention-twin/releases/latest) | VS Code 1.93.0+ | Telemetry sensor, Build Shield, Cognitive Thrash Shield, and 10-Second Mental Replay companion. |
 | **Browser Extension** | [`hunch-browser-ext-2.0.0.zip`](https://github.com/abhigyan24-ops/hunch-attention-twin/releases/latest) | Chrome, Brave, Edge | Dual-Use Study Mode sensor, surgical YouTube Shorts filter, and timestamped tab parking. |
 
-> All release assets include SHA-256 checksums published in `SHA256SUMS.txt`. Existing `v1.0.0` Android users can install `Hunch-2.0.0.apk` directly over their current installation without losing local database records or pairing keys (`versionCode = 2`).
+> Check the published SHA-256 sums before installing. An in-place Android update requires the same signing certificate and a compatible version code.
 
 ---
 
@@ -147,6 +147,7 @@ hunch-attention-twin/
 ├── core-spec/                      # Canonical categories, schemas & fixtures
 ├── docs/                           # Architecture, privacy, and release specifications
 │   ├── HUNCH_RELEASE_AND_AUTO_UPDATE_SPEC.md
+│   ├── HUNCH_PLAY_PROTECT_COMPLIANCE_SPEC.md
 │   ├── HUNCH_PRODUCTION_AUDIT_REPORT.md
 │   └── PRIVACY.md
 ├── engine/                         # Python Intelligence Engine
@@ -169,6 +170,9 @@ hunch-attention-twin/
 │       │   ├── vault/              # 3-Layer AES-256-GCM Encrypted Vault
 │       │   └── ui/                 # Jetpack Compose UI & Companion Cards
 │       └── src/test/               # Android JVM unit test suite
+├── tools/                          # Play Protect & VirusTotal appeal automation
+│   ├── automate_play_protect_appeal.py  # VirusTotal v3 & Play Protect appeal auto-filler
+│   └── generate_play_protect_appeal.py  # APK verification & appeal packet generator
 ├── vscode-ext/                     # VS Code Sensor & Attention Companion
 │   ├── src/                        # Sensor hooks, break detector, & compile shield
 │   └── test/                       # VS Code extension unit test suite
